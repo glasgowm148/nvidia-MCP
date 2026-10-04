@@ -52,6 +52,8 @@ After setup, ask: **“Read the Shield repair playbook and audit Kodi without in
 | Area | Tools | Needs |
 |---|---|---|
 | Shield diagnostics | status, installed packages, logcat, screenshot, connect | ADB |
+| Connection readiness | independent ADB/Kodi HTTP/Manager states and suggested fixes | configured services; no TV changes |
+| Android APK upgrades | preview local APKs/splits, apply, list recovery bundles | ADB, official SDK Build Tools; apply needs write mode and idle TV |
 | Kodi diagnostics | version, skin, profile, playback, add-ons, allowlisted RPC | Kodi HTTP |
 | Logs and files | redacted read, log tail, per-file backup list/snapshot | ADB or mounted storage |
 | Controls | explicit remote buttons, Kodi start/stop/restart | ADB, write mode, playback guard |
@@ -124,10 +126,12 @@ It adds a browser UI, live settings/account controls, local add-on ZIP installat
 backup/restore as well as the MCP layout/pipeline adapter. The Python library alone does not install
 the on-device service. Both are MIT licensed, versioned separately and usable independently.
 
-MCP tools currently cover the table above. APK installation, cloud authorization/history migration
-and distributable provider/skin repair recipes still need dedicated tools; the original household work
-used scripts and browser flows for those actions. No household accounts or modified third-party
-add-ons are included. See the [capability boundaries](docs/companion.md).
+MCP supports verified local APK installation/upgrades, including explicit split APK sets.
+Use [the agent APK workflow](docs/apk-upgrades.md): preview before applying; originals are saved and
+Kodi upgrades also require a validated addons/userdata snapshot. No automated downloads, uninstall,
+downgrade or automatic rollback. Cloud authorization/history migration, native Android TV remote
+pairing and distributable provider/skin repair recipes remain follow-up work. No household accounts
+or modified third-party add-ons are included. See the [capability boundaries](docs/companion.md).
 
 ## Configuration
 
@@ -136,6 +140,9 @@ add-ons are included. See the [capability boundaries](docs/companion.md).
 | `SHIELD_HOST` | required | Private LAN IP; one device per server instance |
 | `SHIELD_ADB_PORT` | `5555` | Shield network debugging port |
 | `ADB_PATH` | `adb` | Platform Tools executable |
+| `AAPT2_PATH` | `aapt2` | Optional SDK Build Tools metadata executable; needed for APK tools |
+| `APKSIGNER_PATH` | `apksigner` | Optional SDK signature verifier or `lib/apksigner.jar` |
+| `JAVA_PATH` | `java` | Java executable used with the signature verifier JAR |
 | `KODI_PORT` | `8080` | Kodi HTTP port |
 | `KODI_USERNAME`, `KODI_PASSWORD` | empty | Kodi HTTP credentials, separate from ADB authorization |
 | `KODI_MOUNT` | unset | Absolute mounted `.kodi` path; otherwise ADB files |
@@ -161,6 +168,10 @@ Some firmware paths or APK package/activity names may differ; this release targe
 
 Tests exercise real MCP stdio discovery/calls, HTTP auth/limits, redaction, busy/offline guards, active
 profile resolution, patch conflict handling, backup integrity/restore and staged layout expiry.
+APK tests cover mismatched signatures/CPU/SDK, stale previews, split-install sessions, failed
+readback, interrupted transfers and Kodi snapshot refusal. APK inspection uses official SDK tools;
+Android still performs its own verification when installing. `shield_connection` and `--doctor`
+distinguish ADB authorization from Kodi HTTP/Manager credentials and service availability.
 CI tests Python 3.11–3.13 on Linux and Windows. Live validation is documented in
 [verification](docs/verification.md). Alpha release: mock tests do not establish compatibility with
 every Shield firmware, skin, add-on or MCP client. Contributions should include bounded, reproducible

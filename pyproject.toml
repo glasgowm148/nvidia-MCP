@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "nvidia-shield-mcp"
-version = "0.2.0"
+version = "0.3.0"
 description = "Local MCP tools for NVIDIA Shield TV and Kodi diagnostics, backups and repairs"
 readme = "README.md"
 license = "MIT"

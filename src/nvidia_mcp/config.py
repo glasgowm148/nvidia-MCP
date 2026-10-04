@@ -11,6 +11,10 @@ from pathlib import Path
 class ShieldError(RuntimeError):
     """An actionable error safe to return to an MCP client."""
 
+    def __init__(self, message, kind="unknown"):
+        super().__init__(message)
+        self.kind = kind
+
 
 def private_host(host: str) -> str:
     try:
@@ -59,6 +63,9 @@ class Config:
     allow_writes: bool = False
     allow_plugin_browse: bool = False
     remote_root: str = "/sdcard/Android/data/org.xbmc.kodi/files/.kodi"
+    aapt2_path: str = "aapt2"
+    apksigner_path: str = "apksigner"
+    java_path: str = "java"
 
     @classmethod
     def from_env(cls):
@@ -85,6 +92,9 @@ class Config:
             allow_writes=os.environ.get("NVIDIA_MCP_ALLOW_WRITES", "0") == "1",
             allow_plugin_browse=os.environ.get("NVIDIA_MCP_ALLOW_PLUGIN_BROWSE", "0") == "1",
             remote_root=root.rstrip("/"),
+            aapt2_path=os.environ.get("AAPT2_PATH", "aapt2"),
+            apksigner_path=os.environ.get("APKSIGNER_PATH", "apksigner"),
+            java_path=os.environ.get("JAVA_PATH", "java"),
         )
 
     @property

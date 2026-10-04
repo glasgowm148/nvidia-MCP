@@ -51,7 +51,8 @@ ZIP is not an instruction to overwrite them or remove their separately installed
 | Browser dashboard, account/settings inspection and editing | Companion UI/API |
 | User-selected local add-on ZIP install; config backup/restore | Companion UI/API; service write mode required |
 | Offline schema parsing and an authenticated client | Kodi Manager Python library |
-| APK deployment, cloud account OAuth/history migrations | Follow-up tools; not yet exposed by MCP |
+| Verified local APK preview/install and private recovery bundles | MCP core; optional official SDK Build Tools required |
+| Cloud account OAuth/history migrations; native TV-code remote pairing | Follow-up tools; not yet exposed by MCP |
 | Household provider/skin patches | Not shipped; require separately reviewed, version-checked recipes |
 
 Account setting controls are not cloud-account signup/OAuth. Installing a provider is not authorization

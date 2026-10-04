@@ -1,5 +1,27 @@
 # Verification
 
+## 0.3.0 APK upgrades and connection diagnostics
+
+70 automated tests pass locally. New coverage includes independent ADB authorization/Kodi HTTP
+readiness, sanitized failure categories, unknown foreground refusal, SDK metadata compatibility,
+signer mismatch, explicit trust for new apps, staged/source tampering, stale/expired previews,
+split APK sessions and abandonment, failed install/readback, corrupt transfers, viewing starting
+during transfer, bounded/time-limited downloads, and private Kodi data archives through ADB/mounted
+storage with corrupt archive and symlink refusal. Disabled APK writes are refused through real MCP
+stdio. Tool discovery exposes 29 tools.
+
+Official Android Build Tools 36.0.0 were downloaded locally from Google's SDK repository and checked
+against its published archive checksum. Using its `aapt2` and `apksigner.jar` with Java 21, local
+inspection of official Kodi 21.3 and 22 beta 2 arm64 APKs confirmed package, versionCode, min SDK,
+CPU architecture and matching verified signer fingerprints. A one-byte-modified Kodi APK was rejected.
+SDK files and APKs are private development artifacts, not bundled in the distribution.
+
+No Shield commands, app installation, restart or TV navigation were used to validate this release.
+Actual Android installation and recovery remain unverified on a live Shield through these new tools;
+the installer/session and backup workflows are tested with synthetic device responses. APK bundles
+are rollback preparation, not a guarantee of downgrade permission or automatic recovery. Read actual
+CI status before claiming Linux/Windows verification for this release.
+
 ## 0.2.0 optional companion bundle
 
 38 MCP tests pass locally, including exporting the verified Manager ZIP without device configuration,

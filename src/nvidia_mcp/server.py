@@ -11,6 +11,7 @@ from mcp.types import ToolAnnotations
 
 from . import privacy
 from .config import Config, ShieldError
+from .diagnostics import readiness
 from .operations import BUTTONS, Operations
 from .transport import Transport
 
@@ -27,8 +28,30 @@ def create_server(config: Config):
 
     @mcp.tool(annotations=read)
     def shield_status() -> dict[str, Any]:
-        """Inspect Shield model, Android version, memory, free storage and Kodi process."""
+        """Inspect Shield model, Android, memory/storage, uptime, thermal/throttling and Kodi process."""
         return ops.shield_status()
+
+    @mcp.tool(annotations=read)
+    def shield_connection() -> dict[str, Any]:
+        """Probe ADB, Kodi HTTP and optional Manager separately; explain authorization/readiness failures."""
+        return readiness(ops)
+
+    @mcp.tool(annotations=read)
+    def shield_apk_preview(
+        apk_paths: list[str], trusted_signers: list[str] | None = None
+    ) -> dict[str, Any]:
+        """Stage 1–20 local APKs, verify SDK/ABI/signers, save originals. New apps need trusted SHA-256 signer fingerprints. No TV changes."""
+        return ops.apks.preview(apk_paths, trusted_signers)
+
+    @mcp.tool(annotations=write)
+    def shield_apk_apply(preview_id: str) -> dict[str, Any]:
+        """Install an exact unexpired APK preview. Write mode, stopped target/idle TV, backup and readback required. Never uninstalls/downgrades/retries."""
+        return ops.apks.apply(preview_id)
+
+    @mcp.tool(annotations=read)
+    def shield_apk_backups() -> dict[str, Any]:
+        """List private APK recovery bundles for this Shield, with phases and Kodi data snapshot checksums."""
+        return ops.apks.backups()
 
     @mcp.tool(annotations=browse)
     def shield_connect() -> dict[str, Any]:
@@ -231,7 +254,9 @@ def main():
     parser = argparse.ArgumentParser(description="Local NVIDIA Shield TV / Kodi MCP server")
     actions = parser.add_mutually_exclusive_group()
     actions.add_argument(
-        "--doctor", action="store_true", help="Print redacted Kodi connectivity JSON and exit"
+        "--doctor",
+        action="store_true",
+        help="Probe ADB, Kodi HTTP and optional Manager separately and exit",
     )
     actions.add_argument(
         "--export-manager",
@@ -247,10 +272,15 @@ def main():
             return 0
         mcp, ops = create_server(Config.from_env())
         if args.doctor:
-            result = ops.kodi_status()
+            result = readiness(ops)
             print(json.dumps(result, indent=2))
             ops.t.close()
-            return 1 if "unavailable" in result.get("application", {}) else 0
+            return (
+                0
+                if result["adb"]["state"] == result["kodi_http"]["state"] == "ready"
+                and result["manager"]["state"] in ("ready", "not_configured")
+                else 1
+            )
         mcp.run(transport="stdio")
         ops.t.close()
         return 0

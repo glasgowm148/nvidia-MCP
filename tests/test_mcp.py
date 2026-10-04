@@ -50,11 +50,16 @@ def test_real_stdio_protocol(tmp_path):
             async with ClientSession(read, write) as client:
                 await client.initialize()
                 tools = (await client.list_tools()).tools
-                assert len(tools) == 25
+                assert len(tools) == 29
                 assert next(t for t in tools if t.name == "kodi_status").annotations.readOnlyHint
                 assert not next(
                     t for t in tools if t.name == "kodi_patch_file"
                 ).annotations.readOnlyHint
+                assert not next(
+                    t for t in tools if t.name == "shield_apk_apply"
+                ).annotations.readOnlyHint
+                apk = await client.call_tool("shield_apk_apply", {"preview_id": "synthetic"})
+                assert apk.isError and "disabled" in str(apk.content)
                 status = await client.call_tool("kodi_status", {})
                 assert not status.isError and "Kodi" in str(status.content)
                 assert status.structuredContent["application"]["name"] == "Kodi"

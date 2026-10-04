@@ -13,6 +13,7 @@ from urllib.parse import parse_qs, unquote, urlsplit
 from defusedxml.ElementTree import fromstring
 
 from . import privacy
+from .apks import ApkOperations, foreground
 from .config import ShieldError
 from .files import MAX_FILE, Files, digest, relative
 
@@ -65,6 +66,7 @@ class Operations:
         self.lock = threading.RLock()
         self.plans = {}
         self.known_secrets = (self.c.password, self.c.manager_token)
+        self.apks = ApkOperations(self)
 
     def safe(self, result):
         return privacy.scrub(result, self.known_secrets)
@@ -113,6 +115,8 @@ class Operations:
         p.chmod(0o600)
 
     def shield_status(self):
+        from .diagnostics import health
+
         props = {}
         for key in (
             "ro.product.model",
@@ -121,11 +125,23 @@ class Operations:
             "ro.product.cpu.abi",
         ):
             props[key] = self.t.shell("getprop", key)
+        memory = self.t.shell("cat", "/proc/meminfo", limit=64000)
+        storage = self.t.shell("df", "-k", "/data", "/sdcard", limit=16000)
+        telemetry = {}
+        for name, args in {
+            "uptime": ("cat", "/proc/uptime"),
+            "thermal": ("dumpsys", "thermalservice"),
+        }.items():
+            try:
+                telemetry[name] = self.t.shell(*args, limit=64000)
+            except ShieldError:
+                telemetry[name] = ""
         return {
             "properties": props,
-            "storage": self.t.shell("df", "-h", "/data", "/sdcard"),
-            "memory": self.t.shell("cat", "/proc/meminfo").splitlines()[:6],
+            "storage": storage,
+            "memory": memory.splitlines()[:6],
             "kodi_running": bool(self.t.shell("sh", "-c", "pidof org.xbmc.kodi || true")),
+            "health": health(memory, storage, telemetry["uptime"], telemetry["thermal"]),
         }
 
     def kodi_status(self):
@@ -214,15 +230,8 @@ class Operations:
         self.writes()
         with self.lock:
             self.idle(allow_offline)
-            activity = self.t.shell("dumpsys", "activity", "activities", limit=2_000_000)
-            foreground = [
-                s
-                for s in activity.splitlines()
-                if "mResumedActivity" in s or "topResumedActivity" in s
-            ]
-            if not interrupt_other_app and any(
-                "org.xbmc.kodi" not in s and "launcher" not in s.lower() for s in foreground
-            ):
+            app = foreground(self.t)
+            if not interrupt_other_app and app != "org.xbmc.kodi" and "launcher" not in app.lower():
                 raise ShieldError(
                     "Another TV app is in the foreground. Get permission before setting interrupt_other_app=true"
                 )

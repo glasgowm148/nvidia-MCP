@@ -129,7 +129,7 @@ verification afterward; do not claim registration alone proves the tools work.
 
 ## 6. Verify through MCP and hand back a working connection
 
-Read `nvidia://playbook`, discover the tools and call **`shield_status`** and **`kodi_status`** through
+Read `nvidia://playbook`, discover the tools and call **`shield_connection`**, **`shield_status`** and **`kodi_status`** through
 the actual registered MCP connection. Confirm authorization, Kodi application/profile/skin information
 and read-only defaults. Keep reads bounded. Do not execute plugin previews, playback tests, remote
 buttons or lifecycle/repair tools as a setup test.
@@ -142,3 +142,7 @@ Give the user a short result: installed location, configured client, ADB/Kodi/MC
 any genuine remaining action. Include no credentials. The user can now ask for a focused Kodi audit.
 Set up the optional [Kodi Manager companion](companion.md) only when its extra functionality is wanted;
 reuse an existing supported installation instead of automatically replacing it.
+
+APK tooling is optional and is not part of ordinary onboarding. When the person requests an APK
+install/upgrade, follow [the agent APK workflow](apk-upgrades.md) and configure official SDK Build
+Tools yourself. Native Android TV-code pairing remains future work; current controls still use ADB.
