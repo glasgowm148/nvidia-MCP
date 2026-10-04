@@ -64,7 +64,7 @@ class Operations:
         self.files = Files(transport)
         self.lock = threading.RLock()
         self.plans = {}
-        self.known_secrets = (self.c.username, self.c.password, self.c.manager_token)
+        self.known_secrets = (self.c.password, self.c.manager_token)
 
     def safe(self, result):
         return privacy.scrub(result, self.known_secrets)
@@ -161,6 +161,12 @@ class Operations:
     def rpc_read(self, method, params):
         if method not in READ_METHODS:
             raise ShieldError("Method is outside the read-only allowlist; use a dedicated tool")
+        if method == "Settings.GetSettingValue" and privacy.SECRET.search(
+            str(params.get("setting", ""))
+        ):
+            raise ShieldError(
+                "Credential values are not exposed; inspect redacted settings instead"
+            )
         if len(json.dumps(params)) > 12_000:
             raise ShieldError("Parameters exceed size limit")
         return self.safe(self.t.rpc(method, params))

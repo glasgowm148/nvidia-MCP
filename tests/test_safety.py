@@ -40,6 +40,26 @@ def test_config_rejects_invalid_ports(monkeypatch):
         Config.from_env()
 
 
+def test_nested_xml_json_privacy_retains_status_flags():
+    xml = '<settings><setting id="password"><default>private-nested-value</default></setting><connection username="private-user"/></settings>'
+    assert "private-nested-value" not in file_text(xml) and "private-user" not in file_text(xml)
+    source = '{"accounts":{"configured":true,"token":"private-json-token"}, "tokens":["private-array-token"]}'
+    clean = file_text(source)
+    assert "private-json-token" not in clean and '"configured": true' in clean
+    assert "private-array-token" not in clean
+    assert "private-json-token" not in file_text('{"token":"private-json-token"')
+
+
+def test_common_credentials_preserve_paths_and_secret_rpc_is_refused(ops):
+    from nvidia_mcp.operations import Operations
+
+    c = replace(ops.c, username="kodi", password="kodi")
+    o = Operations(type(ops.t)(c))
+    assert o.safe({"addonid": "service.kodi.addonadmin"})["addonid"] == "service.kodi.addonadmin"
+    with pytest.raises(ShieldError, match="Credential"):
+        o.rpc_read("Settings.GetSettingValue", {"setting": "services.webserverpassword"})
+
+
 def test_redaction_covers_xml_json_and_signed_streams():
     xml = '<settings><setting id="trakt.token">opaque-credential</setting><setting id="autoplay">true</setting></settings>'
     clean = file_text(xml)
