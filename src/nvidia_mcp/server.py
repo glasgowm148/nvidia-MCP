@@ -178,7 +178,7 @@ def create_server(config: Config):
     def kodi_manager_inspect(
         area: Literal["layout", "sources", "health", "pipeline", "fixes"],
     ) -> dict[str, Any]:
-        """Optional Kodi Manager 0.3.9: inspect saved Bingie hubs/rows, sources, pipeline, health or fix status."""
+        """Optional Kodi Manager 0.3.9/0.4.0: inspect saved Bingie hubs/rows, sources, pipeline, health or fix status."""
         return ops.manager_read(area)
 
     @mcp.tool(annotations=browse)
@@ -229,11 +229,22 @@ def create_server(config: Config):
 
 def main():
     parser = argparse.ArgumentParser(description="Local NVIDIA Shield TV / Kodi MCP server")
-    parser.add_argument(
+    actions = parser.add_mutually_exclusive_group()
+    actions.add_argument(
         "--doctor", action="store_true", help="Print redacted Kodi connectivity JSON and exit"
+    )
+    actions.add_argument(
+        "--export-manager",
+        metavar="DIRECTORY",
+        help="Export the bundled optional Kodi Manager ZIP without connecting to the TV",
     )
     args = parser.parse_args()
     try:
+        if args.export_manager:
+            from .companion import export_manager
+
+            print(json.dumps(export_manager(args.export_manager), indent=2))
+            return 0
         mcp, ops = create_server(Config.from_env())
         if args.doctor:
             result = ops.kodi_status()

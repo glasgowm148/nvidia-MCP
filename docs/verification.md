@@ -1,4 +1,18 @@
-# Verification — initial 0.1.0 release
+# Verification
+
+## 0.2.0 optional companion bundle
+
+38 MCP tests pass locally, including exporting the verified Manager ZIP without device configuration,
+refusing overwrite of an unrelated file, and refusing a tampered bundle. Python wheel and source
+distribution include the same companion ZIP and manifest. No TV changes were made for this extraction.
+
+The separate Kodi Manager 0.4.0 library/companion passes 155 Python and 47 Node UI tests. Tests cover
+existing layout/catalogue/schema behavior and the new client, redirect refusal, read-only defaults,
+mutation gates, absent third-party patch payloads, backup path traversal and deterministic packaging.
+The original 0.3.9 live integration remains the runtime evidence below; 0.4.0 is an offline-tested
+portable extraction, not a newly live-tested TV deployment.
+
+## Initial 0.1.0 release
 
 35 automated tests passed locally on macOS / Python 3.14:
 

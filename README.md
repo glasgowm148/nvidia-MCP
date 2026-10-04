@@ -69,7 +69,7 @@ and vice versa; `kodi_status` reports partial failures instead of pretending eve
 | Kodi settings | runtime setting change with backup and readback | Kodi HTTP, file access, write mode |
 | Add-on settings | profile-aware reads; version-checked primitive changes | file access; optional Manager for live writes |
 | Discovery | one page of a real provider/library folder | Kodi HTTP, opt-in plugin browsing, idle Kodi |
-| Bingie | saved layout/sources, preview, apply, rebuild | optional existing Kodi Manager 0.3.9 |
+| Bingie | saved layout/sources, preview, apply, rebuild | optional Kodi Manager companion |
 
 The `nvidia://playbook` resource and `audit_kodi` prompt teach the assistant the lessons behind these
 tools: account separation, audio hardware, autoplay/progress, source priorities, skin hubs, stale
@@ -101,7 +101,21 @@ See [repair examples](docs/repairs.md) and [security/recovery details](SECURITY.
 
 ## Optional live Bingie / Kodi Manager adapter
 
-If you **already run Kodi Manager 0.3.9** (`service.kodi.addonadmin`), configure:
+The distribution includes a pinned **Kodi Manager 0.4.0 companion ZIP**. It is optional: core Shield,
+Kodi HTTP, file and offline-repair tools work without it. Export it locally (no device connection or
+`SHIELD_HOST` configuration required):
+
+```sh
+nvidia-mcp --export-manager ./companion
+```
+
+This prints the exported ZIP path and verified SHA-256; it does not install or restart anything.
+Use Kodi's **Install from zip file** to install the ZIP when the TV is free, then configure the service's
+LAN access, bind host and token. Follow the [companion setup guide](docs/companion.md).
+The same ZIP is attached to this project's release for users who prefer downloading it directly.
+
+If you already run Manager 0.3.9, it remains supported; do not replace a customized installation just
+to use MCP. For either version (`service.kodi.addonadmin`), configure:
 
 ```json
 "KODI_MANAGER_PORT": "8765",
@@ -114,11 +128,15 @@ between preview and apply. Manager creates its own backup and checks the expecte
 The adapter supports the Manager's reviewed **Bingie 2.0.2 / Skin Shortcuts 2.0.3** sources; unknown
 versions/forks remain view-only. Enable Manager's own write mode for live writes.
 
-**Kodi Manager is optional and is not bundled or installed by this repository.** Without it, all core
-Shield/Kodi diagnostics, profile-aware file access, offline repairs/settings and directory previews
-work. Direct live Bingie layout editing and pipeline inspection require that separate existing service.
-This initial release does not install APKs/add-ons, manage Trakt/debrid accounts or migrate cloud
-history. It also does not automatically apply household-specific settings or provider/skin patches.
+The companion has its own [repository and installable Python library](https://github.com/glasgowm148/kodi-manager).
+It adds a browser UI, live settings/account controls, local add-on ZIP installation and configuration
+backup/restore as well as the MCP layout/pipeline adapter. The Python library alone does not install
+the on-device service. Both are MIT licensed, versioned separately and usable independently.
+
+MCP tools currently cover the table above. APK installation, cloud authorization/history migration
+and distributable provider/skin repair recipes still need dedicated tools; the original household work
+used scripts and browser flows for those actions. No household accounts or modified third-party
+add-ons are included. See the [capability boundaries](docs/companion.md).
 
 ## Configuration
 
