@@ -1,5 +1,18 @@
 # Verification
 
+## 0.3.1 release preparation
+
+70 MCP tests pass locally, plus clean-wheel stdio/tool/resource/prompt and disabled-write checks
+against a synthetic local HTTP service. The pinned Manager 0.4.1 fixes same-second backup collisions;
+its 158 Python and 47 UI tests include restore/undo and distinct add-on/stack/pipeline checkpoints.
+
+Git-history and published-archive secret scans found no matches. Resolved fresh-wheel dependencies
+passed pip-audit; archive inspection/checksums and explicit household-marker checks passed. These
+checks do not guarantee that every possible sensitive value or vulnerability can be detected.
+CI now checks dependencies/history, current-version wheel installation and release archives. Read
+the release's actual Linux/Windows CI results. Live Shield installation/recovery remains pending;
+see [compatibility](compatibility.md) and [contributing/release checks](../CONTRIBUTING.md).
+
 ## 0.3.0 APK upgrades and connection diagnostics
 
 70 automated tests pass locally. New coverage includes independent ADB authorization/Kodi HTTP

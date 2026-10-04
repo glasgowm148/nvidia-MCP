@@ -201,7 +201,7 @@ def create_server(config: Config):
     def kodi_manager_inspect(
         area: Literal["layout", "sources", "health", "pipeline", "fixes"],
     ) -> dict[str, Any]:
-        """Optional Kodi Manager 0.3.9/0.4.0: inspect saved Bingie hubs/rows, sources, pipeline, health or fix status."""
+        """Optional Kodi Manager 0.3.9/0.4.x: inspect saved Bingie hubs/rows, sources, pipeline, health or fix status."""
         return ops.manager_read(area)
 
     @mcp.tool(annotations=browse)

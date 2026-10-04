@@ -75,7 +75,7 @@ class Transport:
     def manager(self, path, method="GET", body=None):
         if not self.c.manager_token:
             raise ShieldError(
-                "This tool needs optional Kodi Manager 0.3.9/0.4.0 and KODI_MANAGER_TOKEN; core ADB/Kodi tools work without it"
+                "This tool needs optional Kodi Manager 0.3.9/0.4.x and KODI_MANAGER_TOKEN; core ADB/Kodi tools work without it"
             )
         result = self.request(self.c.url(True) + path, method, body, manager=True)
         if not isinstance(result, dict):

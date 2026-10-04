@@ -1,10 +1,14 @@
 name: Test and build
 on:
   push:
+    branches: [main]
   pull_request:
   workflow_dispatch:
 permissions:
   contents: read
+concurrency:
+  group: test-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 jobs:
   test:
     strategy:
@@ -23,3 +27,5 @@ jobs:
       - run: ruff format --check .
       - run: pytest -q
       - run: python -m build
+      - run: python scripts/test_wheel.py
+      - run: python scripts/check_release.py dist/nvidia_shield_mcp-0.3.1-py3-none-any.whl dist/nvidia_shield_mcp-0.3.1.tar.gz

@@ -50,5 +50,6 @@ Manager backups belong to the Manager, not the local per-file snapshot store. Us
 or inspect its saved backup files with appropriate checks. This MCP release does not restore whole
 layouts or APK/data bundles automatically. See [APK recovery](docs/apk-upgrades.md).
 
-Report vulnerabilities privately through the repository owner's GitHub contact rather than attaching
-tokens or private device backups to a public issue. Include reproduction steps with synthetic data.
+Use [GitHub's private vulnerability reporting](https://github.com/glasgowm148/nvidia-MCP/security/advisories/new).
+Include affected versions and synthetic reproduction steps. Keep tokens/device backups out of issues.
+The MCP remains a prerelease with [documented verification limits](docs/compatibility.md).

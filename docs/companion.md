@@ -7,7 +7,7 @@ inside Kodi** and supplies the live profile, settings, pipeline and skin APIs. C
 offline repairs do not require it. Kodi Manager also has a Python client/parser library for applications
 that want these APIs without MCP.
 
-The bundled version is **0.4.0**, from the
+The bundled version is **0.4.1**, from the
 [Kodi Manager repository](https://github.com/glasgowm148/kodi-manager). Its ZIP is present in the MCP
 wheel/source distribution and as a separate release asset. `--export-manager DIRECTORY` checks the
 pinned SHA-256, refuses to overwrite a different existing file and never connects to the Shield.

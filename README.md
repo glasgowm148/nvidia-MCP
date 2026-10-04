@@ -7,6 +7,9 @@ repairs. It runs on your Mac, Windows PC or Linux computer and connects to your 
 Built from real Shield/Kodi troubleshooting: playback interruption guards, separate profile handling,
 version checks, redacted diagnostics, exact file patches and rollback backups. No cloud account is needed.
 
+**Prerelease:** see [compatibility and remaining live checks](docs/compatibility.md),
+[verification](docs/verification.md) and the [changelog](CHANGELOG.md).
+
 ## Quick start
 
 **You prepare the TV; your agent handles the computer setup.** Use an agent with terminal/file access
@@ -93,7 +96,7 @@ See [repair examples](docs/repairs.md) and [security/recovery details](SECURITY.
 
 ## Optional live Bingie / Kodi Manager adapter
 
-The distribution includes a pinned **Kodi Manager 0.4.0 companion ZIP**. It is optional: core Shield,
+The distribution includes a pinned **Kodi Manager 0.4.1 companion ZIP**. It is optional: core Shield,
 Kodi HTTP, file and offline-repair tools work without it. The agent can export it locally (no device
 connection or `SHIELD_HOST` configuration required):
 
