@@ -9,73 +9,43 @@ version checks, redacted diagnostics, exact file patches and rollback backups. N
 
 ## Quick start
 
-You need Python 3.11+, [Android Platform Tools](https://developer.android.com/tools/releases/platform-tools)
-for ADB features, and a Shield on the same trusted LAN.
+**You prepare the TV; your agent handles the computer setup.** Use an agent with terminal/file access
+on the computer that will run MCP. The computer and Shield should be on the same home network.
 
-New to ADB or MCP? Follow the [step-by-step setup guide](docs/setup.md) for Mac, Windows and Linux,
-including downloads, where to type commands, connection checks and troubleshooting.
+1. **Find the Shield's IP.** Press **Home** on the Shield remote, then open the
+   **Settings gear → Device Preferences → About → Status → IP address**. Note the local IPv4 address
+   (four numbers like `192.168.1.50`). Use the address shown on your Shield.
+2. **Enable network debugging.** In **Settings → Device Preferences → About**, highlight **Build**
+   and press the remote's centre/select button **seven times**. Go back to
+   **Device Preferences → Developer options → Debugging** and turn **Network debugging** on.
+   Older firmware may put **About** directly under Settings.
+3. **Enable Kodi HTTP control.** Open Kodi's **Settings → Services → Control**. Enable **Allow remote
+   control via HTTP** and **Require authentication**; set a username/password and note the port
+   (usually `8080`). Keep Kodi open. If these settings are hidden, select the **Standard** or **Expert**
+   settings level.
+4. **Hand over to the agent.** Send the prompt below with your actual Shield IP and Kodi port.
+   Provide the Kodi credentials privately when requested. The agent installs the computer tools,
+   connects the Shield, configures your MCP client and checks the connection.
 
-1. **On the TV, find the Shield's IP and enable debugging.** Press **Home** on the Shield remote,
-   open the **Settings gear → Device Preferences → About → Status → IP address** and write down
-   its local IPv4 address, for example `192.168.1.50`. Use your Shield's address, not your computer's.
-   Then return to **About**, highlight **Build**, and press the remote's centre/select button **seven
-   times** until developer mode is enabled. Go back to **Device Preferences → Developer options**,
-   scroll to **Debugging**, and turn **Network debugging** on. Older firmware may put **About**
-   directly under Settings.
-2. **On your computer, connect ADB.** Download and extract Google's Platform Tools, then open
-   **Terminal** on Mac/Linux or **PowerShell** on Windows. From the extracted `platform-tools` folder,
-   run `./adb connect YOUR_SHIELD_IP:5555` on Mac/Linux or
-   `.\adb.exe connect YOUR_SHIELD_IP:5555` on Windows. Replace `YOUR_SHIELD_IP` with the address
-   from step 1. On the TV, approve the debugging prompt for this computer. Run `./adb devices`
-   (Windows: `.\adb.exe devices`); your Shield should appear with status **`device`**.
-3. **Inside Kodi on the TV**, open **Settings → Services → Control**. Enable **Allow remote control
-   via HTTP** and **Require authentication**, set a username/password, and note the port (usually
-   `8080`). Keep Kodi open. On your computer, open `http://YOUR_SHIELD_IP:8080` in a browser and
-   sign in with those credentials to check the connection. ADB and Kodi HTTP are separate connections.
-4. Install this project **on your computer**, in a new terminal window:
-
-```sh
-git clone https://github.com/glasgowm148/nvidia-MCP.git
-cd nvidia-MCP
-python3 -m venv .venv
-.venv/bin/python -m pip install -e .
+```text
+Set up https://github.com/glasgowm148/nvidia-MCP on this computer.
+Read docs/agent-setup.md and carry out the setup, including dependencies,
+ADB connection, MCP client configuration and read-only verification.
+I have enabled Shield network debugging and Kodi HTTP control.
+Shield IP: YOUR_SHIELD_IP
+Kodi HTTP port: 8080
+Ask privately for the Kodi username/password if you need them.
+Tell me when to approve the debugging prompt on the TV.
+Keep write mode and plugin browsing off during setup; do not interrupt playback.
 ```
 
-On Windows use `py -3 -m venv .venv`, then `.venv\Scripts\python.exe -m pip install -e .`.
-ADB must be on the MCP client's PATH, or set `ADB_PATH` to its full executable path.
+When the agent connects, a permission prompt appears **on the TV**: select **Allow** (and optionally
+**Always allow from this computer** for your trusted computer). This is the one follow-up TV action;
+there is no need to download tools, type commands or edit MCP configuration yourself.
 
-5. Add a **stdio** MCP server to your client. This is the Claude Desktop / Cursor JSON shape;
-   other clients have their own wrapper around the same command, arguments and environment:
-
-```json
-{
-  "mcpServers": {
-    "nvidia-MCP": {
-      "command": "/absolute/path/nvidia-MCP/.venv/bin/nvidia-mcp",
-      "env": {
-        "SHIELD_HOST": "192.168.1.50",
-        "ADB_PATH": "/absolute/path/platform-tools/adb",
-        "KODI_PORT": "8080",
-        "KODI_USERNAME": "kodi",
-        "KODI_PASSWORD": "YOUR_LOCAL_KODI_PASSWORD"
-      }
-    }
-  }
-}
-```
-
-On Windows the command is `C:\\absolute\\path\\nvidia-MCP\\.venv\\Scripts\\nvidia-mcp.exe`.
-Replace `SHIELD_HOST` with the Shield IP from step 1, `ADB_PATH` with the full path to your extracted
-`adb` (Windows: `adb.exe`), and the Kodi credentials with those from step 3. Do not put `:5555` in
-`SHIELD_HOST`. Use the full executable paths; desktop MCP clients may not inherit your terminal's PATH.
-The server reads environment variables, **not `.env` automatically**. Keep filled client configs private.
-Restart the MCP client/server after changing configuration. See [examples](examples/claude-desktop.json).
-
-6. Ask: **“Read the Shield repair playbook and audit Kodi without interrupting anything.”**
-
-For a terminal connection check, set the same environment variables and run `nvidia-mcp --doctor`.
-This prints redacted Kodi connectivity data and exits. ADB can be unavailable while Kodi HTTP works,
-and vice versa; `kodi_status` reports partial failures instead of pretending everything is connected.
+See the [TV preparation guide](docs/setup.md) for detailed menu directions, or the
+[agent setup instructions](docs/agent-setup.md) for the computer procedure and configuration example.
+After setup, ask: **“Read the Shield repair playbook and audit Kodi without interrupting anything.”**
 
 ## Tools
 
@@ -122,16 +92,17 @@ See [repair examples](docs/repairs.md) and [security/recovery details](SECURITY.
 ## Optional live Bingie / Kodi Manager adapter
 
 The distribution includes a pinned **Kodi Manager 0.4.0 companion ZIP**. It is optional: core Shield,
-Kodi HTTP, file and offline-repair tools work without it. Export it locally (no device connection or
-`SHIELD_HOST` configuration required):
+Kodi HTTP, file and offline-repair tools work without it. The agent can export it locally (no device
+connection or `SHIELD_HOST` configuration required):
 
 ```sh
 nvidia-mcp --export-manager ./companion
 ```
 
 This prints the exported ZIP path and verified SHA-256; it does not install or restart anything.
-Use Kodi's **Install from zip file** to install the ZIP when the TV is free, then configure the service's
-LAN access, bind host and token. Follow the [companion setup guide](docs/companion.md).
+The agent prepares/transfers the ZIP; use Kodi's **Install from zip file** when the TV is free, then
+set its service permissions on the TV. The agent reads the token and configures the MCP connection.
+Follow the [companion setup guide](docs/companion.md).
 The same ZIP is attached to this project's release for users who prefer downloading it directly.
 
 If you already run Manager 0.3.9, it remains supported; do not replace a customized installation just

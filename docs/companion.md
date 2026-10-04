@@ -14,17 +14,28 @@ pinned SHA-256, refuses to overwrite a different existing file and never connect
 
 ## Setup
 
-1. Export with `nvidia-mcp --export-manager ./companion`, or download the ZIP/checksum from the release.
-2. Copy the ZIP to Kodi-accessible storage; use **Add-ons → Install from zip file**. Enable Unknown
-   sources in Kodi's add-on settings if required. Back up a previous customized Manager first.
-3. In **My add-ons → Services → Kodi Manager → Configure**, enable LAN access and set host `0.0.0.0`,
-   port `8765`. Default access is loopback only and write mode is off.
-4. Restart the service/Kodi when viewing is finished. Open `http://YOUR_SHIELD_IP:8765` if you want
-   the dashboard. Read the generated `auth_token` privately from the active profile's
-   `addon_data/service.kodi.addonadmin/settings.xml`. This differs from Kodi HTTP credentials.
-5. Add `KODI_MANAGER_TOKEN` and optionally `KODI_MANAGER_PORT` to your MCP client's environment;
-   restart the MCP server. Ask it to inspect the actual skin layout and pipeline.
-6. For changes, enable both the Manager service's write mode and `NVIDIA_MCP_ALLOW_WRITES=1`.
+Complete [TV preparation](setup.md) and [agent computer setup](agent-setup.md) first. The agent handles
+the computer work below; the user only needs TV actions the agent cannot perform through its tools.
+
+1. **Agent:** check for an existing supported Manager before proposing installation/replacement. Back
+   up a previous customized installation if an upgrade is requested. Export with the installed server's
+   `--export-manager` command, or download/verify the release ZIP and checksum.
+2. **Agent:** transfer the ZIP to Kodi-accessible storage, using the configured Shield's authorized ADB
+   or mounted share. Tell the user its exact location/name on the TV.
+3. **TV:** use **Add-ons → Install from zip file** and select the transferred ZIP. Enable Unknown
+   sources in Kodi's add-on settings if required. Do this while the TV is free. Use Kodi's native
+   installer; copying an unpacked add-on behind Kodi's database is not the installation procedure.
+4. **TV:** in **My add-ons → Services → Kodi Manager → Configure**, enable LAN access and set host
+   `0.0.0.0`, port `8765`. Write mode starts off. The agent can perform TV navigation only when its tools
+   permit it and the user has authorized that interaction.
+5. **Agent:** restart the service/Kodi when viewing is finished and interruption is authorized. Privately
+   read `auth_token` from the active profile's `addon_data/service.kodi.addonadmin/settings.xml` using
+   available file access. Capture/parse it in a local process without printing it in tool output, then
+   write it to private client configuration. It differs from Kodi HTTP credentials; MCP's redacted
+   file-read output intentionally cannot supply its raw value.
+6. **Agent:** merge `KODI_MANAGER_TOKEN` and optionally `KODI_MANAGER_PORT` into the private MCP client
+   configuration, reload the connection and verify layout/pipeline reads. No user JSON editing is needed.
+7. For requested changes, enable both the Manager service's write mode and `NVIDIA_MCP_ALLOW_WRITES=1`.
    Inspect a layout preview before applying its immutable preview ID. Plugin browsing has its own opt-in.
 
 Do not expose this bearer-authenticated HTTP service outside a trusted LAN. Filled client configs,
