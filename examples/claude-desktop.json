@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "nvidia-MCP": {
+      "command": "/absolute/path/nvidia-MCP/.venv/bin/nvidia-mcp",
+      "env": {
+        "SHIELD_HOST": "192.168.1.50",
+        "KODI_USERNAME": "kodi",
+        "KODI_PASSWORD": "REPLACE_LOCALLY",
+        "NVIDIA_MCP_ALLOW_WRITES": "0",
+        "NVIDIA_MCP_ALLOW_PLUGIN_BROWSE": "0"
+      }
+    }
+  }
+}
