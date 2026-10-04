@@ -12,11 +12,27 @@ version checks, redacted diagnostics, exact file patches and rollback backups. N
 You need Python 3.11+, [Android Platform Tools](https://developer.android.com/tools/releases/platform-tools)
 for ADB features, and a Shield on the same trusted LAN.
 
-1. Enable **network debugging** in the Shield's developer options. Connect once with
-   `adb connect YOUR_SHIELD_IP:5555` and approve the debugging prompt on the TV.
-2. In Kodi, enable **Settings → Services → Control → Allow remote control via HTTP**.
-   Set a username/password and note the port (usually 8080). ADB and Kodi HTTP are separate connections.
-3. Install on your computer:
+New to ADB or MCP? Follow the [step-by-step setup guide](docs/setup.md) for Mac, Windows and Linux,
+including downloads, where to type commands, connection checks and troubleshooting.
+
+1. **On the TV, find the Shield's IP and enable debugging.** Press **Home** on the Shield remote,
+   open the **Settings gear → Device Preferences → About → Status → IP address** and write down
+   its local IPv4 address, for example `192.168.1.50`. Use your Shield's address, not your computer's.
+   Then return to **About**, highlight **Build**, and press the remote's centre/select button **seven
+   times** until developer mode is enabled. Go back to **Device Preferences → Developer options**,
+   scroll to **Debugging**, and turn **Network debugging** on. Older firmware may put **About**
+   directly under Settings.
+2. **On your computer, connect ADB.** Download and extract Google's Platform Tools, then open
+   **Terminal** on Mac/Linux or **PowerShell** on Windows. From the extracted `platform-tools` folder,
+   run `./adb connect YOUR_SHIELD_IP:5555` on Mac/Linux or
+   `.\adb.exe connect YOUR_SHIELD_IP:5555` on Windows. Replace `YOUR_SHIELD_IP` with the address
+   from step 1. On the TV, approve the debugging prompt for this computer. Run `./adb devices`
+   (Windows: `.\adb.exe devices`); your Shield should appear with status **`device`**.
+3. **Inside Kodi on the TV**, open **Settings → Services → Control**. Enable **Allow remote control
+   via HTTP** and **Require authentication**, set a username/password, and note the port (usually
+   `8080`). Keep Kodi open. On your computer, open `http://YOUR_SHIELD_IP:8080` in a browser and
+   sign in with those credentials to check the connection. ADB and Kodi HTTP are separate connections.
+4. Install this project **on your computer**, in a new terminal window:
 
 ```sh
 git clone https://github.com/glasgowm148/nvidia-MCP.git
@@ -28,7 +44,7 @@ python3 -m venv .venv
 On Windows use `py -3 -m venv .venv`, then `.venv\Scripts\python.exe -m pip install -e .`.
 ADB must be on the MCP client's PATH, or set `ADB_PATH` to its full executable path.
 
-4. Add a **stdio** MCP server to your client. This is the Claude Desktop / Cursor JSON shape;
+5. Add a **stdio** MCP server to your client. This is the Claude Desktop / Cursor JSON shape;
    other clients have their own wrapper around the same command, arguments and environment:
 
 ```json
@@ -38,6 +54,7 @@ ADB must be on the MCP client's PATH, or set `ADB_PATH` to its full executable p
       "command": "/absolute/path/nvidia-MCP/.venv/bin/nvidia-mcp",
       "env": {
         "SHIELD_HOST": "192.168.1.50",
+        "ADB_PATH": "/absolute/path/platform-tools/adb",
         "KODI_PORT": "8080",
         "KODI_USERNAME": "kodi",
         "KODI_PASSWORD": "YOUR_LOCAL_KODI_PASSWORD"
@@ -48,10 +65,13 @@ ADB must be on the MCP client's PATH, or set `ADB_PATH` to its full executable p
 ```
 
 On Windows the command is `C:\\absolute\\path\\nvidia-MCP\\.venv\\Scripts\\nvidia-mcp.exe`.
+Replace `SHIELD_HOST` with the Shield IP from step 1, `ADB_PATH` with the full path to your extracted
+`adb` (Windows: `adb.exe`), and the Kodi credentials with those from step 3. Do not put `:5555` in
+`SHIELD_HOST`. Use the full executable paths; desktop MCP clients may not inherit your terminal's PATH.
 The server reads environment variables, **not `.env` automatically**. Keep filled client configs private.
 Restart the MCP client/server after changing configuration. See [examples](examples/claude-desktop.json).
 
-5. Ask: **“Read the Shield repair playbook and audit Kodi without interrupting anything.”**
+6. Ask: **“Read the Shield repair playbook and audit Kodi without interrupting anything.”**
 
 For a terminal connection check, set the same environment variables and run `nvidia-mcp --doctor`.
 This prints redacted Kodi connectivity data and exits. ADB can be unavailable while Kodi HTTP works,
