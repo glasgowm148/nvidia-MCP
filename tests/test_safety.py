@@ -80,9 +80,10 @@ def test_explicit_offline_recovery_and_other_app_guard(ops):
         ops.lifecycle("start", allow_offline=True)
 
 
-def test_write_disabled_and_running_kodi_cannot_patch(ops):
+@pytest.mark.parametrize("newline", [b"\n", b"\r\n"])
+def test_write_disabled_and_running_kodi_cannot_patch(ops, newline):
     path = "userdata/test.py"
-    (ops.c.mount / path).write_text("value = 1\n")
+    (ops.c.mount / path).write_bytes(b"value = 1" + newline)
     edits = [{"before": "value = 1", "after": "value = 2"}]
     sha = digest(ops.files.read(path))
     ops.c = replace(ops.c, allow_writes=False)
@@ -93,16 +94,17 @@ def test_write_disabled_and_running_kodi_cannot_patch(ops):
     ops.t.running = True
     with pytest.raises(ShieldError, match="Stop Kodi"):
         ops.patch_file(path, sha, edits, False)
-    assert ops.files.read(path) == b"value = 1\n"
+    assert ops.files.read(path) == b"value = 1" + newline
 
 
-def test_patch_restore_and_conflicts(ops):
+@pytest.mark.parametrize("newline", [b"\n", b"\r\n"])
+def test_patch_restore_and_conflicts(ops, newline):
     path = "userdata/test.py"
-    (ops.c.mount / path).write_text("value = 1\n")
+    (ops.c.mount / path).write_bytes(b"value = 1" + newline)
     original = ops.files.read(path)
     edits = [{"before": "value = 1", "after": "value = 2"}]
     change = ops.patch_file(path, digest(original), edits, False)
-    assert ops.files.read(path) == b"value = 2\n"
+    assert ops.files.read(path) == b"value = 2" + newline
     with pytest.raises(ShieldError, match="changed"):
         ops.patch_file(path, digest(original), edits, False)
     restored = ops.restore_file(change["backup_id"], change["sha256"])

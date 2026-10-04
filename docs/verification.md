@@ -1,6 +1,6 @@
 # Verification — initial 0.1.0 release
 
-31 automated tests passed locally on macOS / Python 3.14:
+33 automated tests passed locally on macOS / Python 3.14:
 
 - MCP SDK 1.30.0: real stdio subprocess initialization, 25-tool discovery, structured tool output,
   resource/prompt discovery and explicit refusal of disabled writes/unrestricted RPC.
