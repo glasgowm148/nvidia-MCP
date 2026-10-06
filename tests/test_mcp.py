@@ -1,11 +1,18 @@
 import asyncio
 import json
+import re
 import sys
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
+
+
+def field(obj, name):
+    """Read a result field under its mcp 1.x camelCase or mcp 2.x snake_case name."""
+    snake = re.sub(r"(?<!^)(?=[A-Z])", "_", name).lower()
+    return getattr(obj, name) if hasattr(obj, name) else getattr(obj, snake)
 
 
 def test_real_stdio_protocol(tmp_path):
@@ -51,22 +58,26 @@ def test_real_stdio_protocol(tmp_path):
                 await client.initialize()
                 tools = (await client.list_tools()).tools
                 assert len(tools) == 29
-                assert next(t for t in tools if t.name == "kodi_status").annotations.readOnlyHint
-                assert not next(
-                    t for t in tools if t.name == "kodi_patch_file"
-                ).annotations.readOnlyHint
-                assert not next(
-                    t for t in tools if t.name == "shield_apk_apply"
-                ).annotations.readOnlyHint
+                assert field(
+                    next(t for t in tools if t.name == "kodi_status").annotations, "readOnlyHint"
+                )
+                assert not field(
+                    next(t for t in tools if t.name == "kodi_patch_file").annotations,
+                    "readOnlyHint",
+                )
+                assert not field(
+                    next(t for t in tools if t.name == "shield_apk_apply").annotations,
+                    "readOnlyHint",
+                )
                 apk = await client.call_tool("shield_apk_apply", {"preview_id": "synthetic"})
-                assert apk.isError and "disabled" in str(apk.content)
+                assert field(apk, "isError") and "disabled" in str(apk.content)
                 status = await client.call_tool("kodi_status", {})
-                assert not status.isError and "Kodi" in str(status.content)
-                assert status.structuredContent["application"]["name"] == "Kodi"
+                assert not field(status, "isError") and "Kodi" in str(status.content)
+                assert field(status, "structuredContent")["application"]["name"] == "Kodi"
                 bad = await client.call_tool("kodi_read", {"method": "System.Shutdown"})
-                assert bad.isError and "allowlist" in str(bad.content)
+                assert field(bad, "isError") and "allowlist" in str(bad.content)
                 write = await client.call_tool("shield_remote", {"button": "home"})
-                assert write.isError and "disabled" in str(write.content)
+                assert field(write, "isError") and "disabled" in str(write.content)
                 resource = await client.read_resource("nvidia://playbook")
                 assert "independent OAuth grant" in str(resource.contents)
                 prompts = await client.list_prompts()

@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 
 from nvidia_mcp import android_tools
-from nvidia_mcp.apks import ApkOperations
+from nvidia_mcp.apks import SNAPSHOT_EXCLUDES, ApkOperations
 from nvidia_mcp.config import ShieldError
 from nvidia_mcp.files import digest
 
@@ -353,3 +353,47 @@ def test_failed_split_write_abandons_session_and_never_commits(apk_env):
         ops.apks.apply(preview["preview_id"])
     assert not any(call[:2] == ("pm", "install-commit") for call in device.calls)
     assert any(call[:2] == ("pm", "install-abandon") for call in device.calls)
+
+
+def test_mounted_kodi_snapshot_skips_regenerable_caches(apk_env, tmp_path):
+    ops, device, candidate = apk_env
+    mount = tmp_path / "mount"
+    (mount / "addons/packages").mkdir(parents=True)
+    (mount / "addons/packages/big.zip").write_bytes(b"x" * 100)
+    (mount / "userdata/Thumbnails/0").mkdir(parents=True)
+    (mount / "userdata/Thumbnails/0/a.jpg").write_bytes(b"x" * 100)
+    (mount / "userdata/guisettings.xml").write_text("<settings/>")
+    ops.apks.c = replace(ops.apks.c, mount=mount)
+    backup = tmp_path / "backup"
+    backup.mkdir()
+    result = ops.apks.kodi_snapshot(backup)
+    assert result["excluded"] == list(SNAPSHOT_EXCLUDES)
+    with tarfile.open(backup / "kodi-data.tar") as archive:
+        names = archive.getnames()
+    assert "userdata/guisettings.xml" in names
+    assert not any("Thumbnails" in n or "packages" in n for n in names)
+
+
+def test_adb_kodi_snapshot_excludes_caches(apk_env, tmp_path):
+    ops, device, candidate = apk_env
+    commands = []
+    original = device.stream_to_file
+
+    def capture(command, destination, limit, timeout):
+        commands.append(command)
+        return original(command, destination, limit, timeout)
+
+    device.stream_to_file = capture
+    original_shell = device.shell
+    device.shell = lambda *a, **k: (
+        "/storage/emulated/0/Android/data/org.xbmc.kodi/files/.kodi"
+        if a[:2] == ("readlink", "-f")
+        else original_shell(*a, **k)
+    )
+    backup = tmp_path / "adb-backup"
+    backup.mkdir()
+    ops.apks.kodi_snapshot(backup)
+    remote = commands[0][-1]
+    for path in SNAPSHOT_EXCLUDES:
+        assert "--exclude=" + path in remote
+    assert remote.endswith("addons userdata")

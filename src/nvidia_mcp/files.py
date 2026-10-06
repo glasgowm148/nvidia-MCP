@@ -136,6 +136,22 @@ class Files:
                 "Write verification failed; restore the returned backup before restarting Kodi"
             )
 
+    def list_backups(self, limit=50):
+        rows = []
+        if not self.backups.exists():
+            return rows
+        manifests = sorted(
+            self.backups.glob("*.json"), key=lambda p: p.stat().st_mtime, reverse=True
+        )[:limit]
+        for p in manifests:
+            try:
+                d = json.loads(p.read_text())
+                if d.get("device") == self.c.serial:
+                    rows.append({"backup_id": p.stem, "path": d["path"], "sha256": d["sha256"]})
+            except (OSError, ValueError, KeyError, TypeError, AttributeError):
+                continue  # A corrupt manifest must not hide every other snapshot.
+        return rows
+
     def restore_data(self, backup_id):
         if not re.fullmatch(r"[0-9a-f]{32}", backup_id):
             raise ShieldError("Invalid backup ID")

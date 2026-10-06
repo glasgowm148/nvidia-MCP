@@ -6,7 +6,11 @@ import sys
 from importlib.resources import files
 from typing import Any, Literal
 
-from mcp.server.fastmcp import FastMCP, Image
+try:  # mcp 1.x
+    from mcp.server.fastmcp import FastMCP, Image
+except ImportError:  # mcp 2.x renamed FastMCP to MCPServer
+    from mcp.server.mcpserver import Image
+    from mcp.server.mcpserver import MCPServer as FastMCP
 from mcp.types import ToolAnnotations
 
 from . import privacy
@@ -146,15 +150,7 @@ def create_server(config: Config):
     @mcp.tool(annotations=read)
     def kodi_backups() -> dict[str, Any]:
         """List the latest 50 private per-file snapshots without exposing their contents."""
-        rows = []
-        if ops.files.backups.exists():
-            for p in sorted(
-                ops.files.backups.glob("*.json"), key=lambda p: p.stat().st_mtime, reverse=True
-            )[:50]:
-                d = json.loads(p.read_text())
-                if d.get("device") == config.serial:
-                    rows.append({"backup_id": p.stem, "path": d["path"], "sha256": d["sha256"]})
-        return {"backups": rows}
+        return {"backups": ops.files.list_backups()}
 
     @mcp.tool(annotations=write)
     def kodi_patch_file(

@@ -7,7 +7,7 @@ import xml.etree.ElementTree as ET
 from defusedxml.ElementTree import fromstring
 
 SECRET = re.compile(
-    r"password|passwd|token|secret|api[_.-]?key|authorization|cookie|refresh|credential|client[_.-]?id|username|email|account|passcode",
+    r"password|passwd|token|secret|api[_.-]?key|authorization|cookie|refresh[_.-]?(?:token|key)|credential|client[_.-]?id|username|email|account|passcode",
     re.I,
 )
 URL = re.compile(r"(?:https?|smb|ftp)://[^\s<>\"']+", re.I)

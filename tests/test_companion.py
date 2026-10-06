@@ -17,11 +17,11 @@ def test_export_pinned_companion_and_preserve_existing_files(tmp_path):
     target = Path(result["path"])
     metadata = companion_metadata()
     assert hashlib.sha256(target.read_bytes()).hexdigest() == metadata["sha256"]
-    assert result["version"] == "0.4.1"
+    assert result["version"] == "0.4.2"
     assert result["installed_on_device"] is False
     assert export_manager(tmp_path) == result
     with ZipFile(target) as archive:
-        assert b'version="0.4.1"' in archive.read("service.kodi.addonadmin/addon.xml")
+        assert b'version="0.4.2"' in archive.read("service.kodi.addonadmin/addon.xml")
         assert not any("device_fixes" in name or ".env" in name for name in archive.namelist())
     target.write_bytes(b"preserve-this-file")
     with pytest.raises(ShieldError, match="different file"):

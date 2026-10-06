@@ -58,6 +58,13 @@ UTILITY = re.compile(
 )
 
 
+def text(data):
+    try:
+        return data.decode("utf-8")
+    except UnicodeDecodeError:
+        raise ShieldError("File is not UTF-8 text; it cannot be shown or patched") from None
+
+
 class Operations:
     def __init__(self, transport):
         self.t = transport
@@ -90,8 +97,11 @@ class Operations:
             raise ShieldError("Kodi is playing. Wait until viewing has finished")
         return "idle"
 
+    def kodi_running(self):
+        return bool(self.t.shell("sh", "-c", "pidof org.xbmc.kodi || true"))
+
     def stopped(self):
-        if self.t.shell("sh", "-c", "pidof org.xbmc.kodi || true"):
+        if self.kodi_running():
             raise ShieldError(
                 "Stop Kodi before editing files; Kodi can overwrite changes while running"
             )
@@ -202,7 +212,7 @@ class Operations:
             "path": relative(path),
             "sha256": digest(data),
             "bytes": len(data),
-            "content": privacy.file_text(data.decode("utf-8"), self.known_secrets),
+            "content": privacy.file_text(text(data), self.known_secrets),
             "note": "Content is redacted; checksum describes the original file. Use exact non-secret anchors for patches.",
         }
 
@@ -229,7 +239,10 @@ class Operations:
     def lifecycle(self, action, allow_offline=False, interrupt_other_app=False):
         self.writes()
         with self.lock:
-            self.idle(allow_offline)
+            # A stopped Kodi cannot be playing, and its HTTP API is down, so the
+            # playback check would always report "unknown". Skip it only then.
+            if action != "start" or self.kodi_running():
+                self.idle(allow_offline)
             app = foreground(self.t)
             if not interrupt_other_app and app != "org.xbmc.kodi" and "launcher" not in app.lower():
                 raise ShieldError(
@@ -262,7 +275,7 @@ class Operations:
             before = self.files.read(path)
             if digest(before) != expected_sha256:
                 raise ShieldError("File changed since inspection; patch cancelled")
-            content = before.decode("utf-8")
+            content = text(before)
             for edit in edits:
                 old, new = edit.get("before"), edit.get("after")
                 if (

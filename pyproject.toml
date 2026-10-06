@@ -4,12 +4,12 @@ build-backend = "hatchling.build"
 
 [project]
 name = "nvidia-shield-mcp"
-version = "0.3.1"
+version = "0.3.2"
 description = "Local MCP tools for NVIDIA Shield TV and Kodi diagnostics, backups and repairs"
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.11"
-dependencies = ["mcp>=1.28,<2", "httpx>=0.28,<1", "defusedxml>=0.7,<1"]
+dependencies = ["mcp>=1.28,<3", "httpx>=0.28,<1", "defusedxml>=0.7,<1"]
 classifiers = ["Development Status :: 3 - Alpha", "Programming Language :: Python :: 3", "Operating System :: OS Independent"]
 
 [project.optional-dependencies]

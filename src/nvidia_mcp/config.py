@@ -7,8 +7,16 @@ import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 
+try:  # mcp 1.x
+    from mcp.server.fastmcp.exceptions import ToolError
+except ImportError:
+    try:  # mcp 2.x only shows ToolError messages to clients; other errors are masked.
+        from mcp.server.mcpserver.exceptions import ToolError
+    except ImportError:
+        ToolError = Exception
 
-class ShieldError(RuntimeError):
+
+class ShieldError(ToolError):
     """An actionable error safe to return to an MCP client."""
 
     def __init__(self, message, kind="unknown"):

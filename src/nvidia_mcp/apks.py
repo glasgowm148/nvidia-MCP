@@ -18,6 +18,8 @@ from .android_tools import inspect_set, sha256_file
 from .config import ShieldError
 
 MAX_BACKUP = 2_000_000_000
+# Regenerable caches. Thumbnails alone often exceed the backup limit on real libraries.
+SNAPSHOT_EXCLUDES = ("userdata/Thumbnails", "addons/packages", "addons/temp")
 TTL = 600
 LAUNCHERS = {
     "com.google.android.tvlauncher",
@@ -236,7 +238,11 @@ class ApkOperations:
                 "-s",
                 self.c.serial,
                 "exec-out",
-                shlex.join(["tar", "-cf", "-", "-C", root, "addons", "userdata"]),
+                shlex.join(
+                    ["tar", "-cf", "-", "-C", root]
+                    + ["--exclude=" + path for path in SNAPSHOT_EXCLUDES]
+                    + ["addons", "userdata"]
+                ),
             ]
             self.t.stream_to_file(command, target, MAX_BACKUP, 300)
         target.chmod(0o600)
@@ -249,6 +255,10 @@ class ApkOperations:
                     total += member.size
                     if (
                         path.is_absolute()
+                        or any(
+                            path.as_posix() == item or path.as_posix().startswith(item + "/")
+                            for item in SNAPSHOT_EXCLUDES
+                        )
                         or ".." in path.parts
                         or not path.parts
                         or path.parts[0] not in {"addons", "userdata"}
@@ -277,6 +287,7 @@ class ApkOperations:
             "sha256": sha256_file(target),
             "bytes": target.stat().st_size,
             "members": count,
+            "excluded": list(SNAPSHOT_EXCLUDES),
         }
 
     def mounted_snapshot(self, target):
@@ -289,6 +300,8 @@ class ApkOperations:
                 if not folder.is_dir() or folder.is_symlink():
                     raise ShieldError("Mounted Kodi addons/userdata is missing or symlinked")
                 for current, dirs, files in os.walk(folder, followlinks=False):
+                    relative_dir = Path(current).relative_to(root).as_posix()
+                    dirs[:] = [d for d in dirs if f"{relative_dir}/{d}" not in SNAPSHOT_EXCLUDES]
                     for path in [Path(current), *(Path(current) / child for child in dirs + files)]:
                         if (
                             path.is_symlink()
