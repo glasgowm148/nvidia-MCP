@@ -44,6 +44,11 @@ def main():
             exported = export_manager(Path(directory) / "export")
             assert not exported["installed_on_device"]
 
+            def field(result, snake, camel):
+                # mcp 1.x uses camelCase result fields; mcp 2.x uses snake_case.
+                value = getattr(result, snake, None)
+                return getattr(result, camel, None) if value is None else value
+
             async def exercise():
                 parameters = StdioServerParameters(
                     command=sys.executable,
@@ -66,14 +71,19 @@ def main():
                         names = {t.name for t in (await client.list_tools()).tools}
                         assert {"shield_connection", "shield_apk_apply", "kodi_status"} <= names
                         result = await client.call_tool("kodi_status", {})
-                        assert not result.isError
-                        assert result.structuredContent["application"]["name"] == "Kodi"
+                        assert not field(result, "is_error", "isError")
+                        assert (
+                            field(result, "structured_content", "structuredContent")["application"][
+                                "name"
+                            ]
+                            == "Kodi"
+                        )
                         for name, args in (
                             ("shield_remote", {"button": "home"}),
                             ("shield_apk_apply", {"preview_id": "synthetic"}),
                             ("kodi_read", {"method": "System.Shutdown"}),
                         ):
-                            assert (await client.call_tool(name, args)).isError
+                            assert field(await client.call_tool(name, args), "is_error", "isError")
                         assert (await client.read_resource("nvidia://playbook")).contents
                         assert (await client.list_prompts()).prompts
                 print(
