@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "nvidia-shield-mcp"
-version = "0.3.2"
+dynamic = ["version"]
 description = "Local MCP tools for NVIDIA Shield TV and Kodi diagnostics, backups and repairs"
 readme = "README.md"
 license = "MIT"
@@ -21,6 +21,9 @@ nvidia-mcp = "nvidia_mcp.server:main"
 [project.urls]
 Repository = "https://github.com/glasgowm148/nvidia-MCP"
 Issues = "https://github.com/glasgowm148/nvidia-MCP/issues"
+
+[tool.hatch.version]
+path = "src/nvidia_mcp/__init__.py"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/nvidia_mcp"]

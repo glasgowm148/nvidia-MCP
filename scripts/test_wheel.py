@@ -11,7 +11,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 def main():
     version = re.search(
-        r'^version = "([^"]+)"$', (ROOT / "pyproject.toml").read_text(), re.M
+        r'^__version__ = "([^"]+)"$', (ROOT / "src/nvidia_mcp/__init__.py").read_text(), re.M
     ).group(1)
     wheels = list((ROOT / "dist").glob("*-" + version + "-*.whl"))
     if len(wheels) != 1:

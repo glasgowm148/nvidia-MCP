@@ -69,7 +69,9 @@ def main():
                     async with ClientSession(read, write) as client:
                         await client.initialize()
                         names = {t.name for t in (await client.list_tools()).tools}
-                        assert {"shield_connection", "shield_apk_apply", "kodi_status"} <= names
+                        assert {"shield_connection", "shield_apk_preview", "kodi_status"} <= names
+                        # Write tools are not registered without NVIDIA_MCP_ALLOW_WRITES=1.
+                        assert not names & {"shield_apk_apply", "shield_remote", "kodi_patch_apply"}
                         result = await client.call_tool("kodi_status", {})
                         assert not field(result, "is_error", "isError")
                         assert (
@@ -79,9 +81,8 @@ def main():
                             == "Kodi"
                         )
                         for name, args in (
-                            ("shield_remote", {"button": "home"}),
-                            ("shield_apk_apply", {"preview_id": "synthetic"}),
                             ("kodi_read", {"method": "System.Shutdown"}),
+                            ("kodi_read_file", {"path": "../.env"}),
                         ):
                             assert field(await client.call_tool(name, args), "is_error", "isError")
                         assert (await client.read_resource("nvidia://playbook")).contents
