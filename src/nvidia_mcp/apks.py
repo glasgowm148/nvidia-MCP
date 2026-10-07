@@ -21,11 +21,6 @@ MAX_BACKUP = 2_000_000_000
 # Regenerable caches. Thumbnails alone often exceed the backup limit on real libraries.
 SNAPSHOT_EXCLUDES = ("userdata/Thumbnails", "addons/packages", "addons/temp")
 TTL = 600
-LAUNCHERS = {
-    "com.google.android.tvlauncher",
-    "com.google.android.apps.tv.launcherx",
-    "com.android.tv.launcher",
-}
 
 
 def private_dir(path):
@@ -37,23 +32,6 @@ def private_dir(path):
 def save_json(path, value):
     path.write_text(json.dumps(value, indent=2), encoding="utf-8")
     path.chmod(0o600)
-
-
-def foreground(transport):
-    text = transport.shell("dumpsys", "activity", "activities", limit=2_000_000)
-    lines = [
-        line
-        for line in text.splitlines()
-        if "mResumedActivity" in line or "topResumedActivity" in line
-    ]
-    packages = {
-        match[1]
-        for line in lines
-        if (match := re.search(r"\b([A-Za-z][A-Za-z0-9_]*(?:\.[A-Za-z][A-Za-z0-9_]*)+)/", line))
-    }
-    if len(packages) != 1:
-        raise ShieldError("Foreground TV app is unknown; no disruptive action performed")
-    return packages.pop()
 
 
 class ApkOperations:
@@ -208,15 +186,7 @@ class ApkOperations:
                 raise
 
     def guard(self, package):
-        app = foreground(self.t)
-        if app not in LAUNCHERS | {"org.xbmc.kodi"}:
-            raise ShieldError(
-                "Another TV app is in the foreground; finish viewing before APK installation"
-            )
-        if self.t.shell("sh", "-c", "pidof " + shlex.quote(package) + " || true"):
-            raise ShieldError("Stop the target app before installing its APK")
-        if self.t.shell("sh", "-c", "pidof org.xbmc.kodi || true"):
-            self.ops.idle()
+        return self.ops.guard_tv("apk", package=package)
 
     def kodi_snapshot(self, folder):
         self.ops.stopped()

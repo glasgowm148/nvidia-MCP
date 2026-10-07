@@ -1,4 +1,5 @@
 import sys
+from dataclasses import replace
 
 import httpx
 import pytest
@@ -64,6 +65,7 @@ def test_health_excludes_historical_thermal_readings_and_unknown_is_not_zero():
 
 
 def test_unknown_foreground_blocks_lifecycle_even_with_offline_permission(ops):
+    ops.c = replace(ops.c, allow_interrupt=True)
     original = ops.t.shell
     ops.t.shell = lambda *args, **kwargs: (
         "" if args == ("dumpsys", "activity", "activities") else original(*args, **kwargs)

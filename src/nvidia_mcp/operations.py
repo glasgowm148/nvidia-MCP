@@ -3,6 +3,7 @@
 import ast
 import json
 import re
+import shlex
 import threading
 import time
 import uuid
@@ -13,7 +14,7 @@ from urllib.parse import parse_qs, unquote, urlsplit
 from defusedxml.ElementTree import fromstring
 
 from . import privacy
-from .apks import ApkOperations, foreground
+from .apks import ApkOperations
 from .config import ShieldError
 from .files import MAX_FILE, Files, digest, relative
 
@@ -52,6 +53,17 @@ BUTTONS = {
     "play_pause": "85",
     "stop": "86",
 }
+KODI = "org.xbmc.kodi"
+# The single set of home-screen packages treated as "nothing else is being watched".
+# Extend with NVIDIA_MCP_EXTRA_LAUNCHERS (comma-separated package names).
+LAUNCHERS = frozenset(
+    {
+        "com.google.android.tvlauncher",
+        "com.google.android.apps.tv.launcherx",
+        "com.android.tv.launcher",
+        "com.spocky.projengmenu",
+    }
+)
 UTILITY = re.compile(
     r"play(?:back)?|resolve|remove|delete|clear|clean|auth|login|logout|sync|install|execute|run(?:script)?|settings|download|trakt_manager|mark_watched",
     re.I,
@@ -63,6 +75,26 @@ def text(data):
         return data.decode("utf-8")
     except UnicodeDecodeError:
         raise ShieldError("File is not UTF-8 text; it cannot be shown or patched") from None
+
+
+def foreground(transport):
+    """Return the one resumed foreground package, or refuse when it is ambiguous/unknown."""
+    text = transport.shell("dumpsys", "activity", "activities", limit=2_000_000)
+    lines = [
+        line
+        for line in text.splitlines()
+        if "mResumedActivity" in line or "topResumedActivity" in line
+    ]
+    packages = {
+        match[1]
+        for line in lines
+        if (match := re.search(r"\b([A-Za-z][A-Za-z0-9_]*(?:\.[A-Za-z][A-Za-z0-9_]*)+)/", line))
+    }
+    if len(packages) != 1:
+        raise ShieldError(
+            "Foreground TV app is unknown; no disruptive action performed", "foreground_unknown"
+        )
+    return packages.pop()
 
 
 class Operations:
@@ -97,8 +129,66 @@ class Operations:
             raise ShieldError("Kodi is playing. Wait until viewing has finished")
         return "idle"
 
+    def running(self, package=KODI):
+        """The one process probe; ``|| true`` keeps a stopped app from being an ADB error."""
+        return bool(self.t.shell("sh", "-c", "pidof " + shlex.quote(package) + " || true"))
+
     def kodi_running(self):
-        return bool(self.t.shell("sh", "-c", "pidof org.xbmc.kodi || true"))
+        return self.running(KODI)
+
+    def launchers(self):
+        return LAUNCHERS | set(getattr(self.c, "extra_launchers", ()) or ())
+
+    def require_interrupt_opt_in(self, flag):
+        if not getattr(self.c, "allow_interrupt", False):
+            raise ShieldError(
+                f"{flag}=true was refused: interrupting viewing also needs the user to set "
+                "NVIDIA_MCP_ALLOW_INTERRUPT=1 in the MCP client and restart the server. "
+                "No action performed",
+                "interrupt_not_permitted",
+            )
+
+    def guard_tv(
+        self,
+        kind,
+        allow_override=False,
+        *,
+        allow_offline=False,
+        assume_running=False,
+        package=None,
+        override_flag="allow_during_playback",
+    ):
+        """One guard for every UI-disruptive action.
+
+        Combines Kodi playback state, the Android foreground app (checked against one shared
+        launcher set) and whether Kodi / a target package is running. ``allow_override`` is
+        model-controlled, so it is honoured only with NVIDIA_MCP_ALLOW_INTERRUPT=1.
+        ``kind`` is one of remote, lifecycle, layout, browse, apk.
+        """
+        if allow_override:
+            self.require_interrupt_opt_in(override_flag)
+        state = {"kind": kind, "override": bool(allow_override)}
+        if assume_running:
+            # Skip the ADB probe: the playback query establishes the state on its own.
+            running = True
+        else:
+            running = self.kodi_running()
+        if kind in ("layout", "browse") and not running:
+            raise ShieldError("Kodi is not running; start it first", "kodi_stopped")
+        if running and not allow_override:
+            state["playback"] = self.idle(allow_offline)
+        app = foreground(self.t)
+        state["foreground"] = app
+        if app not in self.launchers() | {KODI} and not allow_override:
+            raise ShieldError(
+                f"Another TV app ({app}) is in the foreground. Get the viewer's permission "
+                f"before setting {override_flag}=true; no disruptive action performed",
+                "other_app_foreground",
+            )
+        if package and (running if package == KODI else self.running(package)):
+            raise ShieldError("Stop the target app before installing its APK", "app_running")
+        state["kodi_running"] = running
+        return state
 
     def stopped(self):
         if self.kodi_running():
@@ -150,7 +240,7 @@ class Operations:
             "properties": props,
             "storage": storage,
             "memory": memory.splitlines()[:6],
-            "kodi_running": bool(self.t.shell("sh", "-c", "pidof org.xbmc.kodi || true")),
+            "kodi_running": self.kodi_running(),
             "health": health(memory, storage, telemetry["uptime"], telemetry["thermal"]),
         }
 
@@ -241,13 +331,13 @@ class Operations:
         with self.lock:
             # A stopped Kodi cannot be playing, and its HTTP API is down, so the
             # playback check would always report "unknown". Skip it only then.
-            if action != "start" or self.kodi_running():
-                self.idle(allow_offline)
-            app = foreground(self.t)
-            if not interrupt_other_app and app != "org.xbmc.kodi" and "launcher" not in app.lower():
-                raise ShieldError(
-                    "Another TV app is in the foreground. Get permission before setting interrupt_other_app=true"
-                )
+            self.guard_tv(
+                "lifecycle",
+                interrupt_other_app,
+                allow_offline=allow_offline,
+                assume_running=action != "start",
+                override_flag="interrupt_other_app",
+            )
             if action in ("stop", "restart"):
                 self.t.shell("am", "force-stop", "org.xbmc.kodi")
                 self.stopped()
@@ -258,6 +348,28 @@ class Operations:
                 "requested": action,
                 "note": "Run kodi_status to verify startup; launching an activity does not confirm Kodi is ready.",
             }
+
+    def remote(self, button, allow_during_playback=False):
+        self.writes()
+        if button not in BUTTONS:
+            raise ShieldError("Unknown remote button")
+        with self.lock:
+            self.guard_tv("remote", allow_during_playback)
+            self.t.shell("input", "keyevent", BUTTONS[button])
+            self.audit("remote", button)
+        return {"sent": button}
+
+    def connect(self):
+        self.t.adb("connect", self.c.serial, device=False)
+        return {"state": self.t.adb("get-state").decode().strip()}
+
+    def rebuild_layout(self):
+        self.writes()
+        with self.lock:
+            self.guard_tv("layout")
+            result = self.t.manager("/api/widgets/layout/rebuild", "POST", {})
+            self.audit("rebuild_layout", "active profile")
+            return self.safe(result)
 
     def patch_file(self, path, expected_sha256, edits, dry_run=True):
         relative(path)
@@ -506,7 +618,7 @@ class Operations:
         try:
             label = self.t.rpc("Profiles.GetCurrentProfile")["label"]
         except ShieldError:
-            if self.t.shell("sh", "-c", "pidof org.xbmc.kodi || true"):
+            if self.kodi_running():
                 raise ShieldError(
                     "Kodi is running but its active profile cannot be queried; no profile assumed"
                 ) from None

@@ -16,7 +16,7 @@ from mcp.types import ToolAnnotations
 from . import privacy
 from .config import Config, ShieldError
 from .diagnostics import readiness
-from .operations import BUTTONS, Operations
+from .operations import Operations
 from .transport import Transport
 
 
@@ -60,8 +60,7 @@ def create_server(config: Config):
     @mcp.tool(annotations=browse)
     def shield_connect() -> dict[str, Any]:
         """Connect ADB to the configured Shield only. Accept its debugging prompt on the TV."""
-        ops.t.adb("connect", config.serial, device=False)
-        return {"state": ops.t.adb("get-state").decode().strip()}
+        return ops.connect()
 
     @mcp.tool(annotations=read)
     def shield_apps() -> dict[str, Any]:
@@ -95,13 +94,7 @@ def create_server(config: Config):
         allow_during_playback: bool = False,
     ) -> dict[str, Any]:
         """Send one explicit remote button. Playback controls require permission and write mode."""
-        ops.writes()
-        with ops.lock:
-            if not allow_during_playback:
-                ops.idle()
-            ops.t.shell("input", "keyevent", BUTTONS[button])
-            ops.audit("remote", button)
-        return {"sent": button}
+        return ops.remote(button, allow_during_playback)
 
     @mcp.tool(annotations=write)
     def kodi_lifecycle(
@@ -213,12 +206,7 @@ def create_server(config: Config):
     @mcp.tool(annotations=write)
     def kodi_layout_rebuild() -> dict[str, Any]:
         """Optional Manager: request one skin-menu rebuild while Kodi is idle. Inspect TV after it finishes."""
-        ops.writes()
-        with ops.lock:
-            ops.idle()
-            result = ops.t.manager("/api/widgets/layout/rebuild", "POST", {})
-            ops.audit("rebuild_layout", "active profile")
-            return ops.safe(result)
+        return ops.rebuild_layout()
 
     @mcp.resource("nvidia://playbook")
     def repair_playbook() -> str:
