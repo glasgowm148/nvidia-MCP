@@ -7,7 +7,7 @@ inside Kodi** and supplies the live profile, settings, pipeline and skin APIs. C
 offline repairs do not require it. Kodi Manager also has a Python client/parser library for applications
 that want these APIs without MCP.
 
-The bundled version is **0.4.1**, from the
+The bundled version is **0.6.2** (MCP tools support Kodi Manager 0.4+; widget-cache tools need 0.6+), from the
 [Kodi Manager repository](https://github.com/glasgowm148/kodi-manager). Its ZIP is present in the MCP
 wheel/source distribution and as a separate release asset. `--export-manager DIRECTORY` checks the
 pinned SHA-256, refuses to overwrite a different existing file and never connects to the Shield.
@@ -39,8 +39,8 @@ the computer work below; the user only needs TV actions the agent cannot perform
    Inspect a layout preview before applying its immutable preview ID. Plugin browsing has its own opt-in.
 
 Do not expose this bearer-authenticated HTTP service outside a trusted LAN. Filled client configs,
-account data and backups stay private. Existing Manager 0.3.9 installations are supported; a bundled
-ZIP is not an instruction to overwrite them or remove their separately installed custom fixes.
+account data and backups stay private. Kodi Manager 0.4+ installations are supported (widget-cache tools need 0.6+); a
+bundled ZIP is not an instruction to overwrite them or remove their separately installed custom fixes.
 
 ## Capability boundaries
 

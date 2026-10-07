@@ -1,9 +1,9 @@
 {
   "name": "Kodi Manager",
-  "version": "0.4.2",
-  "filename": "service.kodi.addonadmin-0.4.2.zip",
-  "sha256": "8d6defb44239743fc6becd1ee6018671d0d4b2b147665c8496a7dad22d283894",
-  "source": "https://github.com/glasgowm148/kodi-manager/releases/tag/v0.4.2",
+  "version": "0.6.2",
+  "filename": "service.kodi.addonadmin-0.6.2.zip",
+  "sha256": "c8928da69edc4c675d29544bf702ce12ace8ff99fdd34b279eb4224eca68982b",
+  "source": "https://github.com/glasgowm148/kodi-manager/releases/tag/v0.6.2",
   "license": "MIT",
   "required": false
 }

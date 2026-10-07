@@ -3,12 +3,12 @@
 | Component | Evidence | Limit |
 | --- | --- | --- |
 | Computer runtime | Python 3.11+; Linux/Windows CI on 3.11–3.13; macOS local Python 3.14 | Read actual CI for the release; broader systems unverified |
-| MCP interface | Real stdio initialization, 29 tools, resource/prompt discovery; fresh-wheel local HTTP fixture | Client approval behavior depends on your MCP client |
+| MCP interface | Real stdio initialization, 23 read-only tools (34 with writes enabled), resource/prompt discovery; mcp 1.28 and latest in CI; fresh-wheel local HTTP fixture | Client approval behavior depends on your MCP client |
 | Shield ADB | Prior release: live read-only device/source/log diagnostics | No current live mutation/installation verification |
 | Kodi HTTP | Synthetic authenticated JSON-RPC, response bounds and failure/refusal tests | Earlier live check had HTTP unavailable |
 | Official Kodi APKs | Local SDK inspection of 21.3/22 beta 2 arm64, signer/version/SDK/ABI and corruption refusal | Metadata/signature checks are not runtime testing |
 | APK install/recovery | Synthetic transfer/session/backup/readback and refusal tests | Live Shield upgrade and recovery unverified; no automatic/guaranteed downgrade |
-| Optional Manager | Pinned 0.4.1 ZIP/export; separate library tests/CI | Portable companion not yet deployed/tested on a live TV |
+| Optional Manager | Pinned 0.6.2 ZIP/export (supports 0.4+; widget cache 0.6+); separate library tests/CI | Portable companion not yet deployed/tested on a live TV |
 | Layout writes | Reviewed Bingie 2.0.2 / Skin Shortcuts 2.0.3 source hashes | Other/forked/modified versions stay view-only |
 
 Start with [TV preparation](setup.md), then give your agent the IP for [computer setup](agent-setup.md).
