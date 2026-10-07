@@ -64,6 +64,31 @@ LAUNCHERS = frozenset(
         "com.spocky.projengmenu",
     }
 )
+# Kodi core settings that weaken security or expose services. kodi_set_setting refuses them.
+PROTECTED_PREFIXES = (
+    "services.",  # web server, auth, ports, event server, zeroconf, UPnP, AirPlay, SMB...
+    "masterlock.",
+    "system.",
+    "debug.",
+    "pvrparental.",
+    "network.httpproxy",
+    "network.usehttpproxy",
+)
+PROTECTED_SETTINGS = frozenset(
+    {"addons.unknownsources", "addons.updatemode", "general.addonupdates", "lookandfeel.skin"}
+)
+# Harmless exceptions inside protected prefixes.
+UNPROTECTED_SETTINGS = frozenset({"debug.showloginfo"})
+
+
+def protected_setting(setting, allowed=()):
+    """True when a core setting is on the security/service denylist and not explicitly allowed."""
+    name = setting.lower()
+    if name in UNPROTECTED_SETTINGS or name in {a.lower() for a in allowed}:
+        return False
+    return name in PROTECTED_SETTINGS or name.startswith(PROTECTED_PREFIXES)
+
+
 UTILITY = re.compile(
     r"play(?:back)?|resolve|remove|delete|clear|clean|auth|login|logout|sync|install|execute|run(?:script)?|settings|download|trakt_manager|mark_watched",
     re.I,
@@ -512,6 +537,14 @@ class Operations:
         self.writes()
         if privacy.SECRET.search(setting) or not re.fullmatch(r"[a-zA-Z0-9_.-]+", setting):
             raise ShieldError("Credential settings cannot be changed through this tool")
+        if protected_setting(setting, getattr(self.c, "allow_settings", ())):
+            raise ShieldError(
+                f"{setting} is a protected security/service setting (web server, add-on sources "
+                "and updates, master lock, system, debug, proxy or skin) and cannot be changed "
+                "by an agent. Change it on the TV, or the user can list this exact id in "
+                "NVIDIA_MCP_ALLOW_SETTINGS",
+                "protected_setting",
+            )
         if type(value) not in (bool, int, float, str) or len(str(value)) > 500:
             raise ShieldError("Use a short primitive setting value")
         with self.lock:

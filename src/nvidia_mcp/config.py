@@ -56,6 +56,13 @@ def packages(value: str) -> tuple[str, ...]:
     return names
 
 
+def setting_ids(value: str) -> tuple[str, ...]:
+    names = tuple(item.strip() for item in value.split(",") if item.strip())
+    if any(not re.fullmatch(r"[A-Za-z0-9_-]+(?:\.[A-Za-z0-9_-]+)+", name) for name in names):
+        raise ShieldError("NVIDIA_MCP_ALLOW_SETTINGS must list exact Kodi setting ids")
+    return names
+
+
 def state_path() -> Path:
     if sys.platform == "win32":
         return Path(os.environ.get("LOCALAPPDATA", Path.home())) / "nvidia-mcp"
@@ -81,6 +88,8 @@ class Config:
     # Second, human-set opt-in for model-supplied "interrupt anyway" flags.
     allow_interrupt: bool = False
     extra_launchers: tuple[str, ...] = ()
+    # Exact protected Kodi setting ids an advanced user allows kodi_set_setting to change.
+    allow_settings: tuple[str, ...] = ()
     remote_root: str = "/sdcard/Android/data/org.xbmc.kodi/files/.kodi"
     aapt2_path: str = "aapt2"
     apksigner_path: str = "apksigner"
@@ -112,6 +121,7 @@ class Config:
             allow_plugin_browse=os.environ.get("NVIDIA_MCP_ALLOW_PLUGIN_BROWSE", "0") == "1",
             allow_interrupt=os.environ.get("NVIDIA_MCP_ALLOW_INTERRUPT", "0") == "1",
             extra_launchers=packages(os.environ.get("NVIDIA_MCP_EXTRA_LAUNCHERS", "")),
+            allow_settings=setting_ids(os.environ.get("NVIDIA_MCP_ALLOW_SETTINGS", "")),
             remote_root=root.rstrip("/"),
             aapt2_path=os.environ.get("AAPT2_PATH", "aapt2"),
             apksigner_path=os.environ.get("APKSIGNER_PATH", "apksigner"),
