@@ -89,10 +89,73 @@ def protected_setting(setting, allowed=()):
     return name in PROTECTED_SETTINGS or name.startswith(PROTECTED_PREFIXES)
 
 
-UTILITY = re.compile(
-    r"play(?:back)?|resolve|remove|delete|clear|clean|auth|login|logout|sync|install|execute|run(?:script)?|settings|download|trakt_manager|mark_watched",
-    re.I,
+# kodi_browse refuses plugin routes whose path segments, query keys or values contain an
+# action verb. Matching is per word (camelCase/snake_case/dotted split), by prefix.
+UNSAFE_STEMS = (
+    "play",
+    "resolve",
+    "toggle",
+    "refresh",
+    "clear",
+    "clean",
+    "delete",
+    "remove",
+    "install",
+    "uninstall",
+    "setting",
+    "auth",
+    "login",
+    "logout",
+    "maintenance",
+    "manager",
+    "rescan",
+    "reset",
+    "update",
+    "input",
+    "keyboard",
+    "dialog",
+    "context",
+    "execute",
+    "runscript",
+    "download",
+    "sync",
+    "mark",
+    "unmark",
+    "rate",
+    "subscribe",
+    "unsubscribe",
+    "favourite",
+    "favorite",
 )
+UNSAFE_WORDS = frozenset({"sign", "signin", "signout", "signup", "run", "add", "rename", "edit"})
+SAFE_WORDS = frozenset(
+    {"playlist", "playlists", "author", "authors", "updated", "inputstream", "rated", "rating"}
+)
+# Display text, not routing; only their names are checked.
+FREE_TEXT_KEYS = frozenset({"name", "title", "label", "plot", "tagline", "originaltitle"})
+
+
+def unsafe_words(value):
+    value = re.sub(r"([a-z0-9])([A-Z])", r"\1 \2", unquote(value))
+    return [
+        word
+        for word in re.split(r"[^a-z0-9]+", value.lower())
+        if word
+        and word not in SAFE_WORDS
+        and (word in UNSAFE_WORDS or word.startswith(UNSAFE_STEMS))
+    ]
+
+
+def unsafe_plugin_route(url):
+    """Words in a plugin:// path or query that suggest playback, auth or a mutating utility."""
+    p = urlsplit(url)
+    found = unsafe_words(p.path)
+    for key, values in parse_qs(p.query, keep_blank_values=True).items():
+        found += unsafe_words(key)
+        if key.lower() not in FREE_TEXT_KEYS:
+            for value in values:
+                found += unsafe_words(value)
+    return found
 
 
 def text(data):
@@ -485,7 +548,6 @@ class Operations:
             raise ShieldError(
                 "Directory execution is opt-in: set NVIDIA_MCP_ALLOW_PLUGIN_BROWSE=1. Installed add-ons may fetch remote metadata"
             )
-        self.idle()
         if not 0 <= start <= 10_000 or not 1 <= limit <= 48 or len(path) > 12_000:
             raise ShieldError("Directory preview bounds exceeded")
         p = urlsplit(path)
@@ -494,13 +556,15 @@ class Operations:
         if p.scheme == "plugin":
             if not p.netloc.startswith("plugin.video."):
                 raise ShieldError("Only video add-on directories can be previewed")
-            query = parse_qs(p.query)
-            if any(
-                UTILITY.search(unquote(v))
-                for k in ("mode", "action", "info", "do", "command")
-                for v in query.get(k, [])
-            ):
-                raise ShieldError("Interactive/playback/utility action cannot be previewed")
+            words = unsafe_plugin_route(path)
+            if words:
+                raise ShieldError(
+                    "Interactive/playback/utility action cannot be previewed (route contains: "
+                    + ", ".join(sorted(set(words))[:5])
+                    + ")",
+                    "unsafe_route",
+                )
+            self.guard_tv("browse")
             addon = self.t.rpc(
                 "Addons.GetAddonDetails", {"addonid": p.netloc, "properties": ["enabled"]}
             )["addon"]
@@ -513,6 +577,8 @@ class Operations:
             raise ShieldError(
                 "Choose an installed video plugin, video library or profile video playlist"
             )
+        else:
+            self.guard_tv("browse")
         result = self.t.rpc(
             "Files.GetDirectory",
             {
