@@ -45,7 +45,7 @@ playback/foreground guard needs `NVIDIA_MCP_ALLOW_INTERRUPT=1`. See docs/configu
 
 ### Changed
 
-- Bundle the public Kodi Manager 0.6.2 release (MCP tools support Kodi Manager 0.4+; widget-cache
+- Bundle the public Kodi Manager 0.7.0 release, which fixes an API auth bypass and a restore that could empty an add-on folder (MCP tools support Kodi Manager 0.4+; widget-cache
   tools need 0.6+).
 - `exec-out` reads (`head`, `tail`, `cat`, `tar`) check the remote exit status, so a missing file is
   an error instead of `head: ... No such file` content and a failed tar cannot pass as a backup.
