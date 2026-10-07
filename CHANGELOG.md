@@ -1,6 +1,9 @@
 # Changelog
 
-## Unreleased
+## 0.4.0 — 2026-10-07 (prerelease)
+
+Breaking for agents: write tools are listed only with `NVIDIA_MCP_ALLOW_WRITES=1`, and overriding the
+playback/foreground guard needs `NVIDIA_MCP_ALLOW_INTERRUPT=1`. See docs/configuration.md.
 
 ### Security
 
