@@ -20,8 +20,9 @@ readiness, sanitized failure categories, unknown foreground refusal, SDK metadat
 signer mismatch, explicit trust for new apps, staged/source tampering, stale/expired previews,
 split APK sessions and abandonment, failed install/readback, corrupt transfers, viewing starting
 during transfer, bounded/time-limited downloads, and private Kodi data archives through ADB/mounted
-storage with corrupt archive and symlink refusal. Disabled APK writes are refused through real MCP
-stdio. Tool discovery exposes 29 tools.
+storage with corrupt archive and symlink refusal. Without write mode, real MCP stdio discovery
+lists 23 tools and no write tools; with `NVIDIA_MCP_ALLOW_WRITES=1` it lists 34. The suite runs against
+mcp 1.28 and the latest mcp 2.x.
 
 Official Android Build Tools 36.0.0 were downloaded locally from Google's SDK repository and checked
 against its published archive checksum. Using its `aapt2` and `apksigner.jar` with Java 21, local

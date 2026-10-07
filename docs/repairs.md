@@ -7,14 +7,19 @@ and bounded current/previous `kodi_logs`. For native crashes add a short `shield
 Keep the timestamp, Kodi/add-on versions, actual errors and what was playing. Do not stop playback
 merely to collect a log. A redacted URL cannot prove which individual stream failed.
 
-## Patch an add-on or skin
+## Patch a skin or add-on configuration
+
+Text files under `addons/` and `userdata/` (`.xml`, `.json`, `.properties`, `.txt`, and `.py` outside
+`addons/`) can be patched. Add-on Python code under `addons/` and anything touching credentials or
+secret settings is refused: update the add-on or change the account on the TV instead.
 
 1. Read its `addons/<id>/addon.xml` to confirm the version.
-2. Read the source file and retain its SHA-256.
-3. Call `kodi_patch_file` with exact `before`/`after` anchors and `dry_run=true`.
+2. Read the file and retain its SHA-256.
+3. Call `kodi_patch_preview` with exact `before`/`after` anchors and review the redacted diff.
 4. Review the proposed behaviour and get permission to interrupt if someone is viewing.
 5. Enable write mode. Stop Kodi with `kodi_lifecycle`; it refuses active Kodi playback.
-6. Apply the same patch with `dry_run=false`. Retain its `backup_id` and new checksum.
+6. Apply the same edits with `kodi_patch_apply`. Retain its `backup_id` and new checksum.
+   (`kodi_patch_file` with `dry_run=true/false` still works but is deprecated.)
 7. Start Kodi, verify `kodi_status` and test the specific behaviour.
 8. To roll back: stop Kodi, read the current checksum, call `kodi_restore_file`, then start and verify.
 
