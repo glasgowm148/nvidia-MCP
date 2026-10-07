@@ -4,6 +4,7 @@ import re
 import sys
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
 
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
@@ -51,33 +52,35 @@ def test_real_stdio_protocol(tmp_path):
                 "KODI_MANAGER_TOKEN": "",
                 "NVIDIA_MCP_ALLOW_WRITES": "0",
                 "NVIDIA_MCP_STATE_DIR": str(tmp_path / "private"),
+                # Test this checkout even when another copy is installed in the environment.
+                "PYTHONPATH": str(Path(__file__).resolve().parents[1] / "src"),
             },
         )
         async with stdio_client(params) as (read, write):
             async with ClientSession(read, write) as client:
                 await client.initialize()
                 tools = (await client.list_tools()).tools
-                assert len(tools) == 29
+                names = {t.name for t in tools}
+                # Write tools are not registered at all without NVIDIA_MCP_ALLOW_WRITES=1.
+                assert len(tools) == 23
+                assert not names & {"shield_apk_apply", "shield_remote", "kodi_patch_file"}
+                assert {"kodi_patch_preview", "kodi_manager_widget_cache"} <= names
                 assert field(
                     next(t for t in tools if t.name == "kodi_status").annotations, "readOnlyHint"
                 )
-                assert not field(
-                    next(t for t in tools if t.name == "kodi_patch_file").annotations,
-                    "readOnlyHint",
-                )
-                assert not field(
-                    next(t for t in tools if t.name == "shield_apk_apply").annotations,
-                    "readOnlyHint",
-                )
+                preview = next(t for t in tools if t.name == "shield_apk_preview").annotations
+                assert not field(preview, "readOnlyHint")
+                assert not field(preview, "destructiveHint")
+                assert all(field(t.annotations, "title") for t in tools)
                 apk = await client.call_tool("shield_apk_apply", {"preview_id": "synthetic"})
-                assert field(apk, "isError") and "disabled" in str(apk.content)
+                assert field(apk, "isError")
                 status = await client.call_tool("kodi_status", {})
                 assert not field(status, "isError") and "Kodi" in str(status.content)
                 assert field(status, "structuredContent")["application"]["name"] == "Kodi"
                 bad = await client.call_tool("kodi_read", {"method": "System.Shutdown"})
-                assert field(bad, "isError") and "allowlist" in str(bad.content)
+                assert field(bad, "isError")
                 write = await client.call_tool("shield_remote", {"button": "home"})
-                assert field(write, "isError") and "disabled" in str(write.content)
+                assert field(write, "isError")
                 resource = await client.read_resource("nvidia://playbook")
                 assert "independent OAuth grant" in str(resource.contents)
                 prompts = await client.list_prompts()

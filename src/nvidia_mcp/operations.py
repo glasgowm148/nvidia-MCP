@@ -1,6 +1,7 @@
 """Device operations. UI disruption and offline file changes have distinct guards."""
 
 import ast
+import difflib
 import json
 import re
 import shlex
@@ -41,6 +42,8 @@ READ_METHODS = {
     "VideoLibrary.GetRecentlyAddedMovies",
     "VideoLibrary.GetRecentlyAddedEpisodes",
 }
+LIBRARY_DEFAULT = 50
+LIBRARY_MAX = 500
 BUTTONS = {
     "up": "19",
     "down": "20",
@@ -156,6 +159,16 @@ def unsafe_plugin_route(url):
             for value in values:
                 found += unsafe_words(value)
     return found
+
+
+def field(result, key, method):
+    """Read a JSON-RPC result field, turning a missing key into an actionable error."""
+    if not isinstance(result, dict) or key not in result:
+        raise ShieldError(
+            f"Kodi {method} returned no '{key}'; check the setting/add-on id and Kodi version",
+            "invalid_response",
+        )
+    return result[key]
 
 
 def text(data):
@@ -373,6 +386,16 @@ class Operations:
             )
         if len(json.dumps(params)) > 12_000:
             raise ShieldError("Parameters exceed size limit")
+        if method.startswith("VideoLibrary."):
+            params = dict(params)
+            limits = params.get("limits") or {}
+            start = limits.get("start", 0) if isinstance(limits, dict) else 0
+            end = limits.get("end") if isinstance(limits, dict) else None
+            if not isinstance(start, int) or start < 0:
+                start = 0
+            if not isinstance(end, int) or end <= start or end - start > LIBRARY_MAX:
+                end = start + (LIBRARY_DEFAULT if end is None else LIBRARY_MAX)
+            params["limits"] = {"start": start, "end": end}
         return self.safe(self.t.rpc(method, params))
 
     def addons(self, enabled_only=False):
@@ -459,59 +482,94 @@ class Operations:
             self.audit("rebuild_layout", "active profile")
             return self.safe(result)
 
-    def patch_file(self, path, expected_sha256, edits, dry_run=True):
+    PATCH_SUFFIXES = (".py", ".xml", ".json", ".properties", ".txt")
+
+    def _patch_plan(self, path, expected_sha256, edits):
+        """Validate and compute a patch without writing. Returns (before, after) bytes."""
         relative(path)
-        if PurePosixPath(path).suffix not in (
-            ".py",
-            ".xml",
-            ".json",
-            ".properties",
-            ".txt",
-        ) or path in ("kodi.log", "kodi.old.log"):
+        suffix = PurePosixPath(path).suffix
+        if suffix not in self.PATCH_SUFFIXES:
             raise ShieldError("Only Kodi text configuration/source files can be patched")
+        if path.startswith("addons/") and suffix in (".py", ".pyo"):
+            raise ShieldError(
+                "Add-on Python code cannot be patched by an agent; update the add-on instead",
+                "addon_code",
+            )
+        edits = [e.model_dump() if hasattr(e, "model_dump") else e for e in edits or []]
         if not re.fullmatch(r"[a-f0-9]{64}", expected_sha256) or not 1 <= len(edits) <= 20:
             raise ShieldError("Provide a SHA-256 and 1–20 exact edits")
-        with self.lock:
-            before = self.files.read(path)
-            if digest(before) != expected_sha256:
-                raise ShieldError("File changed since inspection; patch cancelled")
-            content = text(before)
-            for edit in edits:
-                old, new = edit.get("before"), edit.get("after")
-                if (
-                    not isinstance(old, str)
-                    or not old
-                    or not isinstance(new, str)
-                    or content.count(old) != 1
-                ):
-                    raise ShieldError(
-                        "Each before anchor must occur exactly once; no fuzzy replacements"
-                    )
-                content = content.replace(old, new, 1)
-            data = content.encode("utf-8")
-            if len(data) > MAX_FILE:
-                raise ShieldError("Patched file exceeds the size limit")
-            try:
-                if path.endswith(".py"):
-                    ast.parse(content)
-                elif path.endswith(".xml"):
-                    fromstring(content)
-                elif path.endswith(".json"):
-                    json.loads(content)
-            except Exception:
+        before = self.files.read(path)
+        if digest(before) != expected_sha256:
+            raise ShieldError("File changed since inspection; patch cancelled")
+        content = original = text(before)
+        for edit in edits:
+            old, new = (edit.get("before"), edit.get("after")) if isinstance(edit, dict) else (0, 0)
+            if (
+                not isinstance(old, str)
+                or not old
+                or not isinstance(new, str)
+                or content.count(old) != 1
+            ):
                 raise ShieldError(
-                    "Patched file failed syntax validation; no write performed"
-                ) from None
-            if dry_run:
-                return {
-                    "dry_run": True,
-                    "path": path,
-                    "before_sha256": digest(before),
-                    "after_sha256": digest(data),
-                    "edits": len(edits),
-                    "changed": before != data,
-                }
-            self.writes()
+                    "Each before anchor must occur exactly once; no fuzzy replacements"
+                )
+            if privacy.contains_secret(old) or privacy.contains_secret(new):
+                raise ShieldError(
+                    "Edits that touch credentials or secret settings are refused", "secret_edit"
+                )
+            content = content.replace(old, new, 1)
+        data = content.encode("utf-8")
+        if len(data) > MAX_FILE:
+            raise ShieldError("Patched file exceeds the size limit")
+        try:
+            if suffix == ".py":
+                ast.parse(content)
+            elif suffix == ".xml":
+                fromstring(content)
+            elif suffix == ".json":
+                json.loads(content)
+        except Exception:
+            raise ShieldError("Patched file failed syntax validation; no write performed") from None
+        changed_lines = [
+            line[1:]
+            for line in difflib.unified_diff(
+                original.splitlines(), content.splitlines(), lineterm="", n=0
+            )
+            if line[:1] in "+-" and not line.startswith(("+++", "---"))
+        ]
+        try:
+            touched = privacy.secret_fields(original, suffix) != privacy.secret_fields(
+                content, suffix
+            )
+        except Exception:
+            touched = True  # The original is unparseable; be conservative.
+        if touched or any(privacy.contains_secret(line) for line in changed_lines):
+            raise ShieldError(
+                "Edits that touch credentials or secret settings are refused", "secret_edit"
+            )
+        return before, data, len(edits)
+
+    def patch_preview(self, path, expected_sha256, edits):
+        with self.lock:
+            before, data, count = self._patch_plan(path, expected_sha256, edits)
+        old = privacy.text(text(before), self.known_secrets).splitlines()
+        new = privacy.text(text(data), self.known_secrets).splitlines()
+        diff = list(difflib.unified_diff(old, new, "a/" + path, "b/" + path, lineterm="", n=2))
+        return {
+            "dry_run": True,
+            "path": path,
+            "before_sha256": digest(before),
+            "after_sha256": digest(data),
+            "edits": count,
+            "changed": before != data,
+            "diff": "\n".join(diff[:400]) + ("\n... (diff truncated)" if len(diff) > 400 else ""),
+            "note": "Diff is redacted. Apply with kodi_patch_apply using the same arguments.",
+        }
+
+    def patch_apply(self, path, expected_sha256, edits):
+        self.writes()
+        with self.lock:
+            before, data, _ = self._patch_plan(path, expected_sha256, edits)
             self.stopped()
             backup = self.files.snapshot(path, before)
             try:
@@ -529,6 +587,12 @@ class Operations:
                 "backup_id": backup,
                 "restart_required": True,
             }
+
+    def patch_file(self, path, expected_sha256, edits, dry_run=True):
+        """Deprecated combined entry point kept for existing agents."""
+        if dry_run:
+            return self.patch_preview(path, expected_sha256, edits)
+        return self.patch_apply(path, expected_sha256, edits)
 
     def restore_file(self, backup_id, expected_current_sha256):
         self.writes()
@@ -565,9 +629,13 @@ class Operations:
                     "unsafe_route",
                 )
             self.guard_tv("browse")
-            addon = self.t.rpc(
-                "Addons.GetAddonDetails", {"addonid": p.netloc, "properties": ["enabled"]}
-            )["addon"]
+            addon = field(
+                self.t.rpc(
+                    "Addons.GetAddonDetails", {"addonid": p.netloc, "properties": ["enabled"]}
+                ),
+                "addon",
+                "Addons.GetAddonDetails",
+            )
             if not addon.get("enabled"):
                 raise ShieldError("Video add-on is not enabled")
         elif not (
@@ -615,11 +683,19 @@ class Operations:
             raise ShieldError("Use a short primitive setting value")
         with self.lock:
             self.idle()
-            old = self.t.rpc("Settings.GetSettingValue", {"setting": setting})["value"]
+            old = field(
+                self.t.rpc("Settings.GetSettingValue", {"setting": setting}),
+                "value",
+                "Settings.GetSettingValue",
+            )
             path = self.profile_userdata() + "/guisettings.xml"
             backup = self.files.snapshot(path, self.files.read(path))
             accepted = self.t.rpc("Settings.SetSettingValue", {"setting": setting, "value": value})
-            new = self.t.rpc("Settings.GetSettingValue", {"setting": setting})["value"]
+            new = field(
+                self.t.rpc("Settings.GetSettingValue", {"setting": setting}),
+                "value",
+                "Settings.GetSettingValue",
+            )
             if accepted is not True or new != value:
                 raise ShieldError("Kodi did not confirm the new setting; backup is " + backup)
             self.audit("set_core_setting", setting, backup)
@@ -636,6 +712,36 @@ class Operations:
             "fixes": "/api/fixes",
         }
         return self.safe(self.t.manager(endpoints[area]))
+
+    def widget_cache(self):
+        """Kodi Manager 0.6+ widget cache: status plus cached row definitions (read-only)."""
+        try:
+            status = self.t.manager("/api/widget-cache")
+            rows = self.t.manager("/api/widget-cache/rows")
+        except ShieldError as exc:
+            if exc.kind == "service_error":
+                raise ShieldError(
+                    "Kodi Manager did not offer the widget-cache API; it needs Kodi Manager 0.6+",
+                    "unsupported",
+                ) from None
+            raise
+        return self.safe({"status": status, "rows": rows})
+
+    def widget_cache_refresh(self):
+        self.writes()
+        with self.lock:
+            self.idle()
+            result = self.t.manager("/api/widget-cache/refresh", "POST", {})
+            self.audit("widget_cache_refresh", "active profile")
+            return self.safe(result)
+
+    def backup_file(self, path):
+        data = self.files.read(path)
+        return {
+            "backup_id": self.files.snapshot(path, data),
+            "sha256": digest(data),
+            "bytes": len(data),
+        }
 
     def settings_page(self, tree, query, start, limit):
         if not 0 <= start <= 10_000 or not 1 <= limit <= 50 or len(query) > 200:
@@ -715,7 +821,9 @@ class Operations:
         root = fromstring(self.files.read("userdata/profiles.xml"))
         profiles = root.findall("profile")
         try:
-            label = self.t.rpc("Profiles.GetCurrentProfile")["label"]
+            label = field(
+                self.t.rpc("Profiles.GetCurrentProfile"), "label", "Profiles.GetCurrentProfile"
+            )
         except ShieldError:
             if self.kodi_running():
                 raise ShieldError(

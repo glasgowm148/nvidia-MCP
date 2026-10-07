@@ -10,6 +10,7 @@ from pathlib import Path
 
 import httpx
 
+from . import privacy
 from .config import Config, ShieldError
 
 
@@ -65,18 +66,29 @@ class Transport:
         if not isinstance(result, dict):
             raise ShieldError("Invalid Kodi JSON-RPC response", "invalid_response")
         if "error" in result:
-            error = result["error"]
+            error = result["error"] if isinstance(result["error"], dict) else {}
+            detail = str(error.get("message") or "")[:200]
+            data = error.get("data")
+            if data is not None:
+                # Kodi puts the offending parameter/stack here; redact and bound it.
+                detail += " " + json.dumps(privacy.scrub(data, (self.c.password,)))[:500]
             raise ShieldError(
-                f"Kodi {method} failed ({error.get('code', 'unknown')}): check supported parameters"
+                f"Kodi {method} failed ({error.get('code', 'unknown')}): "
+                + (
+                    privacy.text(detail.strip(), (self.c.password,)) or "check supported parameters"
+                ),
+                "rpc_error",
             )
         if "result" not in result:
-            raise ShieldError("Invalid Kodi JSON-RPC response")
+            raise ShieldError("Invalid Kodi JSON-RPC response", "invalid_response")
         return result["result"]
 
     def manager(self, path, method="GET", body=None):
         if not self.c.manager_token:
             raise ShieldError(
-                "This tool needs optional Kodi Manager 0.3.9/0.4.x and KODI_MANAGER_TOKEN; core ADB/Kodi tools work without it"
+                "This tool needs optional Kodi Manager (0.4+; widget-cache tools need 0.6+) and "
+                "KODI_MANAGER_TOKEN; core ADB/Kodi tools work without it",
+                "not_configured",
             )
         result = self.request(self.c.url(True) + path, method, body, manager=True)
         if not isinstance(result, dict):
@@ -92,8 +104,6 @@ class Transport:
         command = [self.c.adb_path] + (["-s", self.c.serial] if device else []) + list(args)
         try:
             # Spooled output avoids unbounded pipe buffers, including Android logcat.
-            import tempfile
-
             with tempfile.TemporaryFile() as out, tempfile.TemporaryFile() as err:
                 proc = subprocess.Popen(command, stdout=out, stderr=err)
                 try:

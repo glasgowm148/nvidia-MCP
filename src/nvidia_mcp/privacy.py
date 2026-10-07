@@ -106,19 +106,63 @@ def _xml_element(match):
     return match[0]
 
 
-def text(value: str, known=()) -> str:
-    for secret in sorted((s for s in known if s and len(s) >= 8), key=len, reverse=True):
-        value = value.replace(secret, "[redacted]")
+def _credential_rules(value: str) -> str:
     value = XML_ELEMENT.sub(_xml_element, value)
     value = XML_OPEN.sub(_xml_open, value)
     value = USERINFO.sub(r"\1[redacted]@", value)
     value = QUERY.sub(r"\1[redacted]", value)
-    value = URL.sub("[URL redacted]", value)
     value = HEADER.sub(r"\1\2[redacted]", value)
     value = BEARER.sub(r"\1 [redacted]", value)
     value = QUOTED_PAIR.sub(_quoted, value)
-    value = PAIR.sub(r"\1[redacted]", value)
+    return PAIR.sub(r"\1[redacted]", value)
+
+
+def text(value: str, known=()) -> str:
+    for secret in sorted((s for s in known if s and len(s) >= 8), key=len, reverse=True):
+        value = value.replace(secret, "[redacted]")
+    value = _credential_rules(value)
+    value = URL.sub("[URL redacted]", value)
     return MAIL.sub("[email redacted]", value)
+
+
+def contains_secret(value: str) -> bool:
+    """True when credential rules (not the blanket URL/email rules) would change ``value``."""
+    return _credential_rules(value) != value
+
+
+def secret_fields(content: str, kind: str):
+    """Credential values in a parsed XML/JSON document, for detecting edits that touch them."""
+    found = []
+    if kind == ".xml":
+        for node in fromstring(content).iter():
+            if is_secret(node.get("id", "")) or _secret_tag(node.tag):
+                for child in node.iter():
+                    found.append(
+                        (
+                            child.tag,
+                            node.get("id"),
+                            child.text,
+                            child.get("value"),
+                            child.get("default"),
+                        )
+                    )
+            found += [(node.tag, key, node.get(key)) for key in node.attrib if SECRET.search(key)]
+    elif kind == ".json":
+
+        def walk(value, path):
+            if isinstance(value, dict):
+                secret_id = is_secret(value.get("id", ""))
+                for key, item in value.items():
+                    if SECRET.search(str(key)) or (secret_id and key in ("value", "default")):
+                        found.append((path, key, json.dumps(item, sort_keys=True)))
+                    else:
+                        walk(item, path + (key,))
+            elif isinstance(value, list):
+                for index, item in enumerate(value):
+                    walk(item, path + (index,))
+
+        walk(json.loads(content), ())
+    return found
 
 
 def is_secret(identifier) -> bool:

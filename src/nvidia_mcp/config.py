@@ -20,7 +20,9 @@ class ShieldError(ToolError):
     """An actionable error safe to return to an MCP client."""
 
     def __init__(self, message, kind="unknown"):
-        super().__init__(message)
+        # The kind is part of the text: MCP clients only see the message.
+        super().__init__(message if kind == "unknown" else f"{message} [{kind}]")
+        self.message = message
         self.kind = kind
 
 
@@ -28,7 +30,9 @@ def private_host(host: str) -> str:
     try:
         address = ipaddress.ip_address(host)
     except ValueError:
-        raise ShieldError("SHIELD_HOST must be a private LAN IP address, not a URL or hostname")
+        raise ShieldError(
+            "SHIELD_HOST must be a private LAN IP address, not a URL or hostname"
+        ) from None
     if (
         not (address.is_private or address.is_loopback)
         or address.is_unspecified
@@ -42,7 +46,7 @@ def port(value: str) -> int:
     try:
         number = int(value)
     except ValueError:
-        raise ShieldError("Ports must be integers")
+        raise ShieldError("Ports must be integers") from None
     if not 1 <= number <= 65535:
         raise ShieldError("Port must be between 1 and 65535")
     return number
@@ -82,6 +86,12 @@ def signers(value: str, path: str = "") -> frozenset[str]:
     return frozenset(fingerprint(item) for item in items)
 
 
+def count(value: str) -> int:
+    if not value.strip().isdigit() or int(value) > 100_000:
+        raise ShieldError("Retention settings must be whole numbers")
+    return int(value)
+
+
 def state_path() -> Path:
     if sys.platform == "win32":
         return Path(os.environ.get("LOCALAPPDATA", Path.home())) / "nvidia-mcp"
@@ -111,6 +121,10 @@ class Config:
     allow_settings: tuple[str, ...] = ()
     # SHA-256 APK signer fingerprints trusted for *new* app installs. Human-configured only.
     trusted_signers: frozenset[str] = frozenset()
+    # Local state retention (see retention.py). 0 days disables backup pruning.
+    retention_days: int = 90
+    keep_file_backups: int = 50
+    keep_apk_backups: int = 3
     remote_root: str = "/sdcard/Android/data/org.xbmc.kodi/files/.kodi"
     aapt2_path: str = "aapt2"
     apksigner_path: str = "apksigner"
@@ -147,6 +161,9 @@ class Config:
                 os.environ.get("NVIDIA_MCP_TRUSTED_SIGNERS", ""),
                 os.environ.get("NVIDIA_MCP_TRUSTED_SIGNERS_FILE", ""),
             ),
+            retention_days=count(os.environ.get("NVIDIA_MCP_RETENTION_DAYS", "90")),
+            keep_file_backups=count(os.environ.get("NVIDIA_MCP_KEEP_FILE_BACKUPS", "50")),
+            keep_apk_backups=count(os.environ.get("NVIDIA_MCP_KEEP_APK_BACKUPS", "3")),
             remote_root=root.rstrip("/"),
             aapt2_path=os.environ.get("AAPT2_PATH", "aapt2"),
             apksigner_path=os.environ.get("APKSIGNER_PATH", "apksigner"),

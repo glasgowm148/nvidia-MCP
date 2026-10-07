@@ -89,7 +89,8 @@ class ApkOperations:
             if item["abis"] and not set(item["abis"]) & set(device["abis"]):
                 raise ShieldError("APK CPU architecture is incompatible with this Shield")
 
-    def preview(self, paths, trusted_signers=None):
+    def preview(self, paths, trusted_signers=None, progress=None):
+        report = progress or (lambda *args: None)
         with self.ops.lock:
             now = time.monotonic()
             for key, value in list(self.plans.items()):
@@ -98,6 +99,7 @@ class ApkOperations:
                     del self.plans[key]
             if len(self.plans) >= 5:
                 raise ShieldError("Five APK previews are pending; apply or wait for expiry")
+            report(0, 4, "Inspecting candidate APKs")
             base, items = inspect_set(paths, self.c)
             device = self.device()
             self.compatible(items, device)
@@ -119,6 +121,7 @@ class ApkOperations:
                         raise ShieldError("APK changed while staging; preview cancelled")
                     staged.append(str(target))
                 inspect_set(staged, self.c)
+                report(1, 4, "Saving the installed APKs from the Shield")
                 originals = []
                 if original:
                     folder = private_dir(directory / "original")
@@ -134,6 +137,7 @@ class ApkOperations:
                         if sha256_file(target) != expected:
                             raise ShieldError("Installed APK changed while saving its original")
                         originals.append(str(target))
+                    report(2, 4, "Verifying saved original APKs")
                     old_base, old_items = inspect_set(originals, self.c)
                     if (
                         old_base["package"] != package
@@ -166,6 +170,7 @@ class ApkOperations:
                     "version_code": base["version_code"],
                 }
                 self.plans[preview_id] = plan
+                report(4, 4, "Preview ready")
                 return {
                     "preview_id": preview_id,
                     "expires_in_seconds": TTL,
@@ -321,7 +326,8 @@ class ApkOperations:
         if target.stat().st_size > MAX_BACKUP:
             raise ShieldError("Kodi data archive exceeds 2 GB")
 
-    def apply(self, preview_id):
+    def apply(self, preview_id, progress=None):
+        report = progress or (lambda *args: None)
         self.ops.writes()
         with self.ops.lock:
             plan = self.plans.get(preview_id)
@@ -360,6 +366,7 @@ class ApkOperations:
             remotes = []
             attempted = False
             try:
+                report(0, 6, "Saving original APKs to the recovery bundle")
                 for index, source in enumerate(plan["originals"]):
                     shutil.copyfile(source, backup / f"{index}.apk")
                     (backup / f"{index}.apk").chmod(0o600)
@@ -369,12 +376,14 @@ class ApkOperations:
                     ):
                         raise ShieldError("Saved original APK checksum failed")
                 if plan["package"] == "org.xbmc.kodi" and plan["installed"]:
+                    report(1, 6, "Archiving Kodi addons/userdata (tar)")
                     manifest["kodi_data"] = self.kodi_snapshot(backup)
                 manifest["status"] = "prepared"
                 save_json(backup / "manifest.json", manifest)
                 self.guard(plan["package"])
                 if self.installed(plan["package"]) != plan["installed"]:
                     raise ShieldError("Installed app changed during backup; preview again")
+                report(2, 6, "Pushing APKs to the Shield")
                 for index, source in enumerate(plan["paths"]):
                     remote = f"/data/local/tmp/nvidia-mcp-{preview_id}-{index}.apk"
                     remotes.append(remote)
@@ -388,11 +397,13 @@ class ApkOperations:
                     raise ShieldError("Installed app changed before installation")
                 manifest["status"] = "installing"
                 save_json(backup / "manifest.json", manifest)
+                report(3, 6, "Installing")
                 output = self.install_remote(remotes, items, plan["package"])
                 if not re.search(r"^Success\s*$", output, re.M):
                     raise ShieldError(
                         "Android rejected the install; inspect backup/status, no automatic uninstall or retry"
                     )
+                report(5, 6, "Verifying installed version and checksums")
                 after = self.installed(plan["package"])
                 if (
                     not after
@@ -401,6 +412,7 @@ class ApkOperations:
                 ):
                     raise ShieldError("Installed APK version/checksum verification failed")
                 manifest["status"] = "verified"
+                report(6, 6, "Verified")
                 self.ops.audit(
                     "apk_upgrade" if plan["installed"] else "apk_install",
                     plan["package"],
@@ -474,6 +486,65 @@ class ApkOperations:
                 self.t.shell("pm", "install-abandon", session, limit=16000)
             except ShieldError:
                 pass
+
+    def status(self, backup_id, verify_checksums=False):
+        """Local recovery-bundle state plus the version currently installed on the Shield."""
+        if not isinstance(backup_id, str) or not re.fullmatch(r"[0-9a-f]{32}", backup_id):
+            raise ShieldError("Invalid APK backup ID")
+        folder = self.c.state / "apk_backups" / backup_id
+        try:
+            manifest = json.loads((folder / "manifest.json").read_text())
+        except (OSError, ValueError):
+            raise ShieldError(
+                "APK backup not found in local private storage", "not_found"
+            ) from None
+        if not isinstance(manifest, dict) or manifest.get("device") != self.c.serial:
+            raise ShieldError("APK backup belongs to a different Shield")
+        files = []
+        for index, item in enumerate(manifest.get("original_apks") or []):
+            path = folder / f"{index}.apk"
+            row = {"file": path.name, "present": path.is_file()}
+            if row["present"]:
+                row["bytes"] = path.stat().st_size
+                if verify_checksums:
+                    row["sha256_ok"] = sha256_file(path) == item.get("sha256")
+            files.append(row)
+        kodi = manifest.get("kodi_data")
+        if kodi:
+            path = folder / "kodi-data.tar"
+            kodi = dict(kodi, present=path.is_file())
+            if kodi["present"] and verify_checksums:
+                kodi["sha256_ok"] = sha256_file(path) == kodi.get("sha256")
+        result = {
+            key: manifest.get(key)
+            for key in (
+                "backup_id",
+                "package",
+                "created",
+                "status",
+                "original_version_code",
+                "candidate_version_code",
+            )
+        }
+        result.update({"original_apks": files, "kodi_data": kodi})
+        try:
+            installed = self.installed(manifest["package"])
+            current = installed["version_code"] if installed else None
+            result["installed_version_code"] = current
+            result["installed_matches"] = (
+                "candidate"
+                if current == manifest.get("candidate_version_code")
+                else "original"
+                if current == manifest.get("original_version_code")
+                else "other"
+            )
+        except (ShieldError, KeyError) as exc:
+            result["installed_version_code"] = None
+            result["installed_unavailable"] = str(exc) or "Shield unavailable"
+        result["recovery"] = (
+            "See docs/apk-upgrades.md#manual-recovery; restore is a reviewed manual step."
+        )
+        return result
 
     def backups(self):
         rows = []
