@@ -1,0 +1,19 @@
+<settings version="2">
+    <setting id="widget_limit">20</setting>
+    <setting id="trakt.user">fakeTraktUser01</setting>
+    <setting id="trakt.token">FAKE-trakt-access-7f3a9c</setting>
+    <setting id="trakt.refresh">FAKE-trakt-refresh-1b2c3d</setting>
+    <setting id="trakt.expires">1767225600</setting>
+    <setting id="rd.token">FAKE-rd-token-a1b2c3</setting>
+    <setting id="rd.refresh">FAKE-rd-refresh-d4e5f6</setting>
+    <setting id="rd.client_id">FAKE-rd-clientid-777</setting>
+    <setting id="rd.secret">FAKE-rd-secret-888</setting>
+    <setting id="rd.auth">FAKE-rd-auth-999</setting>
+    <setting id="rd.enabled">true</setting>
+    <setting id="tb.api_key">FAKE-torbox-key-4242</setting>
+    <setting id="pm.apikey">FAKE-premiumize-key-5151</setting>
+    <setting id="ad.pin" default="true">FAKE-alldebrid-pin-6161</setting>
+    <setting id="results.sort_order" default="true">0</setting>
+    <setting id="tmdb_api_key">FAKE-tmdb-key-3131</setting>
+    <setting id="easynews_password">FAKE-easynews-pass-2121</setting>
+</settings>

@@ -1,0 +1,15 @@
+<sources>
+    <video>
+        <default pathversion="1"></default>
+        <source>
+            <name>Movies</name>
+            <path pathversion="1">smb://fakesrcuser:FAKE-src-pass-8899@nas.local/movies/</path>
+            <allowsharing>true</allowsharing>
+        </source>
+        <source>
+            <name>TV</name>
+            <path pathversion="1">davs://fakedavuser:FAKE-dav-pass-1010@cloud.example/tv/</path>
+            <allowsharing>true</allowsharing>
+        </source>
+    </video>
+</sources>

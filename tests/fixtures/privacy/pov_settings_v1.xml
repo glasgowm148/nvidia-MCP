@@ -1,0 +1,8 @@
+<settings>
+    <setting id="trakt_user" value="fakePovUser02" />
+    <setting id="trakt.access_token" value="FAKE-pov-access-9e8d7c" />
+    <setting id="trakt.refresh" value="FAKE-pov-refresh-6b5a4f" />
+    <setting id="torbox.token" value="FAKE-pov-torbox-3c2b1a" />
+    <setting id="fanart_client_key" value="FAKE-fanart-key-1212" />
+    <setting id="default_action" value="1" />
+</settings>

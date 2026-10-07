@@ -1,0 +1,9 @@
+{
+  "widget_limit": 20,
+  "trakt": {"access_token": "FAKE-json-access-1717", "refresh_token": "FAKE-json-refresh-1818", "expires_at": 1767225600},
+  "mdblist": {"apikey": "FAKE-json-mdblist-1919"},
+  "rd": {"auth": "FAKE-json-rdauth-2020", "refresh": "FAKE-json-rdrefresh-2121", "enabled": true},
+  "pin": "FAKE-json-pin-2222",
+  "host": "192.168.1.20",
+  "port": 8080
+}

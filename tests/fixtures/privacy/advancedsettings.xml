@@ -1,0 +1,17 @@
+<advancedsettings version="1.0">
+    <videodatabase>
+        <type>mysql</type>
+        <host>192.168.1.20</host>
+        <port>3306</port>
+        <user>kodi</user>
+        <pass>hunter22secret</pass>
+    </videodatabase>
+    <musicdatabase>
+        <type>mysql</type>
+        <host>192.168.1.20</host>
+        <port>3306</port>
+        <user>kodimusic</user>
+        <pass>FAKE-music-db-pass</pass>
+    </musicdatabase>
+    <cache><memorysize>157286400</memorysize></cache>
+</advancedsettings>

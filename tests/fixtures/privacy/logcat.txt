@@ -1,0 +1,4 @@
+10-07 10:00:00.000  1234  1234 I SmartTube: auth {"access_token":"FAKE-cat-access-1414","token_type":"Bearer"}
+10-07 10:00:01.000  1234  1234 D OkHttp  : Authorization: Bearer FAKE-cat-bearer-1515
+10-07 10:00:02.000  1234  1234 D Netflix : session_token=FAKE-cat-session-1616; region=GB
+10-07 10:00:03.000  1234  1234 I ActivityManager: Start proc 4321:org.xbmc.kodi/u0a123 for activity

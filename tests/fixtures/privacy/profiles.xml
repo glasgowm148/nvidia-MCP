@@ -1,0 +1,18 @@
+<profiles>
+    <lastloaded>1</lastloaded>
+    <useloginscreen>true</useloginscreen>
+    <profile>
+        <id>0</id>
+        <name>Master user</name>
+        <directory pathversion="1">special://masterprofile/</directory>
+        <lockmode>1</lockmode>
+        <lockcode>FAKE-master-lockcode-5678</lockcode>
+    </profile>
+    <profile>
+        <id>1</id>
+        <name>Kids</name>
+        <directory pathversion="1">profiles/kids/</directory>
+        <lockmode>1</lockmode>
+        <lockcode>FAKE-kids-lockcode-1234</lockcode>
+    </profile>
+</profiles>
