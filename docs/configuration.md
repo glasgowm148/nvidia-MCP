@@ -19,9 +19,17 @@ filled configuration or print account credentials into diagnostic output.
 | `KODI_MOUNT` | unset | Absolute mounted `.kodi` path; otherwise ADB files |
 | `KODI_REMOTE_ROOT` | `/sdcard/Android/data/org.xbmc.kodi/files/.kodi` | Shared-storage root for ADB |
 | `KODI_MANAGER_PORT`, `KODI_MANAGER_TOKEN` | `8765`, empty | Optional Manager connection |
-| `NVIDIA_MCP_ALLOW_WRITES` | `0` | Allow mutation tools |
+| `NVIDIA_MCP_ALLOW_WRITES` | `0` | Register and allow write/disruptive tools. With `0` they are not listed at all |
 | `NVIDIA_MCP_ALLOW_PLUGIN_BROWSE` | `0` | Allow executing directory previews |
+| `NVIDIA_MCP_ALLOW_INTERRUPT` | `0` | Honour the model-supplied `allow_during_playback` / `interrupt_other_app` flags. Without it those flags are refused |
+| `NVIDIA_MCP_EXTRA_LAUNCHERS` | empty | Comma-separated home-screen package names treated like the built-in launchers |
+| `NVIDIA_MCP_ALLOW_SETTINGS` | empty | Comma-separated **exact** protected Kodi setting ids that `kodi_set_setting` may change |
+| `NVIDIA_MCP_TRUSTED_SIGNERS` | empty | Comma-separated SHA-256 APK signer fingerprints trusted for **new** app installs |
+| `NVIDIA_MCP_TRUSTED_SIGNERS_FILE` | unset | File with one fingerprint per line (`#` comments), merged with the variable above |
 | `NVIDIA_MCP_STATE_DIR` | OS user app-data directory | Private snapshots and value-free audit records |
+| `NVIDIA_MCP_RETENTION_DAYS` | `90` | On start, prune backups older than this beyond the kept count; `0` disables pruning |
+| `NVIDIA_MCP_KEEP_FILE_BACKUPS` | `50` | Newest per-file snapshots always kept |
+| `NVIDIA_MCP_KEEP_APK_BACKUPS` | `3` | Newest *verified* APK recovery bundles always kept; unverified bundles are never pruned |
 
 ADB authorization, Kodi HTTP credentials and the Manager bearer token are separate. Use
 `shield_connection` and `--doctor` as described in [agent setup](agent-setup.md) to check readiness.
@@ -41,14 +49,37 @@ These are independent switches. Plugin browsing uses `Files.GetDirectory`, which
 add-on code and can make network requests. Preview one bounded page at a time. The server does not
 expose whole-tree crawls, arbitrary shell commands or unrestricted JSON-RPC.
 
-Disruptive tools refuse active Kodi playback and fail closed if playback state is unknown. Kodi
-lifecycle changes also inspect the foreground Android app: idle Kodi does not establish that the
-TV is free. Offline recovery and interrupting another app require explicit tool flags **and permission
-from the person viewing**. Remote buttons cannot infer whether another app is playing; obtain
-permission first. Write mode is a capability switch, not a substitute for an agent's approval policy.
+Every disruptive tool (remote buttons, Kodi lifecycle, skin-menu rebuild, plugin browsing and APK
+install) uses one guard. It refuses active Kodi playback, fails closed if playback state is unknown,
+and checks the foreground Android app against one launcher set (Google TV/Android TV launchers and
+Projectivy, plus `NVIDIA_MCP_EXTRA_LAUNCHERS`): with Netflix, YouTube or SmartTube in front, a Home or
+Back press would go to that app, so it is refused. Offline recovery needs an explicit tool flag.
+Interrupting playback or another app needs the tool flag **and** `NVIDIA_MCP_ALLOW_INTERRUPT=1`,
+because tool arguments are chosen by the model; get permission from the person viewing as well.
+Write mode is a capability switch, not a substitute for an agent's approval policy.
 
-For file repairs, read the original/checksum, preview exact replacements, stop Kodi, apply, restart
-and verify. Writes to repair files/settings take private backups. Stale checksums and ambiguous
+### Protected Kodi settings
+
+`kodi_set_setting` refuses settings that weaken security or expose services: `services.*` (web
+server, its authentication and port, event server, Zeroconf, UPnP, AirPlay, SMB...), `masterlock.*`,
+`system.*`, `debug.*` (except the harmless `debug.showloginfo` overlay), `pvrparental.*`, the HTTP
+proxy settings, `addons.unknownsources`, `addons.updatemode` and `lookandfeel.skin`. Change these on
+the TV. An advanced user who really wants an agent to change one can list its exact id in
+`NVIDIA_MCP_ALLOW_SETTINGS`; wildcards are not accepted. Credential settings are always refused.
+
+### Plugin browsing
+
+`kodi_browse` refuses any `plugin://` route whose path segments, query parameter names or values
+contain an action word such as play, resolve, toggle, refresh, clear, delete, remove, (un)install,
+settings, auth, sign in/out, logout, maintenance, manager, rescan, reset, update, input, keyboard,
+dialog or context. Ordinary listing routes (e.g. YouTube `/special/popular_right_now/`, Fen
+`mode=build_movie_list`) keep working. Display-only values (`name`, `title`, `label`, `plot`) are not
+treated as routing.
+
+For file repairs, read the original/checksum, preview exact replacements with `kodi_patch_preview`
+(it returns a redacted unified diff), stop Kodi, apply with `kodi_patch_apply`, restart and verify.
+`kodi_patch_file` remains as a deprecated alias that dispatches on `dry_run`. Patches that touch
+credential settings or values, and edits to add-on Python (`addons/**.py`), are refused. Writes to repair files/settings take private backups. Stale checksums and ambiguous
 anchors are rejected; unknown add-on versions need investigation. See [repairs](repairs.md).
 
 For live Bingie writes, enable Manager's own write mode as well. MCP stages an immutable preview

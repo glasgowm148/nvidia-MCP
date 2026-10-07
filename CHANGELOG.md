@@ -1,5 +1,57 @@
 # Changelog
 
+## Unreleased
+
+### Security
+
+- **Redaction** now covers segment-style setting ids (`trakt.refresh`, `rd.refresh`, `rd.auth`,
+  `*.pin`, `*_user`...), credential XML elements (`<user>`, `<pass>`, `<lockcode>`...), JSON and
+  Python-style quoted pairs in logs, `Authorization`/`Cookie` headers, URL userinfo for any scheme
+  and secret query parameters. A fixture corpus of realistic fake Fen/POV/Trakt/Real-Debrid/Torbox
+  settings, MySQL `advancedsettings.xml`, `profiles.xml`, `passwords.xml`, `sources.xml`, `kodi.log`
+  and logcat lines guards this.
+- **One TV guard** (`guard_tv`) for remote buttons, Kodi lifecycle, skin-menu rebuild, plugin
+  browsing and APK installs: Kodi playback state, the foreground app against one shared launcher
+  set (`NVIDIA_MCP_EXTRA_LAUNCHERS` extends it) and running state. `shield_remote` no longer sends
+  Home/Back/Stop to Netflix, YouTube or SmartTube. The model-supplied `allow_during_playback` and
+  `interrupt_other_app` flags now also need `NVIDIA_MCP_ALLOW_INTERRUPT=1`.
+- `kodi_set_setting` refuses security/service settings (`services.*`, `masterlock.*`, `system.*`,
+  `debug.*` except `debug.showloginfo`, `pvrparental.*`, HTTP proxy, `addons.unknownsources`,
+  `addons.updatemode`, `lookandfeel.skin`). `NVIDIA_MCP_ALLOW_SETTINGS` allows exact ids.
+- `kodi_browse` checks plugin path segments and every query parameter for action words (play,
+  sign/out, maintenance, settings, search/input, ...), not only `mode`/`action` values.
+- New-app APK signer trust comes only from `NVIDIA_MCP_TRUSTED_SIGNERS` /
+  `NVIDIA_MCP_TRUSTED_SIGNERS_FILE`; the `trusted_signers` argument can only narrow it.
+- `kodi_patch_*` refuses edits touching credential settings/values and add-on `.py` files.
+- Write and disruptive tools are registered only when `NVIDIA_MCP_ALLOW_WRITES=1` (23 tools are
+  listed read-only, 34 with writes).
+
+### Added
+
+- `kodi_patch_preview` (read-only, redacted unified diff) and `kodi_patch_apply`;
+  `kodi_patch_file` remains as a deprecated alias.
+- `shield_apk_status(backup_id)`; APK preview/apply report per-stage progress to MCP clients.
+- `kodi_manager_widget_cache` and write-gated `kodi_manager_widget_cache_refresh` (Kodi Manager 0.6+).
+- Every tool has a title and read-only/destructive/idempotent/open-world hints; `kodi_read.method` is
+  an enum of the allowlist, patch edits and layout plans have typed schemas.
+- Start-up pruning of old local backups and stale APK previews (`NVIDIA_MCP_RETENTION_DAYS`,
+  `NVIDIA_MCP_KEEP_FILE_BACKUPS`, `NVIDIA_MCP_KEEP_APK_BACKUPS`).
+- Generated README tool reference (`scripts/gen_tool_docs.py`), tag-driven release workflow, CI axis
+  for the oldest (1.28) and latest mcp, `nvidia-mcp --version`.
+- Manual APK recovery steps in `docs/apk-upgrades.md#manual-recovery`.
+
+### Changed
+
+- Bundle the public Kodi Manager 0.6.2 release (MCP tools support Kodi Manager 0.4+; widget-cache
+  tools need 0.6+).
+- `exec-out` reads (`head`, `tail`, `cat`, `tar`) check the remote exit status, so a missing file is
+  an error instead of `head: ... No such file` content and a failed tar cannot pass as a backup.
+- Kodi JSON-RPC errors keep Kodi's (redacted, bounded) message and data; error text shows the error
+  kind; missing result fields give actionable errors. `VideoLibrary.*` reads default to 50 items
+  (maximum 500).
+- `shield_apk_preview` is annotated `readOnlyHint=false` (it downloads up to 1 GB locally).
+- The package version has a single source (`src/nvidia_mcp/__init__.py`).
+
 ## 0.3.2 — 2026-10-06 (prerelease)
 
 - Refresh-rate settings such as `videoplayer.adjustrefreshrate` are no longer treated as credentials.

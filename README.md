@@ -99,7 +99,7 @@ Kodi Manager 0.4+ is supported; the widget-cache tools need 0.6+. Older installa
 
 ## Making changes
 
-**Read-only is the default.** Writes and plugin browsing have separate opt-ins. File/configuration changes use backups; disruptive tools check playback, and lifecycle tools also check the foreground Android app. An unknown playback state blocks disruptive changes. Remote-button input still needs permission from anyone using the TV.
+**Read-only is the default.** Writes and plugin browsing have separate opt-ins; without write mode the write tools are not even listed. File/configuration changes use backups. Every disruptive tool checks Kodi playback and the foreground Android app, so a Home press is refused while Netflix or SmartTube is in front; an unknown state blocks the change. "Interrupt anyway" flags also need `NVIDIA_MCP_ALLOW_INTERRUPT=1`. Security and service settings (web server, unknown sources, master lock...) cannot be changed by an agent, and new APK signers must be trusted in your own configuration.
 
 Ask the agent to inspect and preview a change before enabling it. Live companion writes also need Manager's own write mode. See [configuration and operation rules](docs/configuration.md), [repair workflows](docs/repairs.md) and [APK upgrades](docs/apk-upgrades.md).
 
