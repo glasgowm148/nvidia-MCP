@@ -63,6 +63,25 @@ def setting_ids(value: str) -> tuple[str, ...]:
     return names
 
 
+def fingerprint(value: str) -> str:
+    """Normalise a SHA-256 certificate fingerprint (hex, optionally colon-separated)."""
+    value = value.strip().replace(":", "").lower()
+    if not re.fullmatch(r"[0-9a-f]{64}", value):
+        raise ShieldError("Trusted APK signers must be SHA-256 certificate fingerprints")
+    return value
+
+
+def signers(value: str, path: str = "") -> frozenset[str]:
+    items = [item for item in value.split(",") if item.strip()]
+    if path:
+        try:
+            lines = Path(path).expanduser().read_text(encoding="utf-8").splitlines()
+        except OSError:
+            raise ShieldError("NVIDIA_MCP_TRUSTED_SIGNERS_FILE cannot be read") from None
+        items += [line.split("#", 1)[0] for line in lines if line.split("#", 1)[0].strip()]
+    return frozenset(fingerprint(item) for item in items)
+
+
 def state_path() -> Path:
     if sys.platform == "win32":
         return Path(os.environ.get("LOCALAPPDATA", Path.home())) / "nvidia-mcp"
@@ -90,6 +109,8 @@ class Config:
     extra_launchers: tuple[str, ...] = ()
     # Exact protected Kodi setting ids an advanced user allows kodi_set_setting to change.
     allow_settings: tuple[str, ...] = ()
+    # SHA-256 APK signer fingerprints trusted for *new* app installs. Human-configured only.
+    trusted_signers: frozenset[str] = frozenset()
     remote_root: str = "/sdcard/Android/data/org.xbmc.kodi/files/.kodi"
     aapt2_path: str = "aapt2"
     apksigner_path: str = "apksigner"
@@ -122,6 +143,10 @@ class Config:
             allow_interrupt=os.environ.get("NVIDIA_MCP_ALLOW_INTERRUPT", "0") == "1",
             extra_launchers=packages(os.environ.get("NVIDIA_MCP_EXTRA_LAUNCHERS", "")),
             allow_settings=setting_ids(os.environ.get("NVIDIA_MCP_ALLOW_SETTINGS", "")),
+            trusted_signers=signers(
+                os.environ.get("NVIDIA_MCP_TRUSTED_SIGNERS", ""),
+                os.environ.get("NVIDIA_MCP_TRUSTED_SIGNERS_FILE", ""),
+            ),
             remote_root=root.rstrip("/"),
             aapt2_path=os.environ.get("AAPT2_PATH", "aapt2"),
             apksigner_path=os.environ.get("APKSIGNER_PATH", "apksigner"),

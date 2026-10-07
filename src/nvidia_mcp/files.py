@@ -4,7 +4,6 @@ import hashlib
 import json
 import os
 import re
-import shlex
 import tempfile
 import uuid
 from pathlib import Path, PurePosixPath
@@ -40,7 +39,7 @@ class Files:
         self.c = transport.c
         self.backups = self.c.state / "backups"
 
-    def location(self, path):
+    def location(self, path, must_exist=False):
         path = relative(path)
         if self.c.mount:
             root = self.c.mount.resolve()
@@ -49,24 +48,26 @@ class Files:
                 p.is_symlink() for p in [target, *target.parents] if p != root
             ):
                 raise ShieldError("Symlinked Kodi files/directories are not supported")
+            if must_exist and not target.is_file():
+                raise ShieldError(f"Kodi file not found: {path}", "not_found")
             return target
         root = self.t.shell("readlink", "-f", self.c.remote_root)
         target = self.t.shell("readlink", "-f", self.c.remote_root + "/" + path)
         if not root or not target.startswith(root + "/"):
             raise ShieldError("Kodi path unavailable or escapes the configured root")
+        if must_exist and not self.t.is_file(target):
+            raise ShieldError(f"Kodi file not found: {path}", "not_found")
         return target
 
     def read(self, path):
-        target = self.location(path)
+        target = self.location(path, must_exist=True)
         try:
             if self.c.mount:
                 with target.open("rb") as f:
                     data = f.read(MAX_FILE + 1)
             else:
-                data = self.t.adb(
-                    "exec-out",
-                    shlex.join(["head", "-c", str(MAX_FILE + 1), str(target)]),
-                    limit=MAX_FILE + 1,
+                data = self.t.exec_out(
+                    ["head", "-c", str(MAX_FILE + 1), str(target)], limit=MAX_FILE + 1
                 )
         except OSError:
             raise ShieldError(
@@ -77,13 +78,20 @@ class Files:
         return data
 
     def tail(self, path, lines):
-        target = self.location(path)
+        target = self.location(path, must_exist=True)
         if self.c.mount:
-            with target.open("rb") as f:
-                f.seek(0, os.SEEK_END)
-                f.seek(max(0, f.tell() - MAX_FILE))
-                return b"\n".join(f.read(MAX_FILE).splitlines()[-lines:]).decode("utf-8", "replace")
-        return self.t.shell("tail", "-n", str(lines), str(target), limit=MAX_FILE)
+            try:
+                with target.open("rb") as f:
+                    f.seek(0, os.SEEK_END)
+                    f.seek(max(0, f.tell() - MAX_FILE))
+                    data = f.read(MAX_FILE)
+            except OSError:
+                raise ShieldError(
+                    "Cannot read Kodi log: check the mounted share and file permissions"
+                ) from None
+            return b"\n".join(data.splitlines()[-lines:]).decode("utf-8", "replace")
+        data = self.t.exec_out(["tail", "-n", str(lines), str(target)], limit=MAX_FILE)
+        return data.decode("utf-8", "replace").strip()
 
     def snapshot(self, path, data):
         self.backups.mkdir(parents=True, exist_ok=True, mode=0o700)

@@ -7,7 +7,6 @@ import copy
 import json
 import os
 import re
-import shlex
 import shutil
 import tarfile
 import time
@@ -15,7 +14,8 @@ import uuid
 from pathlib import Path, PurePosixPath
 
 from .android_tools import inspect_set, sha256_file
-from .config import ShieldError
+from .config import ShieldError, fingerprint
+from .transport import TRAILER, checked_script, strip_status
 
 MAX_BACKUP = 2_000_000_000
 # Regenerable caches. Thumbnails alone often exceed the backup limit on real libraries.
@@ -105,13 +105,7 @@ class ApkOperations:
             original = self.installed(package)
             if original and base["version_code"] <= original["version_code"]:
                 raise ShieldError("Only upgrades are supported; reinstall/downgrade refused")
-            if not original and (
-                not trusted_signers
-                or any(not re.fullmatch(r"[0-9a-fA-F]{64}", value) for value in trusted_signers)
-            ):
-                raise ShieldError(
-                    "New app installation needs independently trusted SHA-256 signing fingerprints"
-                )
+            trusted_new = None if original else self.trusted_for_new_app(trusted_signers)
             preview_id = uuid.uuid4().hex
             directory = private_dir(private_dir(self.c.state) / "apk_previews" / preview_id)
             try:
@@ -149,8 +143,11 @@ class ApkOperations:
                     trusted = old_base["signers"]
                 else:
                     old_items = []
-                    trusted = sorted(set(value.lower() for value in trusted_signers))
-                if base["signers"] != trusted:
+                if original:
+                    signed_ok = base["signers"] == trusted
+                else:
+                    signed_ok = bool(base["signers"]) and set(base["signers"]) <= trusted_new
+                if not signed_ok:
                     raise ShieldError(
                         "APK verified signers differ from the trusted app; no install permitted"
                     )
@@ -185,6 +182,33 @@ class ApkOperations:
                 shutil.rmtree(directory, ignore_errors=True)
                 raise
 
+    def trusted_for_new_app(self, requested=None):
+        """Signer trust for new apps comes only from human config, never from the model.
+
+        ``requested`` (a tool argument) can only narrow the configured set.
+        """
+        configured = frozenset(getattr(self.c, "trusted_signers", ()) or ())
+        if not configured:
+            raise ShieldError(
+                "New app installation needs independently trusted SHA-256 signing "
+                "fingerprints. The user must set NVIDIA_MCP_TRUSTED_SIGNERS (or "
+                "NVIDIA_MCP_TRUSTED_SIGNERS_FILE); fingerprints passed by the agent are not trusted",
+                "untrusted_signer",
+            )
+        if not requested:
+            return configured
+        try:
+            narrowed = frozenset(fingerprint(value) for value in requested)
+        except ShieldError:
+            raise ShieldError("trusted_signers must be SHA-256 fingerprints") from None
+        if not narrowed <= configured:
+            raise ShieldError(
+                "trusted_signers may only narrow NVIDIA_MCP_TRUSTED_SIGNERS; it lists a "
+                "fingerprint the user has not configured",
+                "untrusted_signer",
+            )
+        return narrowed
+
     def guard(self, package):
         return self.ops.guard_tv("apk", package=package)
 
@@ -203,18 +227,15 @@ class ApkOperations:
                 or ".." in PurePosixPath(root).parts
             ):
                 raise ShieldError("Configured Kodi root cannot be verified for a full data backup")
-            command = [
-                self.c.adb_path,
-                "-s",
-                self.c.serial,
-                "exec-out",
-                shlex.join(
-                    ["tar", "-cf", "-", "-C", root]
-                    + ["--exclude=" + path for path in SNAPSHOT_EXCLUDES]
-                    + ["addons", "userdata"]
-                ),
-            ]
-            self.t.stream_to_file(command, target, MAX_BACKUP, 300)
+            script, token = checked_script(
+                ["tar", "-cf", "-", "-C", root]
+                + ["--exclude=" + path for path in SNAPSHOT_EXCLUDES]
+                + ["addons", "userdata"]
+            )
+            command = [self.c.adb_path, "-s", self.c.serial, "exec-out", script]
+            self.t.stream_to_file(command, target, MAX_BACKUP + TRAILER, 300)
+            # tar's exit status: a partial archive must never pass as a recovery bundle.
+            strip_status(target, token)
         target.chmod(0o600)
         total, count, roots = 0, 0, set()
         try:

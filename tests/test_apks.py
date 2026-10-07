@@ -1,5 +1,6 @@
 import io
 import json
+import re
 import tarfile
 from dataclasses import replace
 from pathlib import Path
@@ -12,6 +13,12 @@ from nvidia_mcp.config import ShieldError
 from nvidia_mcp.files import digest
 
 SIGNER = "a" * 64
+
+
+def trailer(command, code=0):
+    """What the device appends after a checked exec-out command (see transport.checked_script)."""
+    token = re.search(r"echo (__nvidia_mcp_exit_[0-9a-f]+__)\$\?", command[-1])[1]
+    return f"\n{token}{code}\n".encode()
 
 
 def test_current_aapt2_badging_uses_min_sdk_version():
@@ -50,6 +57,7 @@ def apk_env(ops, monkeypatch, tmp_path):
             self.session = []
             self.wrong_version = False
             self.fail_snapshot = False
+            self.tar_exit = 0
 
         def rpc(self, *args):
             return []
@@ -130,6 +138,8 @@ def apk_env(ops, monkeypatch, tmp_path):
                 data = b"<settings>synthetic-private-token</settings>"
                 member.size = len(data)
                 archive.addfile(member, io.BytesIO(data))
+            with open(destination, "ab") as handle:
+                handle.write(trailer(command, self.tar_exit))
 
     device = Device()
     ops.t = device
@@ -191,8 +201,33 @@ def test_new_apps_need_independent_signer_trust(apk_env):
     source = candidate()
     with pytest.raises(ShieldError, match="independently trusted"):
         ops.apks.preview([source])
-    preview = ops.apks.preview([source], [SIGNER])
+    # A model-supplied fingerprint is not trust on its own (M1).
+    with pytest.raises(ShieldError, match="independently trusted"):
+        ops.apks.preview([source], [SIGNER])
+    ops.apks.c = replace(ops.apks.c, trusted_signers=frozenset({SIGNER, "c" * 64}))
+    with pytest.raises(ShieldError, match="only narrow"):
+        ops.apks.preview([source], ["b" * 64])
+    with pytest.raises(ShieldError, match="signers differ"):
+        ops.apks.preview([source], ["c" * 64])
+    preview = ops.apks.preview([source], [SIGNER.upper()])
     assert ops.apks.apply(preview["preview_id"])["status"] == "verified"
+    device.installed = {}
+    assert ops.apks.preview([candidate()])["package"] == "dev.example.player"
+
+
+def test_trusted_signers_come_from_env_or_file(monkeypatch, tmp_path):
+    from nvidia_mcp.config import Config
+
+    monkeypatch.setenv("SHIELD_HOST", "192.168.1.50")
+    colon = ":".join(["AB"] * 32)
+    monkeypatch.setenv("NVIDIA_MCP_TRUSTED_SIGNERS", f"{SIGNER}, {colon}")
+    listing = tmp_path / "signers.txt"
+    listing.write_text("# SmartTube\n" + "d" * 64 + "  # stable\n\n")
+    monkeypatch.setenv("NVIDIA_MCP_TRUSTED_SIGNERS_FILE", str(listing))
+    assert Config.from_env().trusted_signers == {SIGNER, "ab" * 32, "d" * 64}
+    monkeypatch.setenv("NVIDIA_MCP_TRUSTED_SIGNERS", "not-a-fingerprint")
+    with pytest.raises(ShieldError, match="fingerprints"):
+        Config.from_env()
 
 
 @pytest.mark.parametrize("state", ["running", "youtube", "unknown", "expired", "stale", "tampered"])
@@ -307,7 +342,7 @@ def test_corrupt_remote_kodi_snapshot_blocks_all_transfers(apk_env):
     device.installed["/data/app/example/base.apk"] = apk_bytes(package="org.xbmc.kodi")
     preview = ops.apks.preview([candidate(package="org.xbmc.kodi")])
     device.stream_to_file = lambda command, destination, limit, timeout: destination.write_bytes(
-        b"not a tar archive"
+        b"not a tar archive" + trailer(command)
     )
     with pytest.raises(ShieldError, match="backup could not be validated"):
         ops.apks.apply(preview["preview_id"])
@@ -396,4 +431,14 @@ def test_adb_kodi_snapshot_excludes_caches(apk_env, tmp_path):
     remote = commands[0][-1]
     for path in SNAPSHOT_EXCLUDES:
         assert "--exclude=" + path in remote
-    assert remote.endswith("addons userdata")
+    assert "addons userdata 2>/dev/null;" in remote
+
+
+def test_failed_remote_tar_exit_blocks_installation(apk_env):
+    ops, device, candidate = apk_env
+    device.installed["/data/app/example/base.apk"] = apk_bytes(package="org.xbmc.kodi")
+    preview = ops.apks.preview([candidate(package="org.xbmc.kodi")])
+    device.tar_exit = 1
+    with pytest.raises(ShieldError, match="exit 1"):
+        ops.apks.apply(preview["preview_id"])
+    assert not any(call[0] == "push" for call in device.calls)

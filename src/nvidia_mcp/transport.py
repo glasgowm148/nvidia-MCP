@@ -5,6 +5,7 @@ import shlex
 import subprocess
 import tempfile
 import threading
+import uuid
 from pathlib import Path
 
 import httpx
@@ -117,10 +118,39 @@ class Transport:
                 "missing_dependency",
             ) from None
 
+    def is_file(self, remote):
+        """``test -f`` with a printed result: old adb shell protocols drop exit codes."""
+        answer = self.shell(
+            "sh",
+            "-c",
+            'if [ -f "$1" ] && [ -r "$1" ]; then echo present; else echo missing; fi',
+            "sh",
+            remote,
+        )
+        return answer == "present"
+
+    def exec_out(self, argv, limit, timeout=30):
+        """Run argv through exec-out and fail on a non-zero exit instead of returning stderr."""
+        script, token = checked_script(argv)
+        data = self.adb("exec-out", script, limit=limit + TRAILER, timeout=timeout)
+        payload, code = split_status(data, token)
+        if code != 0:
+            raise ShieldError(
+                f"Device command failed (exit {code}); the file may be missing or unreadable",
+                "device_error",
+            )
+        if len(payload) > limit:
+            raise ShieldError("ADB output exceeds the limit; narrow the request")
+        return payload
+
     def download(self, remote, destination, limit=600_000_000, timeout=180):
         """Stream an explicitly chosen remote file to private storage, with byte/time bounds."""
-        command = [self.c.adb_path, "-s", self.c.serial, "exec-out", "cat", remote]
-        return self.stream_to_file(command, destination, limit, timeout)
+        if not self.is_file(remote):
+            raise ShieldError("Device file is missing or unreadable", "not_found")
+        script, token = checked_script(["cat", remote])
+        command = [self.c.adb_path, "-s", self.c.serial, "exec-out", script]
+        self.stream_to_file(command, destination, limit + TRAILER, timeout)
+        return strip_status(destination, token)
 
     def stream_to_file(self, command, destination, limit, timeout):
         """Internal subprocess helper; not exposed as an arbitrary command MCP tool."""
@@ -179,6 +209,46 @@ class Transport:
         return (
             self.adb("shell", shlex.join(args), **kwargs).decode("utf-8", errors="replace").strip()
         )
+
+
+TRAILER = 128
+
+
+def checked_script(argv):
+    """Shell script that runs argv (stderr discarded) and appends a unique exit-status line."""
+    token = "__nvidia_mcp_exit_" + uuid.uuid4().hex + "__"
+    return f"{shlex.join(argv)} 2>/dev/null; echo; echo {token}$?", token
+
+
+def split_status(data, token):
+    marker = b"\n" + token.encode()
+    index = data.rfind(marker)
+    tail = data[index + len(marker) :].strip() if index >= 0 else b""
+    if index < 0 or not tail.isdigit():
+        raise ShieldError("Device command status is unknown; output discarded", "device_error")
+    return data[:index], int(tail)
+
+
+def strip_status(path, token):
+    """Verify and remove the exit-status trailer from a streamed file; delete it on failure."""
+    path = Path(path)
+    try:
+        with path.open("r+b") as handle:
+            size = handle.seek(0, 2)
+            start = max(0, size - TRAILER)
+            handle.seek(start)
+            payload, code = split_status(handle.read(), token)
+            if code != 0:
+                raise ShieldError(
+                    f"Device command failed (exit {code}); download discarded", "device_error"
+                )
+            handle.truncate(start + len(payload))
+    except (OSError, ShieldError) as exc:
+        path.unlink(missing_ok=True)
+        if isinstance(exc, ShieldError):
+            raise
+        raise ShieldError("Cannot verify device download", "storage_error") from None
+    return path.stat().st_size
 
 
 def adb_error(raw):
