@@ -1,6 +1,8 @@
 #!/system/bin/sh
 # Android owns the one-shot launch. A child is killed with Kodi on this Shield,
-# so commit only the next-start profile after Kodi's own settings save completes.
+# Preserve the requested next-start profile when Android backgrounds Kodi,
+# then reapply it after Kodi's own save. Android may reclaim a large process
+# between those two events; the navigation destination must survive that too.
 pid=$1
 index=$2
 profiles=$3
@@ -11,6 +13,7 @@ offset=$7
 token=$8
 committed=0
 completed=0
+prepared=0
 cancel() {
     [ "$completed" = 1 ] || CLASSPATH="$dex" /system/bin/app_process /system/bin KodiProfileLauncher cancel "$token" >/dev/null 2>&1
 }
@@ -32,9 +35,20 @@ while [ "$i" -lt 400 ]; do
     if [ "$size" -gt "$offset" ]; then
         chunk=$(/system/bin/toybox dd if="$log" bs=4096 skip="$offset" count="$((size-offset))" iflag=skip_bytes,count_bytes status=none)
         case "$chunk" in
+          *' info <general>: XBMCApp: Finishing the activity'*)
+            if [ "$prepared" = 0 ]; then
+                /system/bin/toybox cp "$profiles" "$status.profiles-before.xml" || exit 1
+                /system/bin/toybox sed "s#<lastloaded>[0-9][0-9]*</lastloaded>#<lastloaded>$index</lastloaded>#" "$profiles" > "$profiles.restart.tmp" || exit 1
+                /system/bin/toybox grep -q "<lastloaded>$index</lastloaded>" "$profiles.restart.tmp" || exit 1
+                /system/bin/toybox mv "$profiles.restart.tmp" "$profiles" || exit 1
+                printf '{"phase":"destination_prepared","pid":%s,"index":%s}\n' "$pid" "$index" > "$status"
+                prepared=1
+            fi;;
+        esac
+        case "$chunk" in
           *' info <general>: Saving skin settings'*)
             if [ "$committed" = 0 ]; then
-            /system/bin/toybox cp "$profiles" "$status.profiles-before.xml" || exit 1
+            [ "$prepared" = 1 ] || /system/bin/toybox cp "$profiles" "$status.profiles-before.xml" || exit 1
             /system/bin/toybox sed "s#<lastloaded>[0-9][0-9]*</lastloaded>#<lastloaded>$index</lastloaded>#" "$profiles" > "$profiles.restart.tmp" || exit 1
             /system/bin/toybox grep -q "<lastloaded>$index</lastloaded>" "$profiles.restart.tmp" || exit 1
             /system/bin/toybox mv "$profiles.restart.tmp" "$profiles" || exit 1
