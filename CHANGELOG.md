@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.4.1 — 2026-10-10 (prerelease)
+
+- Bundle Kodi Manager 0.7.4 with widget-cache failure recovery and corrected Android memory-pressure warnings.
+- Preserve tested playback crash/decoder checks in the agent playbook.
+- Include optional, source-only Kodi 22 beta 2 profile-relaunch helper under contrib/profile-relaunch, with regression tests and a private per-device build script. No automatic installation or account/provider patches.
+
 ## 0.4.0 — 2026-10-07 (prerelease)
 
 Breaking for agents: write tools are listed only with `NVIDIA_MCP_ALLOW_WRITES=1`, and overriding the

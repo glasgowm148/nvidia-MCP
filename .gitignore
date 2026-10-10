@@ -13,8 +13,12 @@ build/
 *.log
 *.apk
 *.zip
-!src/nvidia_mcp/companion/service.kodi.addonadmin-0.7.0.zip
+!src/nvidia_mcp/companion/service.kodi.addonadmin-0.7.4.zip
 *.tar*
 backups/
 artifacts/
 .DS_Store
+
+*.dex
+*.keystore
+*.p12

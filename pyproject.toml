@@ -29,7 +29,7 @@ path = "src/nvidia_mcp/__init__.py"
 packages = ["src/nvidia_mcp"]
 
 [tool.hatch.build.targets.sdist]
-include = ["src/nvidia_mcp", "tests", "scripts", "docs", "examples", ".github", ".gitattributes", ".env.example", "pyproject.toml", "README.md", "CHANGELOG.md", "CONTRIBUTING.md", "LICENSE", "SECURITY.md", "AGENTS.md"]
+include = ["contrib", "src/nvidia_mcp", "tests", "scripts", "docs", "examples", ".github", ".gitattributes", ".env.example", "pyproject.toml", "README.md", "CHANGELOG.md", "CONTRIBUTING.md", "LICENSE", "SECURITY.md", "AGENTS.md"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

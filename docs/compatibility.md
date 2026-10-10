@@ -8,7 +8,8 @@
 | Kodi HTTP | Synthetic authenticated JSON-RPC, response bounds and failure/refusal tests | Earlier live check had HTTP unavailable |
 | Official Kodi APKs | Local SDK inspection of 21.3/22 beta 2 arm64, signer/version/SDK/ABI and corruption refusal | Metadata/signature checks are not runtime testing |
 | APK install/recovery | Synthetic transfer/session/backup/readback and refusal tests | Live Shield upgrade and recovery unverified; no automatic/guaranteed downgrade |
-| Optional Manager | Pinned 0.7.0 ZIP/export (supports 0.4+; widget cache 0.6+); separate library tests/CI | 0.7.0 is installed on one NVIDIA Shield (Kodi 22 beta 2) |
+| Optional Manager | Pinned 0.7.4 ZIP/export (supports 0.4+; widget cache 0.6+); separate library tests/CI | Generic 0.7.4 package validated locally; household patches are separate |
+| Optional profile handoff | Source compiled; private variant tested on one Shield with Kodi 22 beta 2, two profiles | Source-only, opt-in; native crash workaround, not a general Kodi fix |
 | Layout writes | Reviewed Bingie 2.0.2 / Skin Shortcuts 2.0.3 source hashes | Other/forked/modified versions stay view-only |
 
 Start with [TV preparation](setup.md), then give your agent the IP for [computer setup](agent-setup.md).

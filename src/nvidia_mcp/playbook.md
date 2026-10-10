@@ -36,6 +36,13 @@ Stream failures need timestamps and transport errors, not speculative buffer-siz
 manual retry with a refreshed URL, alternate source and preserved resume time over silent interruption.
 Pause overlays and episode/season views are separate skin/provider states. Verify both profiles.
 Do not equate every warning with a crash; retain Kodi's old log and correlate actual fatal/native errors.
+On the tested Shield running Kodi 22 beta 2, opening a plugin item with JSON-RPC Player.Open
+triggered a native CFileItem::IsBluray crash. Normal Videos-window selection worked. Avoid that
+direct RPC route on this build; do not assume the workaround applies to every Kodi version.
+After stream replacement, AVStarted and advancing time can mean audio is playing while video
+failed. Check the replacement decoder in logs and inspect the picture before reporting success.
+MediaCodec InstanceGuard locked followed by a video-codec open failure is a failed video test.
+Preserve genuine Stop, account-switch and next-episode cancellation during any recovery attempt.
 
 ## Accounts and profiles
 
