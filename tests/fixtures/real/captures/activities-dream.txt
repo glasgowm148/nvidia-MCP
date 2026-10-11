@@ -1,0 +1,1 @@
+    mResumedActivity: ActivityRecord{c7bb92c u0 com.google.android.backdrop/android.service.dreams.DreamActivity t3437}

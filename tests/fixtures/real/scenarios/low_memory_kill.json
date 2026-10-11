@@ -1,0 +1,42 @@
+{
+  "description": "16:16: two seconds after the Backdrop screensaver pushed Kodi to the background, Android's low-memory killer ended it (am_proc_died). Nothing was playing; swap ~96% used, MemAvailable 467 MB.",
+  "kodi": {
+    "running": false,
+    "http": false
+  },
+  "activities": "activities-dream.txt",
+  "media_session": "media_session-none.txt",
+  "power": "power-dreaming.txt",
+  "rpc": {
+    "Application.GetProperties": {
+      "name": "Kodi",
+      "version": {
+        "major": 22,
+        "minor": 0,
+        "revision": "20260927-28ea2eac1e",
+        "tag": "releasecandidate",
+        "tagversion": "1"
+      }
+    },
+    "JSONRPC.Version": {
+      "version": {
+        "major": 14,
+        "minor": 0,
+        "patch": 0
+      }
+    },
+    "JSONRPC.Ping": "pong",
+    "Profiles.GetCurrentProfile": {
+      "label": "Adults"
+    },
+    "GUI.GetProperties": {
+      "currentwindow": {
+        "id": 10000,
+        "label": "Home"
+      }
+    },
+    "Player.GetActivePlayers": []
+  },
+  "events": "logcat-events-kodi-killed.txt",
+  "meminfo": "proc-meminfo-low.txt"
+}

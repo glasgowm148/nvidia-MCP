@@ -1,0 +1,43 @@
+2026-10-10 23:59:55.636 T:13579    info <general>: -----------------------------------------------------------------------
+2026-10-10 23:59:55.636 T:13579    info <general>: Starting Kodi (22.0-RC1 (21.90.901) Git:20260927-28ea2eac1e). Platform: Android ARM 64-bit
+2026-10-10 23:59:55.636 T:13579    info <general>: Using Release Kodi x64
+2026-10-11 14:07:22.730 T:13579    info <general>: CVideoPlayer::CloseFile()
+2026-10-11 14:07:22.734 T:13579    info <general>: VideoPlayer: waiting for threads to exit
+2026-10-11 14:07:22.742 T:29458    info <general>: CVideoPlayer::OnExit()
+2026-10-11 14:07:22.743 T:29458    info <general>: Closing stream player 1
+2026-10-11 14:07:22.743 T:29458    info <general>: Waiting for audio thread to exit
+2026-10-11 14:07:22.743 T:29491    info <general>: thread end: CVideoPlayerAudio::OnExit()
+2026-10-11 14:07:22.743 T:29458    info <general>: Closing audio device
+2026-10-11 14:07:22.765 T:29458    info <general>: Deleting audio codec
+2026-10-11 14:07:22.797 T:29458    info <general>: Closing stream player 2
+2026-10-11 14:07:22.797 T:29458    info <general>: waiting for video thread to exit
+2026-10-11 14:07:22.797 T:29488    info <general>: thread end: video_thread
+2026-10-11 14:07:22.799 T:29458    info <general>: deleting video codec
+2026-10-11 14:07:22.965 T:29458    info <general>: Closing stream player 3
+2026-10-11 14:07:23.061 T:13579    info <general>: VideoPlayer: finished waiting
+2026-10-11 14:07:23.061 T:13579    info <general>: CVideoPlayer::CloseFile()
+2026-10-11 14:07:23.061 T:13579    info <general>: VideoPlayer: waiting for threads to exit
+2026-10-11 14:07:23.061 T:13579    info <general>: VideoPlayer: finished waiting
+2026-10-11 14:07:23.618 T:25684 warning <general>: CPythonInvoker(155, /storage/emulated/0/Android/data/org.xbmc.kodi/files/.kodi/addons/plugin.video.pov/resources/lib/router.py): the python script "/storage/emulated/0/Android/data/org.xbmc.kodi/files/.kodi/addons/plugin.video.pov/resources/lib/router.py" has left several classes in memory that we couldn't clean up. The classes include: N9XBMCAddon7xbmcgui6DialogE,N9XBMCAddon9xbmcaddon5AddonE,N9XBMCAddon7xbmcgui14DialogProgressE,N9XBMCAddon7xbmcgui16DialogProgressBGE,N9XBMCAddon7xbmcgui6WindowE,20SwigDirector_Monitor
+2026-10-11 14:07:23.790 T:13579    info <general>: CAndroidUtils: SetNativeResolution: 20: 1920x1080 3840x2160@59.940060
+2026-10-11 14:07:24.312 T:13552    info <general>: CAndroidUtils: Current resolution: 1920x1080 3840x2160 @ 59.940060 - Full Screen
+2026-10-11 14:07:24.452 T:13579    info <general>: GLES: Maximum texture width: 16384
+2026-10-11 14:07:24.472 T:13622    info <general>: ### Switchback 2.0.1: Try to load PlaybackList from file:
+2026-10-11 14:07:24.472 T:13622    info <general>: ### Switchback 2.0.1: /storage/emulated/0/Android/data/org.xbmc.kodi/files/.kodi/userdata/addon_data/plugin.switchback/switchback.json
+2026-10-11 14:07:24.489 T:13622    info <general>: ### Switchback 2.0.1: Saving PlaybackList to file: /storage/emulated/0/Android/data/org.xbmc.kodi/files/.kodi/userdata/addon_data/plugin.switchback/switchback.json
+2026-10-11 14:07:24.777 T:13579    info <general>: XBMCApp: Finishing the activity
+2026-10-11 14:07:24.830 T:13590    info <general>: void ActiveAE::CActiveAESink::OpenSink(): initialize sink
+2026-10-11 14:07:24.830 T:13590    info <general>: Trying to open: samplerate: 48000, channelMask: 12, encoding: 4
+2026-10-11 14:07:24.839 T:13590    info <general>: Minimum size we need for stream: 36912 Bytes
+2026-10-11 14:07:24.839 T:13590    info <general>: Audiotrack buffer params are: period time = 48.062 ms, period size = 18456 bytes, num periods = 4
+2026-10-11 14:07:24.839 T:13590    info <general>: Created Audiotrackbuffer with playing time of 192.250000 ms min buffer size: 73824 bytes
+2026-10-11 14:07:24.853 T:13590    info <general>: CAESinkAUDIOTRACK::Initializing with: m_sampleRate: 48000 format: AE_FMT_FLOAT (AE) method: PCM stream-type: PCM-STREAM min_buffer_size: 73824 m_frames: 2307 m_frameSize: 8 channels: 2
+2026-10-11 14:07:25.959 T:13579    info <general>: CWinSystemAndroid::DestroyWindow
+2026-10-11 14:07:27.363 T:13578    info <general>: XBMCApp: Stopping the application...
+2026-10-11 14:07:27.535 T:13579    info <general>: Stopping the application...
+2026-10-11 14:07:27.536 T:13579    info <general>: Stopping player
+2026-10-11 14:07:27.536 T:13579    info <general>: Storing total System Uptime
+2026-10-11 14:07:27.536 T:13579    info <general>: Saving settings
+2026-10-11 14:07:27.544 T:13579    info <general>: Saving skin settings
+2026-10-11 14:07:27.555 T:13579    info <general>: Stopping all
+2026-10-11 14:07:28.284 T:13709    info <general>: >> POV <<: SyncMonitor Service Update POV TraktMonitor - Success - Trakt Update Performed

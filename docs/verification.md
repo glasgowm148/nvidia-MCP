@@ -1,5 +1,25 @@
 # Verification
 
+## 0.4.6 replay fixtures (offline)
+
+The day's `adb` output from the reference Shield (Android 11, Kodi 22.0 RC1, Projectivy as the
+home app after the Google TV launcher was disabled) is now a set of anonymised replay scenarios in
+`tests/fixtures/real` (provenance in `tests/replay.py`). They newly cover, from real lines:
+
+- the Backdrop screensaver in front (`com.google.android.backdrop/android.service.dreams.DreamActivity`,
+  `mWakefulness=Dreaming`): recognised as a screensaver, so nobody counts as watching;
+- Kodi's two hung exits (14:07 after playback, 17:45 idle), and a clean exit on the same Shield
+  the day before (Kodi 22 beta 2) that continues past "Stopping all" to "Application stopped";
+- Kodi ended by Android's low-memory killer (`am_proc_died [0,10785,org.xbmc.kodi,200,2]`) about
+  2 s after the screensaver pushed it to the background, with MemAvailable 467 MB and swap 96% used;
+  Kodi's PSS after an hour of a film was 1.5 GB, almost all native heap (2026-10-10 capture);
+- `Application.GetProperties` reporting `tag: releasecandidate`, `tagversion: "1"` (a string).
+
+Automated: 470 tests and 5 shell subtests pass; no Shield or Kodi was contacted. Still pending on
+the device: the items listed for 0.4.4 below, apart from screensaver recognition, which the
+2026-10-11 dumps now confirm. The sleeping-display path (`isSleeping=true`, `mWakefulness=Asleep`)
+remains unobserved.
+
 ## 0.4.4 on the reference Shield (2026-10-11)
 
 Reference Shield today: Android 11, Kodi 22.0 RC1 (`22.0-RC1 (21.90.901)`), Kodi Manager 0.7.6

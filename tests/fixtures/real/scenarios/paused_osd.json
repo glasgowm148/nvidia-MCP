@@ -1,0 +1,69 @@
+{
+  "description": "A film paused on Kodi's OSD: Player.GetActivePlayers lists the video player at speed 0 and Android holds Kodi's session at state=2 (PAUSED).",
+  "kodi": {
+    "running": true,
+    "http": true
+  },
+  "activities": "activities-kodi.txt",
+  "media_session": "media_session-kodi-paused.txt",
+  "power": "power-awake.txt",
+  "rpc": {
+    "Application.GetProperties": {
+      "name": "Kodi",
+      "version": {
+        "major": 22,
+        "minor": 0,
+        "revision": "20260927-28ea2eac1e",
+        "tag": "releasecandidate",
+        "tagversion": "1"
+      }
+    },
+    "JSONRPC.Version": {
+      "version": {
+        "major": 14,
+        "minor": 0,
+        "patch": 0
+      }
+    },
+    "JSONRPC.Ping": "pong",
+    "Profiles.GetCurrentProfile": {
+      "label": "Adults"
+    },
+    "GUI.GetProperties": {
+      "currentwindow": {
+        "id": 10000,
+        "label": "Home"
+      }
+    },
+    "Player.GetActivePlayers": [
+      {
+        "playerid": 1,
+        "playertype": "internal",
+        "type": "video"
+      }
+    ],
+    "Player.GetProperties": {
+      "speed": 0,
+      "percentage": 34.34173583984375,
+      "time": {
+        "hours": 1,
+        "minutes": 18,
+        "seconds": 24,
+        "milliseconds": 404
+      },
+      "totaltime": {
+        "hours": 3,
+        "minutes": 48,
+        "seconds": 18,
+        "milliseconds": 795
+      }
+    }
+  },
+  "kodi_log": "kodi-exit-hang-after-playback.txt",
+  "on_quit": {
+    "exits": false,
+    "http_answers": false
+  },
+  "meminfo": "proc-meminfo-low.txt",
+  "kodi_meminfo": "dumpsys-meminfo-kodi-after-playback.txt"
+}

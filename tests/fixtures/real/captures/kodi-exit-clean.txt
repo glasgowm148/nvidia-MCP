@@ -1,0 +1,42 @@
+2026-10-10 12:29:45.509 T:18492    info <general>: -----------------------------------------------------------------------
+2026-10-10 12:29:45.509 T:18492    info <general>: Starting Kodi (22.0-BETA2 (21.90.802) Git:20260831-e513e0ff43). Platform: Android ARM 64-bit
+2026-10-10 12:29:45.509 T:18492    info <general>: Using Release Kodi x64
+2026-10-10 12:30:07.628 T:18548    info <general>: ZeroconfAndroid: Kodi (192.168.0.20) webserver. now registered and active
+2026-10-10 12:30:07.628 T:18548    info <general>: ZeroconfAndroid: Kodi (192.168.0.20) jsonrpc-tcp. now registered and active
+2026-10-10 12:30:07.628 T:18548    info <general>: ZeroconfAndroid: Kodi (192.168.0.20) eventserver. now registered and active
+2026-10-10 12:30:11.775 T:18722    info <general>: [Profile Switch] Controlled restart to Kids
+2026-10-10 12:30:11.781 T:18492    info <general>: XBMCApp: Finishing the activity
+2026-10-10 12:30:12.402 T:18492    info <general>: CWinSystemAndroid::DestroyWindow
+2026-10-10 12:30:12.421 T:18491    info <general>: XBMCApp: Stopping the application...
+2026-10-10 12:30:12.454 T:18492    info <general>: Stopping the application...
+2026-10-10 12:30:12.454 T:18492    info <general>: Stopping player
+2026-10-10 12:30:12.455 T:18492    info <general>: Storing total System Uptime
+2026-10-10 12:30:12.456 T:18492    info <general>: Saving settings
+2026-10-10 12:30:12.465 T:18492    info <general>: Saving skin settings
+2026-10-10 12:30:12.473 T:18492    info <general>: Stopping all
+2026-10-10 12:30:12.473 T:18492    info <general>: ES: Stopping event server
+2026-10-10 12:30:12.474 T:18492    info <general>: stopping zeroconf publishing
+2026-10-10 12:30:12.475 T:18492    info <CWebserver[8080]>: Stopped
+2026-10-10 12:30:12.477 T:18548    info <general>: ZeroconfAndroid: Kodi (192.168.0.20) jsonrpc-tcp._xbmc-jsonrpc._tcp registration removed
+2026-10-10 12:30:12.477 T:18548    info <general>: ZeroconfAndroid: Kodi (192.168.0.20) eventserver._xbmc-events._udp registration removed
+2026-10-10 12:30:12.481 T:18548    info <general>: ZeroconfAndroid: Kodi (192.168.0.20) jsonrpc-http._xbmc-jsonrpc-h._tcp registration removed
+2026-10-10 12:30:12.481 T:18548    info <general>: ZeroconfAndroid: Kodi (192.168.0.20) webserver._http._tcp registration removed
+2026-10-10 12:30:12.482 T:18549    info <general>: ES: UDP Event server stopped
+2026-10-10 12:30:12.483 T:18492    info <general>: CServiceAddonManager: failed to stop inputstream.ffmpegdirect (may have ended)
+2026-10-10 12:30:12.483 T:18492    info <general>: CServiceAddonManager: failed to stop plugin.program.openwizard (may have ended)
+2026-10-10 12:30:12.483 T:18533    info <general>: ### Switchback 2.0.1: Finish Switchback
+2026-10-10 12:30:12.483 T:18533    info <general>: ### Switchback 2.0.1: (Service)
+2026-10-10 12:30:12.595 T:18492    info <general>: CServiceAddonManager: failed to stop plugin.video.catchuptvandmore (may have ended)
+2026-10-10 12:30:12.599 T:18643    info <general>: >> POV <<: SyncMonitor Service Finished
+2026-10-10 12:30:12.599 T:18535    info <general>: >> POV <<: Settings Monitor Service Finished
+2026-10-10 12:30:13.268 T:18537    info <general>: script.bingie.widgets --> Backgroundservice stopped
+2026-10-10 12:30:13.351 T:18492    info <general>: CServiceAddonManager: failed to stop script.kodi.live.tv (may have ended)
+2026-10-10 12:30:13.351 T:18539    info <general>: [ script.module.cocoscrapers ]  Service Stopped
+2026-10-10 12:30:13.473 T:18540    info <general>: [ script.module.magneto ]  Service Stopped
+2026-10-10 12:30:13.590 T:18492    info <general>: CServiceAddonManager: failed to stop script.splash.cycler (may have ended)
+2026-10-10 12:30:13.590 T:18542    info <general>: ### Unpause Jumpback 3.0.8: Finish Unpause Jumpback
+2026-10-10 12:30:14.676 T:18544    info <general>: [Kodi Manager] Shield exit guard armed=True
+2026-10-10 12:30:14.676 T:18544    info <general>: [Kodi Manager] Manager network shutdown complete
+2026-10-10 12:30:15.065 T:18492    info <general>: CServiceAddonManager: failed to stop service.kodi.iptv.kids (may have ended)
+2026-10-10 12:30:15.493 T:18492    info <general>: CServiceAddonManager: failed to stop service.xbmc.versioncheck (may have ended)
+2026-10-10 12:30:15.555 T:18492    info <general>: Application stopped

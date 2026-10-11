@@ -1,0 +1,45 @@
+{
+  "description": "Idle Kodi asked to quit: its HTTP server closes without answering, kodi.log ends at 'Stopping all' after saving settings, and the process stays (17:45 hang).",
+  "kodi": {
+    "running": true,
+    "http": true
+  },
+  "activities": "activities-kodi.txt",
+  "media_session": "media_session-kodi-stopped.txt",
+  "power": "power-awake.txt",
+  "rpc": {
+    "Application.GetProperties": {
+      "name": "Kodi",
+      "version": {
+        "major": 22,
+        "minor": 0,
+        "revision": "20260927-28ea2eac1e",
+        "tag": "releasecandidate",
+        "tagversion": "1"
+      }
+    },
+    "JSONRPC.Version": {
+      "version": {
+        "major": 14,
+        "minor": 0,
+        "patch": 0
+      }
+    },
+    "JSONRPC.Ping": "pong",
+    "Profiles.GetCurrentProfile": {
+      "label": "Adults"
+    },
+    "GUI.GetProperties": {
+      "currentwindow": {
+        "id": 10000,
+        "label": "Home"
+      }
+    },
+    "Player.GetActivePlayers": []
+  },
+  "kodi_log": "kodi-exit-hang-idle.txt",
+  "on_quit": {
+    "exits": false,
+    "http_answers": false
+  }
+}

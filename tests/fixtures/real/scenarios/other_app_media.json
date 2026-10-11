@@ -1,0 +1,45 @@
+{
+  "description": "Netflix's media session paused (state=2) with Projectivy in front; Kodi idle in the background (2026-10-10 capture).",
+  "kodi": {
+    "running": true,
+    "http": true
+  },
+  "activities": "activities-projectivy.txt",
+  "media_session": "media_session-netflix-paused.txt",
+  "power": "power-awake.txt",
+  "rpc": {
+    "Application.GetProperties": {
+      "name": "Kodi",
+      "version": {
+        "major": 22,
+        "minor": 0,
+        "revision": "20260927-28ea2eac1e",
+        "tag": "releasecandidate",
+        "tagversion": "1"
+      }
+    },
+    "JSONRPC.Version": {
+      "version": {
+        "major": 14,
+        "minor": 0,
+        "patch": 0
+      }
+    },
+    "JSONRPC.Ping": "pong",
+    "Profiles.GetCurrentProfile": {
+      "label": "Adults"
+    },
+    "GUI.GetProperties": {
+      "currentwindow": {
+        "id": 10000,
+        "label": "Home"
+      }
+    },
+    "Player.GetActivePlayers": []
+  },
+  "kodi_log": "kodi-exit-clean.txt",
+  "on_quit": {
+    "exits": true,
+    "http_answers": true
+  }
+}

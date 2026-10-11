@@ -1,0 +1,27 @@
+2026-10-11 17:43:36.733 T:10616    info <general>: -----------------------------------------------------------------------
+2026-10-11 17:43:36.733 T:10616    info <general>: Starting Kodi (22.0-RC1 (21.90.901) Git:20260927-28ea2eac1e). Platform: Android ARM 64-bit
+2026-10-11 17:43:36.733 T:10616    info <general>: Using Release Kodi x64
+2026-10-11 17:43:45.858 T:10661    info <general>: [Kodi Manager] Kodi Manager URL http://0.0.0.0:8765 token configured=True
+2026-10-11 17:43:47.148 T:10661    info <general>: [Kodi Manager] Shield exit workaround active=True
+2026-10-11 17:43:47.172 T:10661    info <general>: [Kodi Manager] Previous Shield exit guard: result={"result":"saved_services_skin_cleanup_completed","pid":9526,"start_tick":"34782440"}; trace=0 armed | 0 started | 0 saved | 0 stopping_all | 13 stopped
+2026-10-11 17:43:51.751 T:10662    info <general>: ZeroconfAndroid: Kodi (192.168.0.20) webserver. now registered and active
+2026-10-11 17:44:09.639 T:10652    info <general>: PVR Manager: Starting cleanup of cached images.
+2026-10-11 17:44:12.621 T:10652    info <general>: PVR Manager: Cleaned up 0 cached images.
+2026-10-11 17:45:54.318 T:10678    info <general>: Destroying PVR client: addonId=pvr.iptvsimple, instanceId=1, clientId=1
+2026-10-11 17:45:54.318 T:10678    info <general>: PVR Manager: Stopping
+2026-10-11 17:45:54.632 T:10674    info <general>: EPG Container: Persisting unsaved events...
+2026-10-11 17:45:54.633 T:10674    info <general>: EPG Container: Persisting events done
+2026-10-11 17:45:54.683 T:10652    info <general>: PVR Manager: Stopped
+2026-10-11 17:45:56.265 T:10678    info <pvr.iptvsimple>: pvr.iptvsimple - ConnectionLost Could not validiate M3U after startup, but ignoring as startup is all we care about.
+2026-10-11 17:45:56.267 T:10678    info <general>: Skipped 1 duplicate messages..
+2026-10-11 17:45:56.267 T:10678    info <general>: ADDON: Dll Destroyed - IPTV Simple Client
+2026-10-11 17:45:56.911 T:10616    info <general>: XBMCApp: Finishing the activity
+2026-10-11 17:45:57.449 T:10616    info <general>: CWinSystemAndroid::DestroyWindow
+2026-10-11 17:45:57.462 T:10615    info <general>: XBMCApp: Stopping the application...
+2026-10-11 17:45:57.503 T:10616    info <general>: Stopping the application...
+2026-10-11 17:45:57.503 T:10616    info <general>: Stopping player
+2026-10-11 17:45:57.504 T:10616    info <general>: Storing total System Uptime
+2026-10-11 17:45:57.504 T:10616    info <general>: Saving settings
+2026-10-11 17:45:57.515 T:10616    info <general>: Saving skin settings
+2026-10-11 17:45:57.524 T:10616    info <general>: Stopping all
+2026-10-11 17:45:57.564 T:10661    info <general>: [Kodi Manager] Shield exit guard armed on quit

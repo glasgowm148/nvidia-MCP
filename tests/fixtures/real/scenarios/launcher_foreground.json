@@ -1,0 +1,46 @@
+{
+  "description": "Projectivy launcher in front (the Google TV launcher is disabled, so HOME resolves to Projectivy); Kodi idle in the background with its lingering state=1 session.",
+  "kodi": {
+    "running": true,
+    "http": true
+  },
+  "activities": "activities-projectivy.txt",
+  "media_session": "media_session-kodi-stopped.txt",
+  "power": "power-awake.txt",
+  "home_activity": "com.spocky.projengmenu/.ui.home.MainActivity",
+  "rpc": {
+    "Application.GetProperties": {
+      "name": "Kodi",
+      "version": {
+        "major": 22,
+        "minor": 0,
+        "revision": "20260927-28ea2eac1e",
+        "tag": "releasecandidate",
+        "tagversion": "1"
+      }
+    },
+    "JSONRPC.Version": {
+      "version": {
+        "major": 14,
+        "minor": 0,
+        "patch": 0
+      }
+    },
+    "JSONRPC.Ping": "pong",
+    "Profiles.GetCurrentProfile": {
+      "label": "Adults"
+    },
+    "GUI.GetProperties": {
+      "currentwindow": {
+        "id": 10000,
+        "label": "Home"
+      }
+    },
+    "Player.GetActivePlayers": []
+  },
+  "kodi_log": "kodi-exit-clean.txt",
+  "on_quit": {
+    "exits": true,
+    "http_answers": true
+  }
+}

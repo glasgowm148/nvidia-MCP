@@ -1,0 +1,47 @@
+{
+  "description": "Kodi in front on its Home window, nothing playing; Kodi's media session lingers at state=1 (STOPPED) after a film was stopped. Application.Quit exits cleanly.",
+  "kodi": {
+    "running": true,
+    "http": true
+  },
+  "activities": "activities-kodi.txt",
+  "media_session": "media_session-kodi-stopped.txt",
+  "power": "power-awake.txt",
+  "rpc": {
+    "Application.GetProperties": {
+      "name": "Kodi",
+      "version": {
+        "major": 22,
+        "minor": 0,
+        "revision": "20260927-28ea2eac1e",
+        "tag": "releasecandidate",
+        "tagversion": "1"
+      }
+    },
+    "JSONRPC.Version": {
+      "version": {
+        "major": 14,
+        "minor": 0,
+        "patch": 0
+      }
+    },
+    "JSONRPC.Ping": "pong",
+    "Profiles.GetCurrentProfile": {
+      "label": "Adults"
+    },
+    "GUI.GetProperties": {
+      "currentwindow": {
+        "id": 10000,
+        "label": "Home"
+      }
+    },
+    "Player.GetActivePlayers": []
+  },
+  "kodi_log": "kodi-exit-clean.txt",
+  "on_quit": {
+    "exits": true,
+    "http_answers": true
+  },
+  "meminfo": "proc-meminfo-low.txt",
+  "kodi_meminfo": "dumpsys-meminfo-kodi-after-playback.txt"
+}
