@@ -277,7 +277,7 @@ def create_server(config: Config):
 
     @write_tool("Change Kodi setting", idempotent=True)
     def kodi_set_setting(setting: str, value: bool | int | float | str) -> dict[str, Any]:
-        """Change one non-credential, non-security Kodi setting through its runtime API, with a guisettings.xml rollback snapshot."""
+        """Change one non-credential, non-security Kodi setting through its runtime API, with a guisettings.xml rollback snapshot. Refused during playback or with another app in front."""
         return ops.set_core_setting(setting, value)
 
     @tool("Browse Kodi folder", read_only=False, destructive=False, open_world=True)
@@ -299,7 +299,7 @@ def create_server(config: Config):
 
     @write_tool("Refresh widget cache", destructive=False)
     def kodi_manager_widget_cache_refresh() -> dict[str, Any]:
-        """Optional Kodi Manager 0.6+: queue a refresh of every cached widget row while Kodi is idle."""
+        """Optional Kodi Manager 0.6+: queue a refresh of every cached widget row while Kodi is idle and no other app is in front."""
         return ops.widget_cache_refresh()
 
     @tool("Preview hub layout", read_only=False, destructive=False)

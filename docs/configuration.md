@@ -49,8 +49,9 @@ These are independent switches. Plugin browsing uses `Files.GetDirectory`, which
 add-on code and can make network requests. Preview one bounded page at a time. The server does not
 expose whole-tree crawls, arbitrary shell commands or unrestricted JSON-RPC.
 
-Every disruptive tool (remote buttons, Kodi lifecycle, skin-menu rebuild, plugin browsing and APK
-install) uses one guard. It refuses active Kodi playback, fails closed if playback state is unknown,
+Every disruptive tool (remote buttons, Kodi lifecycle, Kodi and add-on setting changes, hub layout
+apply, widget-cache refresh, skin-menu rebuild, plugin browsing and APK install) uses one guard. File
+patches and restores instead require Kodi to be stopped. It refuses active Kodi playback, fails closed if playback state is unknown,
 and checks the foreground Android app against one launcher set (Google TV/Android TV launchers and
 Projectivy, plus `NVIDIA_MCP_EXTRA_LAUNCHERS`): with Netflix, YouTube or SmartTube in front, a Home or
 Back press would go to that app, so it is refused. Kodi in front is always checked for playback,

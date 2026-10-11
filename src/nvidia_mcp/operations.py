@@ -320,7 +320,8 @@ class Operations:
         Combines Kodi playback state, the Android foreground app (checked against one shared
         launcher set) and whether Kodi / a target package is running. ``allow_override`` is
         model-controlled, so it is honoured only with NVIDIA_MCP_ALLOW_INTERRUPT=1.
-        ``kind`` is one of remote, lifecycle, layout, browse, apk.
+        ``kind`` is one of remote, lifecycle, setting, layout, browse, apk. Offline file edits
+        need a stopped Kodi (``stopped``) instead.
         """
         if allow_override:
             self.require_interrupt_opt_in(override_flag)
@@ -754,7 +755,7 @@ class Operations:
         if type(value) not in (bool, int, float, str) or len(str(value)) > 500:
             raise ShieldError("Use a short primitive setting value")
         with self.lock:
-            self.idle()
+            self.guard_tv("setting", assume_running=True)
             old = field(
                 self.t.rpc("Settings.GetSettingValue", {"setting": setting}),
                 "value",
@@ -802,7 +803,7 @@ class Operations:
     def widget_cache_refresh(self):
         self.writes()
         with self.lock:
-            self.idle()
+            self.guard_tv("layout", assume_running=True)
             result = self.t.manager("/api/widget-cache/refresh", "POST", {})
             self.audit("widget_cache_refresh", "active profile")
             return self.safe(result)
@@ -942,7 +943,7 @@ class Operations:
             if metadata.get("id") != addon_id or metadata.get("version") != expected_version:
                 raise ShieldError("Installed add-on version differs from the inspected version")
             if self.c.manager_token:
-                self.idle()
+                self.guard_tv("setting", assume_running=True)
                 result = self.t.manager(
                     f"/api/addons/{addon_id}/settings",
                     "PATCH",
@@ -998,7 +999,7 @@ class Operations:
     def layout_apply(self, preview_id):
         self.writes()
         with self.lock:
-            self.idle()
+            self.guard_tv("layout", assume_running=True)
             saved = self.plans.get(preview_id)
             if not saved or time.monotonic() - saved[0] > 600:
                 raise ShieldError(

@@ -171,3 +171,68 @@ def test_media_keys_refused_while_a_background_app_plays(ops, button):
         ops.remote(button)
     assert not keyevents(ops)
     assert ops.remote("down") == {"sent": "down"}
+
+
+def guarded_writes(ops, tmp_path):
+    """Every write that changes a running Kodi, with what it needs to get past validation."""
+    addon = "plugin.video.example"
+    (ops.c.mount / "addons" / addon).mkdir(parents=True)
+    (ops.c.mount / "addons" / addon / "addon.xml").write_text(f'<addon id="{addon}" version="1"/>')
+    ops.c = replace(ops.c, manager_token="synthetic-manager-token")
+    plan = {"section_id": "hub:movies", "expected_revision": "r1", "rows": []}
+    preview = ops.layout_preview(plan)["preview_id"]
+    return {
+        "kodi_set_setting": lambda: ops.set_core_setting("audiooutput.passthrough", True),
+        "kodi_set_addon_setting": lambda: ops.set_addon_setting(addon, "1", "autoplay", True),
+        "kodi_manager_widget_cache_refresh": ops.widget_cache_refresh,
+        "kodi_layout_apply": lambda: ops.layout_apply(preview),
+        "kodi_layout_rebuild": ops.rebuild_layout,
+        "shield_remote": lambda: ops.remote("select"),
+        "kodi_lifecycle": lambda: ops.lifecycle("restart"),
+    }
+
+
+GUARDED = [
+    "kodi_set_setting",
+    "kodi_set_addon_setting",
+    "kodi_manager_widget_cache_refresh",
+    "kodi_layout_apply",
+    "kodi_layout_rebuild",
+    "shield_remote",
+    "kodi_lifecycle",
+]
+
+
+@pytest.mark.parametrize("name", GUARDED)
+def test_running_kodi_write_refuses_another_app_in_front(ops, tmp_path, name):
+    ops.t.running = True
+    write = guarded_writes(ops, tmp_path)[name]
+    foreground(ops, "com.netflix.ninja")
+    before = len(ops.t.calls)
+    with pytest.raises(ShieldError, match="Another TV app"):
+        write()
+    mutations = [
+        c
+        for c in ops.t.calls[before:]
+        if c[0] == "Settings.SetSettingValue"
+        or (isinstance(c[0], str) and c[0].startswith("/api/") and c[1] != "GET")
+        or (c[0] == "shell" and c[1][0] in ("input", "am"))
+    ]
+    assert not mutations
+
+
+@pytest.mark.parametrize("name", GUARDED)
+def test_running_kodi_write_refuses_playback(ops, tmp_path, name):
+    ops.t.running = True
+    write = guarded_writes(ops, tmp_path)[name]
+    ops.t.players = [{"playerid": 1}]
+    with pytest.raises(ShieldError, match="playing"):
+        write()
+
+
+def test_guarded_list_covers_every_write_tool_that_needs_running_kodi():
+    from test_tools import WRITE_TOOLS
+
+    # File edits need Kodi stopped; APK installs have their own guard tests in test_apks.
+    elsewhere = {"kodi_patch_apply", "kodi_patch_file", "kodi_restore_file", "shield_apk_apply"}
+    assert set(WRITE_TOOLS) - elsewhere == set(GUARDED)

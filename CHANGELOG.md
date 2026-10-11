@@ -4,6 +4,7 @@
 
 - Resolve the active profile from Kodi's real `profiles.xml` layout (`<id>` child elements; `lastloaded` is a position, not an id). `kodi_set_setting` no longer fails on the master profile, and offline add-on setting edits target the last-loaded profile.
 - TV guard: Kodi in front is checked for playback even if the process probe misses it; `allow_offline_recovery` applies only when Kodi HTTP is unreachable/timing out (an authentication or protocol error no longer bypasses the playback check) and is refused while Android's media session reports Kodi playing or paused; `shield_remote` refuses `play_pause`/`stop` while any app's media session is playing or paused.
+- `kodi_set_setting`, `kodi_set_addon_setting` (via Manager), `kodi_layout_apply` and `kodi_manager_widget_cache_refresh` now use the full TV guard, so they also refuse while another app (Netflix, YouTube...) is in front, not only during Kodi playback.
 
 ## 0.4.2 — 2026-10-11 (prerelease)
 

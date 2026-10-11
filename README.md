@@ -125,7 +125,7 @@ tools. *No TV changes* tools write only private local state or run opt-in, idle-
 | `kodi_logs` | Kodi log tail | read-only | Inspect redacted Kodi log tail and crash/stream/storage signals; safe while viewing. |
 | `kodi_manager_inspect` | Kodi Manager inspect | read-only | Optional Kodi Manager 0.4+: inspect saved skin hubs/rows, sources, pipeline, health or fix status. |
 | `kodi_manager_widget_cache` | Kodi Manager widget cache | read-only | Optional Kodi Manager 0.6+: widget-cache status and cached rows for faster rows on any skin. |
-| `kodi_manager_widget_cache_refresh` | Refresh widget cache | write mode | Optional Kodi Manager 0.6+: queue a refresh of every cached widget row while Kodi is idle. |
+| `kodi_manager_widget_cache_refresh` | Refresh widget cache | write mode | Optional Kodi Manager 0.6+: queue a refresh of every cached widget row while Kodi is idle and no other app is in front. |
 | `kodi_patch_apply` | Apply Kodi file patch | write mode | Apply the edits from kodi_patch_preview. Needs Kodi stopped and a matching SHA; creates an automatic backup. |
 | `kodi_patch_file` | Patch Kodi file (deprecated) | write mode | Deprecated: use kodi_patch_preview and kodi_patch_apply. dry_run=true previews, false applies. |
 | `kodi_patch_preview` | Preview Kodi file patch | read-only | Validate exact before/after replacements and return a redacted unified diff. Credential edits and add-on .py files are refused. No write. |
@@ -133,7 +133,7 @@ tools. *No TV changes* tools write only private local state or run opt-in, idle-
 | `kodi_read_file` | Read Kodi file | read-only | Read a Kodi-relative text file (600 KB max) with redaction and original SHA-256. |
 | `kodi_restore_file` | Restore Kodi file | write mode | Restore one snapshot while Kodi is stopped; rejects stale checksums and creates an undo snapshot. |
 | `kodi_set_addon_setting` | Change add-on setting | write mode | Change a non-credential setting on a verified add-on version; backed up. Without Manager, stop Kodi first. |
-| `kodi_set_setting` | Change Kodi setting | write mode | Change one non-credential, non-security Kodi setting through its runtime API, with a guisettings.xml rollback snapshot. |
+| `kodi_set_setting` | Change Kodi setting | write mode | Change one non-credential, non-security Kodi setting through its runtime API, with a guisettings.xml rollback snapshot. Refused during playback or with another app in front. |
 | `kodi_settings` | Kodi settings | read-only | Search/page Kodi's expert settings with current/default values, avoiding a whole-schema dump. |
 | `kodi_status` | Kodi status | read-only | Inspect Kodi version, skin, current profile/window and active players; no playback changes. |
 | `shield_apk_apply` | Install previewed APK | write mode | Install an exact unexpired APK preview. Stopped target/idle TV, backup and readback required; reports progress. Never uninstalls/downgrades/retries. |
