@@ -1,6 +1,7 @@
 """Bounded HTTP requests and shell-quoted ADB operations on one configured Shield."""
 
 import json
+import re
 import shlex
 import subprocess
 import tempfile
@@ -24,11 +25,19 @@ class Transport:
     def close(self):
         self.http.close()
 
+    @property
+    def known_secrets(self):
+        return (self.c.password, self.c.manager_token)
+
     def request(self, url, method="POST", body=None, manager=False):
         headers = {"Authorization": "Bearer " + self.c.manager_token} if manager else {}
         auth = None if manager else (self.c.username, self.c.password)
         try:
             with self.http.stream(method, url, json=body, headers=headers, auth=auth) as response:
+                if manager and response.status_code != 200:
+                    raise manager_error(
+                        response.status_code, read_bounded(response, 64_000), self.known_secrets
+                    )
                 if response.status_code in (401, 403):
                     raise ShieldError(
                         "Authentication denied: check local Kodi/Manager credentials",
@@ -94,10 +103,7 @@ class Transport:
         if not isinstance(result, dict):
             raise ShieldError("Invalid Kodi Manager response", "invalid_response")
         if result.get("ok") is not True:
-            # Manager errors can include supplied setting values or paths. Do not echo them.
-            raise ShieldError(
-                "Kodi Manager rejected the request; inspect version, permissions and current layout revision"
-            )
+            raise manager_error(200, json.dumps(result).encode(), self.known_secrets)
         return result["data"]
 
     def adb(self, *args, limit=1_000_000, timeout=30, device=True):
@@ -222,6 +228,72 @@ class Transport:
 
 
 TRAILER = 128
+
+# Kodi Manager error codes (``{"ok": false, "error": {"code", "message"}}``) with their own
+# remedy. None of them means the companion is missing or outdated.
+MANAGER_ERRORS = {
+    "write_disabled": "Kodi Manager has Write Mode turned off; the user can turn it on in Kodi "
+    "Manager's settings on the TV (the token is fine)",
+    "account_write_blocked": "Kodi Manager does not allow account changes from this client; "
+    "make account changes on the TV",
+    "origin_mismatch": "Kodi Manager rejected the request origin; check the configured host "
+    "and KODI_MANAGER_PORT",
+    "playback_active": "Kodi Manager refused because playback is active. Wait until viewing "
+    "has finished; no change made",
+}
+
+
+def read_bounded(response, limit):
+    data = bytearray()
+    for chunk in response.iter_bytes():
+        data.extend(chunk)
+        if len(data) > limit:
+            break
+    return bytes(data[:limit])
+
+
+def manager_error(status, raw, known=()):
+    """A ShieldError from Kodi Manager's JSON error envelope.
+
+    Surfaces the error ``code`` and a redacted, bounded ``message``. Only a 404 for an unknown
+    route means the API is unsupported (an older Kodi Manager).
+    """
+    try:
+        body = json.loads(raw)
+    except ValueError:
+        body = None
+    body = body if isinstance(body, dict) else {}
+    error = body.get("error") if isinstance(body.get("error"), dict) else {}
+    code = error.get("code", body.get("code"))
+    if not (isinstance(code, str) and re.fullmatch(r"[a-z][a-z0-9_]{0,39}", code)):
+        code = None
+    message = error.get("message")
+    detail = (
+        privacy.text(message.strip()[:200], known)
+        if isinstance(message, str) and message.strip()
+        else ""
+    )
+    if status == 401 or (status == 403 and code in (None, "unauthorized", "forbidden")):
+        return ShieldError(
+            "Authentication denied: check KODI_MANAGER_TOKEN (the Kodi Manager bearer token)",
+            "authentication_denied",
+        )
+    if status == 404 and code in (None, "not_found") and detail in ("", "Route not found"):
+        return ShieldError(
+            "Kodi Manager does not offer this API; it needs a newer Kodi Manager", "unsupported"
+        )
+    if code in MANAGER_ERRORS:
+        return ShieldError(MANAGER_ERRORS[code] + (f" ({detail})" if detail else ""), code)
+    label = f"{status}, {code}" if code else str(status)
+    if status == 404:
+        kind = "not_found"
+    elif 400 <= status < 500 or status == 200:
+        kind = "invalid_request"
+    else:
+        kind = "service_error"
+    return ShieldError(
+        f"Kodi Manager refused the request ({label})" + (f": {detail}" if detail else ""), kind
+    )
 
 
 def checked_script(argv):

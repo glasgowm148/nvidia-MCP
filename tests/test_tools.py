@@ -138,7 +138,7 @@ def test_widget_cache_tools(ops):
 
 def test_widget_cache_needs_manager_06(ops):
     def old_manager(path, method="GET", body=None):
-        raise ShieldError("Device HTTP request failed (404)", "service_error")
+        raise ShieldError("Kodi Manager does not offer this API", "unsupported")
 
     ops.t.manager = old_manager
     with pytest.raises(ShieldError, match="0.6"):

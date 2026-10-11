@@ -14,6 +14,8 @@ REMEDIES = {
     "unreachable": "Check the configured IP/port and that this service is enabled on the Shield.",
     "missing_dependency": "The agent should install/configure the required computer tool.",
     "timeout": "Service did not answer in time. Retry a read later; do not repeat writes automatically.",
+    "write_disabled": "Kodi Manager Write Mode is off; the user can turn it on in its settings on the TV.",
+    "unsupported": "The installed Kodi Manager is older than this tool needs; core tools still work.",
 }
 
 

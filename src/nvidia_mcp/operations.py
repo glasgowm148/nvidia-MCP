@@ -988,7 +988,8 @@ class Operations:
             status = self.t.manager("/api/widget-cache")
             rows = self.t.manager("/api/widget-cache/rows")
         except ShieldError as exc:
-            if exc.kind == "service_error":
+            # Only a missing route means an older Manager; other errors keep their own remedy.
+            if exc.kind == "unsupported":
                 raise ShieldError(
                     "Kodi Manager did not offer the widget-cache API; it needs Kodi Manager 0.6+",
                     "unsupported",
