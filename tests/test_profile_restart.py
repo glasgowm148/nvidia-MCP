@@ -137,11 +137,25 @@ class Tests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 m.target_index(path, "Adults")
 
-    def test_workaround_only_applies_to_affected_android_beta(self):
+    def test_workaround_only_applies_to_affected_android_builds(self):
         with tempfile.TemporaryDirectory() as folder:
             m, *_ = self.env(folder)
             self.assertTrue(m.required())
-            m.xbmc.getInfoLabel = lambda v: "22.0"
+            for version, affected in [
+                ("22.0-BETA2 (21.90.801) Git:20260815-0a1b2c3d4e", True),
+                ("22.0-RC1 (21.90.901) Git:20260927-28ea2eac1e", True),
+                ("22.0-RC1", True),
+                ("22.0-RC10 (21.90.910) Git:20261201-0a1b2c3d4e", False),
+                ("22.0-RC2 (21.90.902) Git:20261020-0a1b2c3d4e", False),
+                ("22.0-BETA20", False),
+                ("22.0 (22.0.0) Git:20261101-0a1b2c3d4e", False),
+                ("22.1-RC1", False),
+                ("21.3 (21.3.0) Git:20251004-0a1b2c3d4e", False),
+            ]:
+                m.xbmc.getInfoLabel = lambda v, version=version: version
+                self.assertIs(m.required(), affected, version)
+            m.xbmc.getInfoLabel = lambda v: "22.0-RC1 (21.90.901) Git:20260927-28ea2eac1e"
+            m.xbmc.getCondVisibility = lambda v: False  # Not Android.
             self.assertFalse(m.required())
 
 

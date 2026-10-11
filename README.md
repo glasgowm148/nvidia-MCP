@@ -168,4 +168,4 @@ Built on the [MCP Python SDK](https://github.com/modelcontextprotocol/python-sdk
 
 [MIT license](LICENSE). Independent project; not affiliated with NVIDIA or Kodi.
 
-The [optional account-switch source kit](contrib/profile-relaunch/README.md) preserves the tested Kodi 22 beta 2 workaround. It requires a private per-device build and explicit installation; MCP does not deploy it automatically.
+The [optional account-switch source kit](contrib/profile-relaunch/README.md) preserves the tested Kodi 22 beta 2 / RC1 workaround. It requires a private per-device build and explicit installation; MCP does not deploy it automatically.

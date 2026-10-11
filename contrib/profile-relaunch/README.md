@@ -1,6 +1,6 @@
 # Kodi account-switch handoff
 
-Small, offline Android helper for this Shield's Kodi 22 beta 2 profile teardown bug. Kodi saves settings and the next startup profile, waits for native jobs, and stops its Python services. At Kodi's logged `Application stopped` checkpoint, a same-UID child ends the process before NVIDIA's final graphics teardown; Android then reopens Kodi. There is no launcher screen, network permission, boot receiver, periodic job or background loop.
+Small, offline Android helper for this Shield's Kodi 22 beta 2 / RC1 profile teardown bug. Kodi saves settings and the next startup profile, waits for native jobs, and stops its Python services. At Kodi's logged `Application stopped` checkpoint, a same-UID child ends the process before NVIDIA's final graphics teardown; Android then reopens Kodi. There is no launcher screen, network permission, boot receiver, periodic job or background loop.
 
 `ArmReceiver` accepts an explicit, authenticated ordered broadcast. The sender must receive a successful acknowledgment before quitting Kodi. It schedules one launch of the fixed Kodi Splash component after ten seconds, using Android's alarm-clock exemption so app standby cannot defer the handoff. The system may briefly show a next-alarm indicator during these ten seconds. Cancellation removes that launch. The helper requires Android's **Display over other apps** permission for the background Activity launch; it does not display overlays.
 
@@ -13,8 +13,22 @@ Rollback: restore the original `profile_switch.py` and protected manifest, cance
 ## Integration is opt-in
 
 This source kit is not installed by MCP or Kodi Manager. It applies only to Android Kodi
-22.0-BETA2, and accepts exactly two profile names from the user's own profiles.xml.
-Do not deploy it to stable Kodi or other builds without reproducing the failure first.
+22.0-BETA2 and 22.0-RC1 (`System.BuildVersion` starting `22.0-BETA2` or `22.0-RC1`, for
+example `22.0-RC1 (21.90.901) Git:20260927-28ea2eac1e`; RC2, RC10 and final builds are not
+matched), and accepts exactly two profile names from the user's own profiles.xml.
+Do not deploy it to stable Kodi or other builds without reproducing the failure first, then
+add that exact build to `AFFECTED_BUILD` in `profile_restart.py`.
+
+`relaunch.sh` validates the Kodi pid, profile index and log offset individually before arming.
+When Android backgrounds Kodi (`XBMCApp: Finishing the activity` in the log) it writes the
+destination `<lastloaded>` early, keeping a private copy of the original profiles.xml, so the
+switch survives Android reclaiming the process before Kodi's own settings save; it rewrites
+the destination after that save as before.
+
+This directory is the canonical source. A copy deployed before 0.4.3 (for example in a
+private Kodi Manager `device_fixes` bundle) may have the RC1 gate but not the per-number
+validation: compare `sha256sum` of the deployed `relaunch.sh` and `profile_restart.py` with
+these files and redeploy them together if they differ.
 
 The agent must first confirm the TV is free, take a private backup, and inspect the current
 profile names and Kodi build. Build a unique APK/token per device; do not distribute a
@@ -41,7 +55,8 @@ python contrib/profile-relaunch/build.py --android-jar /path/to/android.jar \
   --java-home /path/to/jdk --output /private/path/profile-relaunch
 ```
 
-The tested Shield completed nine repeated switches plus a paused episode switch. Its pause
+On Kodi 22 beta 2 the tested Shield completed nine repeated switches plus a paused episode
+switch. On 22.0 RC1 it switched Adults → Kids in 16.6 s and Kids → Adults in 15.9 s. Its pause
 position was stored exactly; POV playback resumes with its normal short rewind. Typical
 switches took 13–22 seconds. Native Kodi teardown remains unfixed; this is a guarded workaround.
 No private household logs, profiles, provider patches, signing material or prebuilt APK is shipped.

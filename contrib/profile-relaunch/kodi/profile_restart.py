@@ -1,7 +1,8 @@
-"""Shield/Kodi 22 beta2: switch accounts via normal full shutdown, not PVR unload."""
+"""Shield/Kodi 22 beta2/RC1: switch accounts via normal full shutdown, not PVR unload."""
 
 import json
 import os
+import re
 import subprocess
 import time
 import xml.etree.ElementTree as ET
@@ -10,11 +11,16 @@ import xbmc
 import xbmcgui
 import xbmcvfs
 
+# Only builds where the native teardown crash was reproduced and this handoff was tested on the
+# Shield, e.g. "22.0-RC1 (21.90.901) Git:20260927-28ea2eac1e". Not RC2/final until retested.
+AFFECTED_BUILD = re.compile(r"^22\.0-(?:BETA2|RC1)(?:\b|$)")
+
 
 def required():
-    return xbmc.getCondVisibility("System.Platform.Android") and xbmc.getInfoLabel(
-        "System.BuildVersion"
-    ).startswith("22.0-BETA2")
+    return bool(
+        xbmc.getCondVisibility("System.Platform.Android")
+        and AFFECTED_BUILD.match(xbmc.getInfoLabel("System.BuildVersion"))
+    )
 
 
 def target_index(path, target):

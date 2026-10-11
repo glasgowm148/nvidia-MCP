@@ -6,10 +6,11 @@
 | MCP interface | Real stdio initialization, 23 read-only tools (34 with writes enabled), resource/prompt discovery; mcp 1.28 and latest in CI; fresh-wheel local HTTP fixture | Client approval behavior depends on your MCP client |
 | Shield ADB | Prior release: live read-only device/source/log diagnostics | No current live mutation/installation verification |
 | Kodi HTTP | Synthetic authenticated JSON-RPC, response bounds and failure/refusal tests | Earlier live check had HTTP unavailable |
+| Kodi build | The reference Shield moved from Kodi 22 beta 2 to 22.0 RC1 (`22.0-RC1 (21.90.901)`) on 2026-10-10; tools use version-independent JSON-RPC and ADB calls | 0.4.3 guard/profile/privacy fixes are verified offline only; see [verification](verification.md) |
 | Official Kodi APKs | Local SDK inspection of 21.3/22 beta 2 arm64, signer/version/SDK/ABI and corruption refusal | Metadata/signature checks are not runtime testing |
 | APK install/recovery | Synthetic transfer/session/backup/readback and refusal tests | Live Shield upgrade and recovery unverified; no automatic/guaranteed downgrade |
 | Optional Manager | Pinned 0.7.5 ZIP/export (supports 0.4+; widget cache 0.6+); separate library tests/CI | Generic 0.7.5 package validated locally; household patches are separate |
-| Optional profile handoff | Source compiled; private variant tested on one Shield with Kodi 22 beta 2, two profiles | Source-only, opt-in; native crash workaround, not a general Kodi fix |
+| Optional profile handoff | Source compiled; private variant tested on one Shield with Kodi 22 beta 2 and 22.0 RC1, two profiles | Source-only, opt-in; gated to 22.0-BETA2/RC1; native crash workaround, not a general Kodi fix |
 | Layout writes | Reviewed Bingie 2.0.2 / Skin Shortcuts 2.0.3 source hashes | Other/forked/modified versions stay view-only |
 
 Start with [TV preparation](setup.md), then give your agent the IP for [computer setup](agent-setup.md).
