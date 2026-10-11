@@ -601,6 +601,22 @@ class Operations:
                 end = start + (LIBRARY_DEFAULT if end is None else LIBRARY_MAX)
             params["limits"] = {"start": start, "end": end}
         result = self.safe(self.t.rpc(method, params))
+        while (
+            method.startswith("VideoLibrary.")
+            and len(json.dumps(result)) > READ_MAX
+            and params["limits"]["end"] - params["limits"]["start"] > 1
+        ):
+            # Art, cast and file properties make items large: fetch a smaller page instead of
+            # refusing the whole read.
+            start = params["limits"]["start"]
+            end = start + (params["limits"]["end"] - start) // 2
+            params["limits"] = {"start": start, "end": end}
+            result = self.safe(self.t.rpc(method, params))
+            if isinstance(result, dict):
+                result["note"] = (
+                    f"Reduced to items {start}-{end} to stay under 250 KB; request the next "
+                    "page from limits.end, or ask for fewer properties"
+                )
         if len(json.dumps(result)) > READ_MAX:
             raise ShieldError(
                 "Kodi returned more than 250 KB; request fewer properties or items "

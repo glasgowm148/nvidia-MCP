@@ -295,3 +295,23 @@ def test_kodi_read_results_are_bounded(ops):
         ops.rpc_read("Settings.GetSettings", {"level": "expert"})
     ops.t.rpc = lambda method, params=None: {"version": {"major": 21}}
     assert ops.rpc_read("Application.GetProperties", {"properties": ["version"]})
+
+
+def test_large_library_read_returns_a_smaller_page(ops):
+    # 500 movies with art/cast easily exceed 250 KB; the read pages down instead of failing.
+    def rpc(method, params=None):
+        start, end = params["limits"]["start"], params["limits"]["end"]
+        movies = [
+            {"movieid": i, "art": {"poster": "image://p/" + "x" * 1500}} for i in range(start, end)
+        ]
+        return {"limits": {"start": start, "end": end, "total": 900}, "movies": movies}
+
+    ops.t.rpc = rpc
+    result = ops.rpc_read(
+        "VideoLibrary.GetMovies", {"properties": ["art"], "limits": {"start": 0, "end": 500}}
+    )
+    assert len(json.dumps(result)) <= 250_000
+    assert 50 < len(result["movies"]) < 500
+    assert result["movies"][0]["movieid"] == 0
+    assert result["limits"]["end"] == len(result["movies"])
+    assert "next page" in result["note"]

@@ -8,7 +8,7 @@
 - `kodi_read` refuses `XBMC.GetInfoLabels` labels that read add-on settings (`Addon.SettingStr(...)` returned raw Real-Debrid/Trakt tokens) or credential-like skin strings and window properties.
 - contrib/profile-relaunch: `relaunch.sh` validates pid, profile index and log offset individually; an empty index previously passed and could write `<lastloaded></lastloaded>`.
 - `kodi_restore_file` reports a missing or damaged local backup as a clean `not_found` error instead of a raw exception that included the private state path.
-- `kodi_read` refuses results over 250 KB (for example an unfiltered `Settings.GetSettings`) and points to the paged `kodi_settings` tool.
+- `kodi_read` refuses results over 250 KB (for example an unfiltered `Settings.GetSettings`) and points to the paged `kodi_settings` tool. Video-library reads instead shrink the page until it fits and say where to continue.
 - TV guard: `interrupt_other_app` no longer skips Kodi's own playback check (it covers only another app in front or playing). Every guarded action now also refuses while any Android media session is playing or paused (background audio). A screensaver (`DreamActivity`) or sleeping display counts as nobody watching instead of "another app"/"unknown"; remote buttons stay refused while the Shield sleeps. Refusal messages name only override flags the tool has.
 - `shield_remote`: `play_pause`/`stop` are refused when nothing is playing (they could start a background app's audio) and, with `allow_during_playback`, go to Kodi's player over JSON-RPC when Kodi is playing.
 - `kodi_lifecycle restart`: a Kodi that did not stop, or whose state could not be confirmed after force-stop, is reported as such (it previously said "Stop Kodi before editing files").
