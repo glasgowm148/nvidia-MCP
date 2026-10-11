@@ -13,7 +13,10 @@ with Shield(config, kodi_route="auto") as tv:
     state = tv.viewing_state()
     if state["verdict"] in ("idle", "screensaver", "asleep"):
         tv.quit_kodi(wait=30)
-        tv.push_verified("build/relaunch.sh", "/sdcard/Android/data/org.xbmc.kodi/files/.kodi/addons/script.example/relaunch.sh")
+        tv.push_verified(
+            "build/relaunch.sh",
+            "/sdcard/Android/data/org.xbmc.kodi/files/.kodi/addons/script.example/relaunch.sh",
+        )
         tv.start_kodi(wait=60)
 ```
 
@@ -64,14 +67,14 @@ instead of a list, an unknown `kodi_route`) raise `TypeError`/`ValueError`.
 
 ```python
 {
-    "verdict": "idle",            # idle | playing | paused | other_app | screensaver | asleep | unknown
-    "players": [],                 # Player.GetActivePlayers, or None when Kodi could not be asked
+    "verdict": "idle",  # idle | playing | paused | other_app | screensaver | asleep | unknown
+    "players": [],  # Player.GetActivePlayers, or None when Kodi could not be asked
     "media_sessions": [{"package": "org.xbmc.kodi", "state": 1}],  # Android PlaybackState, or None
-    "foreground": "org.xbmc.kodi", # resumed package, or None
-    "screen": "app",               # app | screensaver | asleep, or None
-    "wakefulness": "Awake",        # dumpsys power: Awake | Dreaming | Dozing | Asleep, or None
+    "foreground": "org.xbmc.kodi",  # resumed package, or None
+    "screen": "app",  # app | screensaver | asleep, or None
+    "wakefulness": "Awake",  # dumpsys power: Awake | Dreaming | Dozing | Asleep, or None
     "kodi_running": True,
-    "unavailable": {},             # signal -> ShieldError kind for anything that could not be read
+    "unavailable": {},  # signal -> ShieldError kind for anything that could not be read
 }
 ```
 
