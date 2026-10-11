@@ -9,6 +9,7 @@ import uuid
 from pathlib import Path, PurePosixPath
 
 from .config import ShieldError
+from .transport import push_atomic
 
 MAX_FILE = 600_000
 SERIALNO = re.compile(r"[A-Za-z0-9._-]{4,64}")
@@ -164,19 +165,16 @@ class Files:
                 raise ShieldError("Cannot verify existing file permissions; patch cancelled")
             # Preserve ordinary permissions, as the mounted-filesystem path does.
             mode = format(int(mode, 8) & 0o777, "03o")
-            remote_temp = str(target) + ".nvidia-mcp-" + uuid.uuid4().hex
+
+            def unchanged(_temp):
+                if digest(self.read(path)) != expected:
+                    raise ShieldError("File changed while staging; patch cancelled")
+
             with tempfile.TemporaryDirectory() as local:
                 staging = Path(local) / "staging"
                 staging.write_bytes(data)
                 staging.chmod(0o600)
-                try:
-                    self.t.adb("push", str(staging), remote_temp)
-                    self.t.shell("chmod", mode, remote_temp)
-                    if digest(self.read(path)) != expected:
-                        raise ShieldError("File changed while staging; patch cancelled")
-                    self.t.shell("mv", "-f", remote_temp, str(target))
-                finally:
-                    self.t.shell("rm", "-f", remote_temp)
+                push_atomic(self.t, staging, target, mode=mode, before_commit=unchanged)
         if digest(self.read(path)) != digest(data):
             raise ShieldError(
                 "Write verification failed; restore the returned backup before restarting Kodi"

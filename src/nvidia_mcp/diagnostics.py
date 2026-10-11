@@ -75,11 +75,61 @@ def readiness(ops):
     return ops.safe(result)
 
 
-def health(memory, storage, uptime, thermal):
-    metrics = {
+def meminfo(text):
+    """``/proc/meminfo`` totals in kB: MemTotal, MemAvailable, SwapTotal and SwapFree when present."""
+    return {
         key: int(value)
-        for key, value in re.findall(r"^(MemTotal|MemAvailable):\s*(\d+)\s*kB", memory, re.M)
+        for key, value in re.findall(
+            r"^(MemTotal|MemAvailable|SwapTotal|SwapFree):\s*(\d+)\s*kB", text, re.M
+        )
     }
+
+
+def app_memory(text):
+    """``dumpsys meminfo <package>`` App Summary in kB (PSS, native heap, RSS), or None."""
+    pss = re.search(r"^\s*TOTAL PSS:\s*(\d+)", text, re.M)
+    if not pss:
+        return None
+    native = re.search(r"^\s*Native Heap:\s*(\d+)", text, re.M)
+    rss = re.search(r"TOTAL RSS:\s*(\d+)", text)
+    return {
+        "pss_kb": int(pss[1]),
+        "native_heap_kb": int(native[1]) if native else None,
+        "rss_kb": int(rss[1]) if rss else None,
+    }
+
+
+# Android event-log records of a process ending: am_proc_died [user,pid,name,oom_adj,proc_state]
+# and am_kill [user,pid,name,oom_adj,reason].
+PROCESS_EVENT = re.compile(
+    r"^(?P<time>\d\d-\d\d \d\d:\d\d:\d\d\.\d+)\s.*?\b(?P<event>am_proc_died|am_kill)\s*:\s*"
+    r"\[\d+,(?P<pid>\d+),(?P<name>[^,\]]+),(?P<adj>-?\d+),(?P<detail>[^\]]*)\]",
+    re.M,
+)
+
+
+def process_deaths(events, package):
+    """``am_proc_died``/``am_kill`` records for ``package`` from ``logcat -b events``, oldest first."""
+    found = []
+    for m in PROCESS_EVENT.finditer(events):
+        if m["name"] != package:
+            continue
+        row = {
+            "time": m["time"],
+            "event": m["event"],
+            "pid": int(m["pid"]),
+            "oom_adj": int(m["adj"]),
+        }
+        if m["event"] == "am_proc_died" and m["detail"].isdigit():
+            row["proc_state"] = int(m["detail"])
+        else:
+            row["reason"] = m["detail"][:200]
+        found.append(row)
+    return found
+
+
+def health(memory, storage, uptime, thermal):
+    metrics = meminfo(memory)
     status = re.search(r"Thermal Status:\s*(\d+)", thermal, re.I)
     temperatures = []
     if "Current temperatures from HAL:" in thermal:

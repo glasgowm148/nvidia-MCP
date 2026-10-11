@@ -334,6 +334,21 @@ def media_playing(transport, package=None):
     )
 
 
+WAKEFULNESS = re.compile(r"\bmWakefulness=(\w+)")
+
+
+def wakefulness(transport):
+    """Android's power state from ``dumpsys power``: Awake, Dreaming, Dozing or Asleep."""
+    match = WAKEFULNESS.search(transport.shell("dumpsys", "power", limit=1_000_000))
+    if not match:
+        raise ShieldError("Android power state is unknown", "wakefulness_unknown")
+    return match[1]
+
+
+# viewing_state verdicts in which every guarded action may go ahead (nobody is watching).
+UNATTENDED = frozenset({"idle", "screensaver", "asleep"})
+
+
 # What Kodi logs on a clean exit once its settings are on disk (CApplication::Stop). Kodi 22
 # on the Shield can then hang at "Stopping all" for minutes; a force-stop after that point
 # loses nothing Kodi would have saved.
@@ -531,6 +546,83 @@ class Operations:
             raise ShieldError("Stop the target app before installing its APK", "app_running")
         state["kodi_running"] = running
         return state
+
+    def viewing_state(self):
+        """What the TV is doing, from the same signals the guard reads, without acting.
+
+        Returns ``players`` (Kodi JSON-RPC), ``media_sessions`` (Android), ``foreground``,
+        ``screen``, ``wakefulness``, ``kodi_running``, ``unavailable`` (signal -> error kind)
+        and a ``verdict``: idle, playing, paused, other_app, screensaver, asleep or unknown.
+        Any verdict outside idle/screensaver/asleep is one the guard would refuse; a signal
+        that cannot be read makes the verdict unknown rather than idle.
+        """
+        unavailable = {}
+
+        def read(name, function):
+            try:
+                return function()
+            except ShieldError as exc:
+                unavailable[name] = exc.kind
+                return None
+
+        running = read("kodi_running", self.kodi_running)
+        screen_app = read("foreground", lambda: foreground_state(self.t))
+        screen, app = screen_app if screen_app else (None, None)
+        players, speeds = [], []
+        if running is not False or app == KODI:
+            players = read("players", lambda: self.t.rpc("Player.GetActivePlayers"))
+            if players is not None and not isinstance(players, list):
+                unavailable["players"], players = "invalid_response", None
+            for player in players or []:
+                props = read(
+                    "player_speed",
+                    lambda p=player: self.t.rpc(
+                        "Player.GetProperties",
+                        {"playerid": p.get("playerid"), "properties": ["speed"]},
+                    ),
+                )
+                if isinstance(props, dict) and isinstance(props.get("speed"), int | float):
+                    speeds.append(props["speed"])
+        sessions = read("media_sessions", lambda: media_sessions(self.t))
+        awake = read("wakefulness", lambda: wakefulness(self.t))
+        active = [(name, state) for name, state in sessions or [] if state not in IDLE_MEDIA_STATES]
+        kodi_states = [state for name, state in active if name == KODI]
+        if players:
+            if speeds and len(speeds) == len(players):
+                paused = all(speed == 0 for speed in speeds)
+            else:
+                paused = bool(kodi_states) and all(state == 2 for state in kodi_states)
+            verdict = "paused" if paused else "playing"
+        elif kodi_states:
+            verdict = "paused" if all(state == 2 for state in kodi_states) else "playing"
+        elif active:
+            verdict = "other_app"
+        elif sessions is None or players is None or screen is None:
+            verdict = "unknown"
+        elif screen == "asleep":
+            verdict = "asleep"
+        elif screen == "screensaver":
+            verdict = "screensaver"
+        elif app not in self.launchers() | {KODI}:
+            verdict = "other_app"
+        elif awake in ("Asleep", "Dozing"):
+            verdict = "asleep"
+        elif awake == "Dreaming":
+            verdict = "screensaver"
+        else:
+            verdict = "idle"
+        return {
+            "verdict": verdict,
+            "players": players,
+            "media_sessions": None
+            if sessions is None
+            else [{"package": name, "state": state} for name, state in sessions],
+            "foreground": app,
+            "screen": screen,
+            "wakefulness": awake,
+            "kodi_running": running,
+            "unavailable": unavailable,
+        }
 
     def nothing_playing(self, transfer):
         """Refuse a large transfer (not otherwise disruptive) while anyone watches or listens.

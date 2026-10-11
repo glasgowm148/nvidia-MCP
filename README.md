@@ -159,6 +159,7 @@ tools. *No TV changes* tools write only private local state or run opt-in, idle-
 | [Kodi Manager](docs/companion.md) | Optional live settings, dashboard and Bingie integration |
 | [Repairs](docs/repairs.md) · [APK upgrades](docs/apk-upgrades.md) | Preview, apply, verify and recover |
 | [Compatibility](docs/compatibility.md) · [Verification](docs/verification.md) | Tested versions and remaining live checks |
+| [Library API](docs/library.md) | Reusing the Shield/Kodi device code from your own Python tools |
 | [Contributing](CONTRIBUTING.md) · [Changelog](CHANGELOG.md) | Development, release checks and changes |
 | [Security](SECURITY.md) | Credential handling and private vulnerability reports |
 

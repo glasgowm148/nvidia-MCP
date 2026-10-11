@@ -14,16 +14,72 @@ import httpx
 from . import privacy
 from .config import Config, ShieldError
 
+KODI_ROUTES = ("direct", "forward", "auto")
+
 
 class Transport:
-    def __init__(self, config: Config):
+    def __init__(self, config: Config, kodi_route="direct"):
+        """``kodi_route`` picks how Kodi JSON-RPC is reached: ``direct`` (LAN HTTP to the
+        configured host; the MCP server always uses this), ``forward`` (through an ``adb forward``
+        to 127.0.0.1, for processes the OS blocks from the LAN, such as macOS Local Network
+        permission) or ``auto`` (direct when Kodi answers there, otherwise forward)."""
+        if kodi_route not in KODI_ROUTES:
+            raise ValueError("kodi_route must be one of " + ", ".join(KODI_ROUTES))
         self.c = config
+        self.kodi_route = kodi_route
+        self.forward_port = None
+        self._kodi_url = None
+        self._route_lock = threading.Lock()
         self.http = httpx.Client(
             timeout=httpx.Timeout(20, connect=3), follow_redirects=False, trust_env=False
         )
 
     def close(self):
-        self.http.close()
+        try:
+            self.remove_forward()
+        finally:
+            self.http.close()
+
+    def kodi_url(self):
+        """Base URL for Kodi JSON-RPC under the chosen route; sets up the forward on first use."""
+        if self.kodi_route == "direct":
+            return self.c.url()
+        with self._route_lock:
+            if self._kodi_url is None:
+                if self.kodi_route == "auto" and self.answers(self.c.url()):
+                    self._kodi_url = self.c.url()
+                else:
+                    self._kodi_url = self.forward_kodi()
+            return self._kodi_url
+
+    def answers(self, base):
+        """True when something at ``base`` answers HTTP (an auth refusal counts as an answer)."""
+        try:
+            self.request(
+                base + "/jsonrpc", body={"jsonrpc": "2.0", "id": 1, "method": "JSONRPC.Ping"}
+            )
+        except ShieldError as exc:
+            return exc.kind not in ("unreachable", "timeout")
+        return True
+
+    def forward_kodi(self):
+        """``adb forward tcp:0 tcp:<kodi port>``: the adb server, not this process, opens the
+        LAN connection. Returns the local base URL."""
+        out = self.adb("forward", "tcp:0", f"tcp:{self.c.kodi_port}", timeout=15)
+        port = out.decode("ascii", "replace").strip()
+        if not port.isdigit() or not 0 < int(port) < 65536:
+            raise ShieldError("adb forward did not report a local port", "device_error")
+        self.forward_port = int(port)
+        return f"http://127.0.0.1:{self.forward_port}"
+
+    def remove_forward(self):
+        if self.forward_port is None:
+            return
+        port, self.forward_port, self._kodi_url = self.forward_port, None, None
+        try:
+            self.adb("forward", "--remove", f"tcp:{port}", timeout=15)
+        except ShieldError:
+            pass  # The adb server may already be gone; the forward goes with it.
 
     @property
     def known_secrets(self):
@@ -69,7 +125,7 @@ class Transport:
 
     def rpc(self, method, params=None):
         result = self.request(
-            self.c.url() + "/jsonrpc",
+            self.kodi_url() + "/jsonrpc",
             body={"jsonrpc": "2.0", "id": 1, "method": method, "params": params or {}},
         )
         if not isinstance(result, dict):
@@ -228,6 +284,34 @@ class Transport:
 
 
 TRAILER = 128
+REMOTE_MODE = re.compile(r"[0-7]{3,4}")
+
+
+def push_atomic(transport, source, remote, *, mode=None, before_commit=None):
+    """Push ``source`` beside ``remote`` under a unique temporary name, optionally chmod it, run
+    ``before_commit(temp)`` (which may raise to abandon the push), then ``mv -f`` it into place.
+    The temporary file is always removed. Readback of the result is the caller's job."""
+    if mode is not None and not REMOTE_MODE.fullmatch(mode):
+        raise ShieldError("File mode must be octal digits such as 644", "invalid_request")
+    temp = str(remote) + ".nvidia-mcp-" + uuid.uuid4().hex
+    try:
+        transport.adb("push", str(source), temp)
+        if mode is not None:
+            transport.shell("chmod", mode, temp)
+        if before_commit is not None:
+            before_commit(temp)
+        transport.shell("mv", "-f", temp, str(remote))
+    finally:
+        transport.shell("rm", "-f", temp)
+
+
+def remote_sha256(transport, path):
+    """SHA-256 of a device file, computed on the Shield with toybox ``sha256sum``."""
+    value = transport.shell("sha256sum", str(path), limit=2000).split()
+    if not value or not re.fullmatch(r"[a-fA-F0-9]{64}", value[0]):
+        raise ShieldError("Cannot checksum the device file", "device_error")
+    return value[0].lower()
+
 
 # Kodi Manager error codes (``{"ok": false, "error": {"code", "message"}}``) with their own
 # remedy. None of them means the companion is missing or outdated.
