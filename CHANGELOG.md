@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.4.6 — 2026-10-11 (prerelease)
+
+- Library API: `nvidia_mcp.Shield(config)` lets other tools on the computer reuse the server's device code instead of duplicating it: `adb`, `shell`, `rpc`, `viewing_state()` (verdict idle/playing/paused/other_app/screensaver/asleep/unknown from the guard's own signals), `kodi_alive()`, `quit_kodi(wait)` and `start_kodi(wait)` (the same guard and quit-then-force-stop rule as `kodi_lifecycle`), `pull`, `push_verified` (temporary file, on-device SHA-256 check, `mv`, check again), `memory()` and `process_deaths()`. Kodi JSON-RPC can go through an `adb forward` (`kodi_route="forward"` or `"auto"`) for processes the OS blocks from the LAN, such as macOS Local Network permission. Documented with a semver promise in docs/library.md; exported from `nvidia_mcp`. MCP tools are unchanged and always use direct HTTP.
+- `shield_status` health now includes `SwapTotal`/`SwapFree` in `memory_kb` (a full swap with low MemAvailable is when Android's low-memory killer can end Kodi behind the screensaver).
+- ADB file patches and `push_verified` share one temporary-file-then-move helper.
+- Replay tests from the reference Shield's own output (tests/fixtures/real, anonymised): seven scenarios (idle on Kodi's home, paused on the OSD, Android screensaver, Projectivy in front, the 2026-10-11 hung exits, a low-memory kill behind the screensaver, Netflix paused) drive every guarded action, clean and hung `kodi_lifecycle` exits (force-stop only with proof of saved settings and a passing guard; `exit_hung` otherwise), the diagnostics tools and the library through a fake ADB/HTTP boundary, so the real parsers run on real dumps.
+
 ## 0.4.5 — 2026-10-11 (prerelease)
 
 - Bundle Kodi Manager 0.7.10 (was 0.7.5), built deterministically from the public release commit. Its Shield exit watcher now ends an exit that stalls after Kodi has saved its settings about a minute later, measured on the clock, and never acts once playback starts again. 0.7.6–0.7.9 add all-or-nothing settings saves and restores with rollback, no checkpoints or re-applies during playback, a DNS-rebinding defence (open the dashboard by IP address or `.local` name), masked log lines and the redesigned dashboard. MCP tools are unchanged and still support Kodi Manager 0.4+ (widget-cache tools 0.6+).
