@@ -259,3 +259,21 @@ def test_layout_preview_is_immutable_profile_bound_and_expires(ops):
     ops.plans[token] = (saved[0] - 601, *saved[1:])
     with pytest.raises(ShieldError, match="expired"):
         ops.layout_apply(token)
+
+
+@pytest.mark.parametrize("damage", ["missing", "no_blob", "bad_json", "not_a_dict"])
+def test_missing_or_damaged_backup_is_a_clean_refusal(ops, damage):
+    path = "userdata/test.py"
+    (ops.c.mount / path).write_text("value = 1\n")
+    backup = "0" * 32 if damage == "missing" else ops.files.snapshot(path, ops.files.read(path))
+    manifest = ops.files.backups / (backup + ".json")
+    if damage == "no_blob":
+        (ops.files.backups / (backup + ".bin")).unlink()
+    elif damage == "bad_json":
+        manifest.write_text("{not json")
+    elif damage == "not_a_dict":
+        manifest.write_text("[]")
+    with pytest.raises(ShieldError, match="kodi_backups") as error:
+        ops.restore_file(backup, digest(ops.files.read(path)))
+    assert str(ops.c.state) not in str(error.value)
+    assert ops.files.read(path) == b"value = 1\n"

@@ -7,6 +7,7 @@
 - `kodi_set_setting`, `kodi_set_addon_setting` (via Manager), `kodi_layout_apply` and `kodi_manager_widget_cache_refresh` now use the full TV guard, so they also refuse while another app (Netflix, YouTube...) is in front, not only during Kodi playback.
 - `kodi_read` refuses `XBMC.GetInfoLabels` labels that read add-on settings (`Addon.SettingStr(...)` returned raw Real-Debrid/Trakt tokens) or credential-like skin strings and window properties.
 - contrib/profile-relaunch: `relaunch.sh` validates pid, profile index and log offset individually; an empty index previously passed and could write `<lastloaded></lastloaded>`.
+- `kodi_restore_file` reports a missing or damaged local backup as a clean `not_found` error instead of a raw exception that included the private state path.
 
 ## 0.4.2 — 2026-10-11 (prerelease)
 

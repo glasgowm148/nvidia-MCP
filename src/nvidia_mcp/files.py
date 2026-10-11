@@ -168,10 +168,18 @@ class Files:
     def restore_data(self, backup_id):
         if not re.fullmatch(r"[0-9a-f]{32}", backup_id):
             raise ShieldError("Invalid backup ID")
-        info = json.loads((self.backups / (backup_id + ".json")).read_text())
-        if info["device"] != self.c.serial:
+        try:
+            info = json.loads((self.backups / (backup_id + ".json")).read_text())
+            device, path, expected = info["device"], info["path"], info["sha256"]
+            data = (self.backups / (backup_id + ".bin")).read_bytes()
+        except (OSError, ValueError, KeyError, TypeError):
+            # Never echo local state paths; list_backups shows what can be restored.
+            raise ShieldError(
+                "Backup is missing or incomplete in local private storage; see kodi_backups",
+                "not_found",
+            ) from None
+        if device != self.c.serial:
             raise ShieldError("Backup belongs to a different Shield")
-        data = (self.backups / (backup_id + ".bin")).read_bytes()
-        if len(data) > MAX_FILE or digest(data) != info["sha256"]:
+        if len(data) > MAX_FILE or digest(data) != expected:
             raise ShieldError("Backup checksum failed")
-        return relative(info["path"]), data
+        return relative(path), data
