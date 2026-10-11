@@ -126,6 +126,11 @@ class Files:
             finally:
                 temp.unlink(missing_ok=True)
         else:
+            mode = self.t.shell("stat", "-c", "%a", str(target)).strip()
+            if not re.fullmatch(r"[0-7]{3,4}", mode):
+                raise ShieldError("Cannot verify existing file permissions; patch cancelled")
+            # Preserve ordinary permissions, as the mounted-filesystem path does.
+            mode = format(int(mode, 8) & 0o777, "03o")
             remote_temp = str(target) + ".nvidia-mcp-" + uuid.uuid4().hex
             with tempfile.TemporaryDirectory() as local:
                 staging = Path(local) / "staging"
@@ -133,7 +138,7 @@ class Files:
                 staging.chmod(0o600)
                 try:
                     self.t.adb("push", str(staging), remote_temp)
-                    self.t.shell("chmod", "600", remote_temp)
+                    self.t.shell("chmod", mode, remote_temp)
                     if digest(self.read(path)) != expected:
                         raise ShieldError("File changed while staging; patch cancelled")
                     self.t.shell("mv", "-f", remote_temp, str(target))

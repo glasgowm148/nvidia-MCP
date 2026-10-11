@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.4.2 — 2026-10-11 (prerelease)
+
+- Preserve existing file permissions during ADB patches, including executable helper scripts; refuse writes when permissions cannot be read.
+- Bundle Kodi Manager 0.7.5 with safe backup retention, shared-file repair and optional row genre filters.
+
 ## 0.4.1 — 2026-10-10 (prerelease)
 
 - Bundle Kodi Manager 0.7.4 with widget-cache failure recovery and corrected Android memory-pressure warnings.

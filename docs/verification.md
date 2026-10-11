@@ -3,7 +3,7 @@
 ## 0.3.1 release preparation
 
 70 MCP tests pass locally, plus clean-wheel stdio/tool/resource/prompt and disabled-write checks
-against a synthetic local HTTP service. The pinned Manager 0.4.1 fixes same-second backup collisions;
+against a synthetic local HTTP service. The pinned Manager 0.7.5 also preserves completed backups on failure and fixes shared-file repair;
 its 158 Python and 47 UI tests include restore/undo and distinct add-on/stack/pipeline checkpoints.
 
 Git-history and published-archive secret scans found no matches. Resolved fresh-wheel dependencies
