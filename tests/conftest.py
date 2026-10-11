@@ -51,7 +51,7 @@ def ops(tmp_path):
     mount = tmp_path / "kodi"
     (mount / "userdata").mkdir(parents=True)
     (mount / "userdata/profiles.xml").write_text(
-        '<profiles><lastloaded>0</lastloaded><profile id="0"><name>Adults</name><directory>special://masterprofile/</directory></profile><profile id="1"><name>Kids</name><directory>profiles/kids/</directory></profile></profiles>'
+        "<profiles><lastloaded>0</lastloaded><profile><id>0</id><name>Adults</name><directory>special://masterprofile/</directory></profile><profile><id>1</id><name>Kids</name><directory>profiles/kids/</directory></profile></profiles>"
     )
     (mount / "userdata/guisettings.xml").write_text(
         '<settings><setting id="audiooutput.passthrough">false</setting></settings>'

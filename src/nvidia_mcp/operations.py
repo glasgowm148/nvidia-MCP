@@ -817,7 +817,12 @@ class Operations:
         return self.settings_page(rows, query, start, limit)
 
     def profile_userdata(self):
-        """Resolve the actual profile instead of silently editing the master profile."""
+        """Resolve the actual profile instead of silently editing the master profile.
+
+        Kodi's profiles.xml stores each id as a child element and ``lastloaded`` as the
+        position of the profile in the file, not its id (they differ once a profile has been
+        deleted). The master profile is always the first entry.
+        """
         root = fromstring(self.files.read("userdata/profiles.xml"))
         profiles = root.findall("profile")
         try:
@@ -829,19 +834,25 @@ class Operations:
                 raise ShieldError(
                     "Kodi is running but its active profile cannot be queried; no profile assumed"
                 ) from None
-            last = root.findtext("lastloaded", "0")
-            matches = [p for p in profiles if p.get("id") == last]
+            last = (root.findtext("lastloaded") or "0").strip()
+            index = int(last) if last.isdigit() else -1
+            matches = [profiles[index]] if 0 <= index < len(profiles) else []
         else:
             matches = [p for p in profiles if p.findtext("name") == label]
         if len(matches) != 1:
             raise ShieldError(
                 "Cannot uniquely resolve the active Kodi profile; inspect profiles.xml"
             )
-        path = matches[0].findtext("directory", "").rstrip("/")
-        if path in ("special://masterprofile", "") and matches[0].get("id") == "0":
-            return "userdata"
-        if path.startswith("profiles/") and ".." not in PurePosixPath(path).parts:
-            return relative("userdata/" + path)
+        profile = matches[0]
+        path = (profile.findtext("directory") or "").strip().rstrip("/")
+        if profile is profiles[0]:
+            if path in ("special://masterprofile", ""):
+                return "userdata"
+        else:
+            if path.startswith("special://masterprofile/"):
+                path = path[len("special://masterprofile/") :]
+            if path.startswith("profiles/") and ".." not in PurePosixPath(path).parts:
+                return relative("userdata/" + path)
         raise ShieldError("Unsupported profile directory; use explicit Kodi-relative file tools")
 
     def set_addon_setting(self, addon_id, expected_version, setting, value):

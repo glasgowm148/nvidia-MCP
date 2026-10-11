@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.4.3 — 2026-10-11 (prerelease)
+
+- Resolve the active profile from Kodi's real `profiles.xml` layout (`<id>` child elements; `lastloaded` is a position, not an id). `kodi_set_setting` no longer fails on the master profile, and offline add-on setting edits target the last-loaded profile.
+
 ## 0.4.2 — 2026-10-11 (prerelease)
 
 - Preserve existing file permissions during ADB patches, including executable helper scripts; refuse writes when permissions cannot be read.
