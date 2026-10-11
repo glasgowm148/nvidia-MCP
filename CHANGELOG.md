@@ -9,6 +9,7 @@
 - contrib/profile-relaunch: `relaunch.sh` validates pid, profile index and log offset individually; an empty index previously passed and could write `<lastloaded></lastloaded>`.
 - `kodi_restore_file` reports a missing or damaged local backup as a clean `not_found` error instead of a raw exception that included the private state path.
 - `kodi_read` refuses results over 250 KB (for example an unfiltered `Settings.GetSettings`) and points to the paged `kodi_settings` tool.
+- Fix a server-wide hang under mcp 1.x: a tool call that waited for the operations lock while an APK preview/apply was reporting progress blocked the event loop the progress report needed. Every blocking tool now runs in a worker thread.
 
 ## 0.4.2 — 2026-10-11 (prerelease)
 

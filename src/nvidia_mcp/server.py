@@ -6,6 +6,8 @@ are registered only when NVIDIA_MCP_ALLOW_WRITES=1.
 """
 
 import argparse
+import functools
+import inspect
 import json
 import sys
 from importlib.resources import files
@@ -97,6 +99,24 @@ def progress_callback(ctx):
     return report
 
 
+def in_worker_thread(function):
+    """Run a blocking tool in a worker thread so it never blocks the event loop.
+
+    mcp 1.x calls plain ``def`` tools directly on the event loop. A tool waiting there for
+    ``Operations.lock`` while an APK worker holds it and reports progress (which needs the
+    loop) would deadlock the whole server. ``functools.wraps`` keeps the signature, type
+    hints and docstring that FastMCP reads to build the tool schema.
+    """
+    if inspect.iscoroutinefunction(function):
+        return function
+
+    @functools.wraps(function)
+    async def run(*args, **kwargs):
+        return await anyio.to_thread.run_sync(functools.partial(function, *args, **kwargs))
+
+    return run
+
+
 def create_server(config: Config):
     try:
         prune_state(config)
@@ -110,7 +130,8 @@ def create_server(config: Config):
     writes = config.allow_writes
 
     def tool(title, **hints):
-        return mcp.tool(title=title, annotations=annotations(title, **hints))
+        register = mcp.tool(title=title, annotations=annotations(title, **hints))
+        return lambda function: register(in_worker_thread(function))
 
     def write_tool(title, destructive=True, **hints):
         """Register only when writes are enabled; otherwise the tool does not exist."""
