@@ -21,7 +21,7 @@ filled configuration or print account credentials into diagnostic output.
 | `KODI_MANAGER_PORT`, `KODI_MANAGER_TOKEN` | `8765`, empty | Optional Manager connection |
 | `NVIDIA_MCP_ALLOW_WRITES` | `0` | Register and allow write/disruptive tools. With `0` they are not listed at all |
 | `NVIDIA_MCP_ALLOW_PLUGIN_BROWSE` | `0` | Allow executing directory previews |
-| `NVIDIA_MCP_ALLOW_INTERRUPT` | `0` | Honour the model-supplied `allow_during_playback` / `interrupt_other_app` flags. Without it those flags are refused |
+| `NVIDIA_MCP_ALLOW_INTERRUPT` | `0` | Honour the model-supplied `allow_during_playback` (remote) / `interrupt_other_app` (lifecycle: other apps only, never Kodi playback) flags. Without it those flags are refused |
 | `NVIDIA_MCP_EXTRA_LAUNCHERS` | empty | Comma-separated home-screen package names treated like the built-in launchers |
 | `NVIDIA_MCP_ALLOW_SETTINGS` | empty | Comma-separated **exact** protected Kodi setting ids that `kodi_set_setting` may change |
 | `NVIDIA_MCP_TRUSTED_SIGNERS` | empty | Comma-separated SHA-256 APK signer fingerprints trusted for **new** app installs |
@@ -51,17 +51,29 @@ expose whole-tree crawls, arbitrary shell commands or unrestricted JSON-RPC.
 
 Every disruptive tool (remote buttons, Kodi lifecycle, Kodi and add-on setting changes, hub layout
 apply, widget-cache refresh, skin-menu rebuild, plugin browsing and APK install) uses one guard. File
-patches and restores instead require Kodi to be stopped. It refuses active Kodi playback, fails closed if playback state is unknown,
-and checks the foreground Android app against one launcher set (Google TV/Android TV launchers and
-Projectivy, plus `NVIDIA_MCP_EXTRA_LAUNCHERS`): with Netflix, YouTube or SmartTube in front, a Home or
-Back press would go to that app, so it is refused. Kodi in front is always checked for playback,
-even when the process probe misses it. `play_pause` and `stop` are also refused while any Android
-app's media session is playing or paused, because Android sends media keys to that app even from the
-home screen. Offline recovery (`allow_offline_recovery`) needs an explicit tool flag, applies only
-when Kodi's HTTP server is unreachable or times out (not on authentication or protocol errors), and
-is refused while Android's media session for Kodi reports playing or paused.
-Interrupting playback or another app needs the tool flag **and** `NVIDIA_MCP_ALLOW_INTERRUPT=1`,
-because tool arguments are chosen by the model; get permission from the person viewing as well.
+patches and restores instead require Kodi to be stopped. The guard refuses active or paused Kodi
+playback and fails closed if playback state is unknown. It refuses while any Android app's media
+session is playing or paused (Spotify in the background, a film paused under the screensaver),
+because a button or app launch can take audio focus from it. It checks the foreground Android app
+against one launcher set (Google TV/Android TV launchers and Projectivy, plus
+`NVIDIA_MCP_EXTRA_LAUNCHERS`): with Netflix, YouTube or SmartTube in front, a Home or Back press
+would go to that app, so it is refused. Kodi in front is always checked for playback, even when the
+process probe misses it. A screensaver (Android's `DreamActivity`) or a sleeping display counts as
+nobody watching, after the same playback checks; remote buttons are still refused while the Shield
+sleeps, because a key press wakes it and can switch the TV on through HDMI-CEC. `play_pause` and
+`stop` are refused when nothing is playing (they would only wake the last app that handled media
+buttons); with `allow_during_playback` they are sent to Kodi's player over JSON-RPC when Kodi is
+playing. Offline recovery (`allow_offline_recovery`) needs an explicit tool flag, applies only when
+Kodi's HTTP server is unreachable or times out (not on authentication or protocol errors), and is
+refused while Android's media session for Kodi reports playing or paused.
+The model-supplied override flags also need `NVIDIA_MCP_ALLOW_INTERRUPT=1`; get permission from the
+person viewing as well. `shield_remote`'s `allow_during_playback` skips the viewing checks (to pause
+or stop what is on screen). `kodi_lifecycle`'s `interrupt_other_app` only covers *another* app in
+front or playing: Kodi's own playback is always refused.
+
+A Kodi that froze mid-film usually still looks like playback (Android's media session stays at
+playing or paused, and HTTP may still answer with an error), so no tool flag will stop it. Ask the
+viewer to close Kodi on the TV (Settings → Apps → Kodi → Force stop) or restart the Shield.
 Write mode is a capability switch, not a substitute for an agent's approval policy.
 
 ### Protected Kodi settings

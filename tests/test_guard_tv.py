@@ -161,16 +161,150 @@ def test_offline_recovery_ignores_stopped_or_other_sessions(ops):
     assert force_stops(ops)
 
 
-@pytest.mark.parametrize("button", ["play_pause", "stop"])
-def test_media_keys_refused_while_a_background_app_plays(ops, button):
-    # Android routes media keys to the active session, not to the foreground launcher.
+@pytest.mark.parametrize("button", ["play_pause", "stop", "down", "select"])
+def test_any_button_refused_while_a_background_app_plays(ops, button):
+    # Android routes media keys to the active session, and Select can open an app that
+    # takes audio focus: background audio counts as somebody listening.
     ops.t.offline = True
     foreground(ops, "com.google.android.tvlauncher")
     ops.t.media = media_session("com.spotify.tv.android", 3)
-    with pytest.raises(ShieldError, match="another app's media"):
+    with pytest.raises(ShieldError, match="Another app's media"):
         ops.remote(button)
     assert not keyevents(ops)
-    assert ops.remote("down") == {"sent": "down"}
+
+
+@pytest.mark.parametrize("button", ["play_pause", "stop"])
+def test_media_keys_refused_when_nothing_plays(ops, button):
+    # With nothing playing, a media key only reaches the last media-button receiver and can
+    # start a background app's audio.
+    foreground(ops, "com.google.android.tvlauncher")
+    with pytest.raises(ShieldError, match="Nothing is playing"):
+        ops.remote(button)
+    assert not keyevents(ops)
+
+
+@pytest.mark.parametrize(
+    "button,method", [("play_pause", "Player.PlayPause"), ("stop", "Player.Stop")]
+)
+def test_permitted_media_key_goes_to_kodis_player(ops, button, method):
+    ops.c = replace(ops.c, allow_interrupt=True)
+    ops.t.running = True
+    ops.t.players = [{"playerid": 1, "type": "video"}]
+    result = ops.remote(button, allow_during_playback=True)
+    assert result["via"].endswith(method)
+    assert (method, {"playerid": 1}) in ops.t.calls
+    assert not keyevents(ops)
+
+
+def test_interrupt_other_app_still_refuses_kodi_playback(ops):
+    ops.c = replace(ops.c, allow_interrupt=True)
+    ops.t.running = True
+    ops.t.players = [{"playerid": 1, "type": "video"}]  # A film is playing in Kodi, in front.
+    with pytest.raises(ShieldError, match="Kodi is playing"):
+        ops.lifecycle("restart", interrupt_other_app=True)
+    assert not force_stops(ops)
+    ops.t.players = []
+    ops.t.media = media_session("org.xbmc.kodi", 2)  # Android: Kodi paused.
+    with pytest.raises(ShieldError, match="Kodi media playing or paused"):
+        ops.lifecycle("restart", interrupt_other_app=True)
+    assert not force_stops(ops)
+
+
+def test_interrupt_other_app_covers_other_apps_only(ops):
+    ops.c = replace(ops.c, allow_interrupt=True)
+    foreground(ops, "com.netflix.ninja")
+    ops.t.media = media_session("com.netflix.ninja", 3)
+    assert ops.lifecycle("start", interrupt_other_app=True)["requested"] == "start"
+
+
+def screen(ops, text):
+    original = ops.t.shell
+
+    def shell(*args, **kwargs):
+        if args == ("dumpsys", "activity", "activities"):
+            return text
+        return original(*args, **kwargs)
+
+    ops.t.shell = shell
+
+
+DREAM = (
+    "    mResumedActivity: ActivityRecord{1f u0 com.google.android.backdrop/"
+    "android.service.dreams.DreamActivity t44}\n"
+    "  topResumedActivity=ActivityRecord{1f u0 com.google.android.backdrop/"
+    "android.service.dreams.DreamActivity t44}"
+)
+ASLEEP = (
+    "  isSleeping=true\n"
+    "    mLastPausedActivity: ActivityRecord{1f u0 org.xbmc.kodi/.Main t9}\n"
+    "  topResumedActivity=null"
+)
+
+
+@pytest.mark.parametrize("text", [DREAM, ASLEEP])
+def test_screensaver_or_sleep_is_nobody_watching(ops, text):
+    screen(ops, text)
+    ops.t.running = True
+    assert ops.set_core_setting("audiooutput.passthrough", True)["current"] is True
+    assert ops.lifecycle("restart")["requested"] == "restart"
+
+
+@pytest.mark.parametrize("text", [DREAM, ASLEEP])
+def test_screensaver_or_sleep_still_checks_playback(ops, text):
+    screen(ops, text)
+    ops.t.running = True
+    ops.t.players = [{"playerid": 1}]
+    with pytest.raises(ShieldError, match="Kodi is playing"):
+        ops.set_core_setting("audiooutput.passthrough", True)
+    ops.t.players = []
+    ops.t.media = media_session("com.netflix.ninja", 2)  # A film paused under the screensaver.
+    with pytest.raises(ShieldError, match="Another app's media"):
+        ops.lifecycle("start")
+    assert not force_stops(ops)
+    assert not any(c[0] == "shell" and c[1][:2] == ("am", "start") for c in ops.t.calls)
+
+
+def test_remote_refused_while_asleep(ops):
+    screen(ops, ASLEEP)
+    with pytest.raises(ShieldError, match="asleep"):
+        ops.remote("select")
+    assert not keyevents(ops)
+
+
+def test_foreground_message_offers_no_flag_the_tool_lacks(ops):
+    ops.t.running = True
+    foreground(ops, "com.netflix.ninja")
+    with pytest.raises(ShieldError) as error:
+        ops.set_core_setting("audiooutput.passthrough", True)
+    assert "=true" not in str(error.value)
+    with pytest.raises(ShieldError, match="interrupt_other_app=true"):
+        ops.lifecycle("start")
+
+
+def test_restart_that_cannot_stop_kodi_says_so(ops):
+    shell = ops.t.shell
+    ops.t.shell = lambda *a, **kw: "" if a[:2] == ("am", "force-stop") else shell(*a, **kw)
+    ops.t.running = True  # pidof still finds Kodi after force-stop.
+    with pytest.raises(ShieldError, match="still running after force-stop") as error:
+        ops.lifecycle("restart")
+    assert "editing files" not in str(error.value)
+    assert not any(c[0] == "shell" and c[1][:2] == ("am", "start") for c in ops.t.calls)
+
+
+def test_restart_reports_unconfirmed_stop(ops):
+    shell = ops.t.shell
+    stopped = []
+
+    def flaky(*args, **kwargs):
+        if args[:2] == ("am", "force-stop"):
+            stopped.append(True)
+        elif stopped and args[:2] == ("sh", "-c"):
+            raise ShieldError("ADB timed out", "timeout")
+        return shell(*args, **kwargs)
+
+    ops.t.shell = flaky
+    with pytest.raises(ShieldError, match="force-stopped .*not started again"):
+        ops.lifecycle("restart")
 
 
 def guarded_writes(ops, tmp_path):

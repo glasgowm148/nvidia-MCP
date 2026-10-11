@@ -94,6 +94,8 @@ def apk_env(ops, monkeypatch, tmp_path):
                 return digest((self.installed | self.pushed)[args[1]]) + "  " + args[1]
             if args == ("dumpsys", "activity", "activities"):
                 return f"mResumedActivity: {self.foreground}/.Main" if self.foreground else ""
+            if args == ("dumpsys", "media_session"):
+                return "MEDIA SESSION SERVICE (dumpsys media_session)\n"
             if args[:2] == ("sh", "-c"):
                 return "123" if any(f"pidof {pkg} " in args[2] for pkg in self.running) else ""
             if args[0] == "readlink":

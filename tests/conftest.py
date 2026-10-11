@@ -40,6 +40,8 @@ class FakeTransport:
         self.calls.append(("shell", args))
         if args[:2] == ("sh", "-c"):
             return "1234" if self.running else ""
+        if args[:2] == ("am", "force-stop"):
+            self.running = False
         if args == ("dumpsys", "activity", "activities"):
             return "mResumedActivity: org.xbmc.kodi/.Splash"
         if args == ("dumpsys", "media_session"):

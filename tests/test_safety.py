@@ -93,7 +93,7 @@ def test_explicit_offline_recovery_and_other_app_guard(ops):
     original = ops.t.shell
     ops.t.shell = lambda *a, **kw: (
         "mResumedActivity: com.google.android.youtube.tv/.Main"
-        if a[0] == "dumpsys"
+        if a == ("dumpsys", "activity", "activities")
         else original(*a, **kw)
     )
     with pytest.raises(ShieldError, match="Another TV app"):

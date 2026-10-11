@@ -198,24 +198,37 @@ def text(data):
         raise ShieldError("File is not UTF-8 text; it cannot be shown or patched") from None
 
 
-def foreground(transport):
-    """Return the one resumed foreground package, or refuse when it is ambiguous/unknown."""
+PACKAGE_ACTIVITY = re.compile(r"\b([A-Za-z][A-Za-z0-9_]*(?:\.[A-Za-z][A-Za-z0-9_]*)+)/([\w.$]+)")
+# Android 10+ runs the screensaver as an activity; nobody is watching it.
+DREAM_ACTIVITY = re.compile(r"(?:^|\.)DreamActivity$|(?:^|\.)dreams?\.", re.I)
+SLEEPING = re.compile(r"\b(?:isSleeping|mSleeping)=true\b")
+
+
+def foreground_state(transport):
+    """Return ``(screen, package)`` for what is in front of the viewer.
+
+    ``screen`` is ``"app"`` (one resumed activity), ``"screensaver"`` (a dream activity is
+    resumed) or ``"asleep"`` (no resumed activity and Android reports the display sleeping;
+    package is None). Anything else is ambiguous and refused.
+    """
     text = transport.shell("dumpsys", "activity", "activities", limit=2_000_000)
     lines = [
         line
         for line in text.splitlines()
         if "mResumedActivity" in line or "topResumedActivity" in line
     ]
-    packages = {
-        match[1]
-        for line in lines
-        if (match := re.search(r"\b([A-Za-z][A-Za-z0-9_]*(?:\.[A-Za-z][A-Za-z0-9_]*)+)/", line))
-    }
-    if len(packages) != 1:
-        raise ShieldError(
-            "Foreground TV app is unknown; no disruptive action performed", "foreground_unknown"
-        )
-    return packages.pop()
+    found = {(m[1], m[2]) for line in lines if (m := PACKAGE_ACTIVITY.search(line))}
+    packages = {package for package, _ in found}
+    if len(packages) == 1:
+        package = packages.pop()
+        if any(DREAM_ACTIVITY.search(activity) for _, activity in found):
+            return "screensaver", package
+        return "app", package
+    if not packages and SLEEPING.search(text):
+        return "asleep", None
+    raise ShieldError(
+        "Foreground TV app is unknown; no disruptive action performed", "foreground_unknown"
+    )
 
 
 # android.media.session.PlaybackState values where nobody is watching or listening:
@@ -328,24 +341,32 @@ class Operations:
     def guard_tv(
         self,
         kind,
-        allow_override=False,
         *,
+        allow_playback=False,
+        allow_other_app=False,
         allow_offline=False,
         assume_running=False,
         package=None,
-        override_flag="allow_during_playback",
+        override_flag=None,
     ):
         """One guard for every UI-disruptive action.
 
-        Combines Kodi playback state, the Android foreground app (checked against one shared
-        launcher set) and whether Kodi / a target package is running. ``allow_override`` is
-        model-controlled, so it is honoured only with NVIDIA_MCP_ALLOW_INTERRUPT=1.
-        ``kind`` is one of remote, lifecycle, setting, layout, browse, apk. Offline file edits
-        need a stopped Kodi (``stopped``) instead.
+        Combines Kodi playback state, Android media sessions (any app, including background
+        audio), the Android foreground app (checked against one shared launcher set; a
+        screensaver or sleeping display counts as nobody watching) and whether Kodi / a target
+        package is running. ``kind`` is one of remote, lifecycle, setting, layout, browse, apk.
+        Offline file edits need a stopped Kodi (``stopped``) instead.
+
+        Overrides are model-controlled, so they are honoured only with
+        NVIDIA_MCP_ALLOW_INTERRUPT=1. ``allow_playback`` (shield_remote's
+        allow_during_playback) skips every viewing check. ``allow_other_app`` (kodi_lifecycle's
+        interrupt_other_app) skips only the checks for other apps: Kodi's own playback is still
+        refused. ``override_flag`` names the tool's flag for error messages, if it has one.
         """
-        if allow_override:
-            self.require_interrupt_opt_in(override_flag)
-        state = {"kind": kind, "override": bool(allow_override)}
+        if allow_playback or allow_other_app:
+            self.require_interrupt_opt_in(override_flag or "override")
+        allow_other_app = allow_other_app or allow_playback
+        state = {"kind": kind, "override": allow_other_app}
         if assume_running:
             # Skip the ADB probe: the playback query establishes the state on its own.
             running = True
@@ -353,20 +374,48 @@ class Operations:
             running = self.kodi_running()
         if kind in ("layout", "browse") and not running:
             raise ShieldError("Kodi is not running; start it first", "kodi_stopped")
-        if running and not allow_override:
+        if running and not allow_playback:
             state["playback"] = self.idle(allow_offline)
-        app = foreground(self.t)
-        state["foreground"] = app
+        screen, app = foreground_state(self.t)
+        state["screen"], state["foreground"] = screen, app
         if app == KODI and not running:
             # The process probe can miss a Kodi that has just been opened. The resumed
             # activity is authoritative: check its playback before doing anything.
             running = True
-            if not allow_override:
+            if not allow_playback:
                 state["playback"] = self.idle(allow_offline)
-        if app not in self.launchers() | {KODI} and not allow_override:
+        if not allow_playback:
+            # Background audio (Spotify, a paused film under a screensaver) has no foreground
+            # activity; Android's media sessions are the only independent signal.
+            playing = media_playing(self.t)
+            if KODI in playing:
+                raise ShieldError(
+                    "Android reports Kodi media playing or paused. Wait until viewing has "
+                    "finished; no disruptive action performed",
+                    "playing",
+                )
+            if playing and not allow_other_app:
+                raise ShieldError(
+                    f"Another app's media is playing or paused ({', '.join(playing[:3])}). "
+                    "Wait until it has finished; no disruptive action performed",
+                    "other_app_playing",
+                )
+        if screen == "asleep" and kind == "remote":
             raise ShieldError(
-                f"Another TV app ({app}) is in the foreground. Get the viewer's permission "
-                f"before setting {override_flag}=true; no disruptive action performed",
+                "The Shield is asleep; a button press would wake it and can switch the TV on "
+                "through HDMI-CEC. No button sent",
+                "asleep",
+            )
+        if screen == "app" and app not in self.launchers() | {KODI} and not allow_other_app:
+            hint = (
+                f" Only with the viewer's permission (and NVIDIA_MCP_ALLOW_INTERRUPT=1) may "
+                f"{override_flag}=true be used."
+                if override_flag
+                else " Wait until the viewer is back on the home screen or in Kodi."
+            )
+            raise ShieldError(
+                f"Another TV app ({app}) is in the foreground; no disruptive action performed."
+                + hint,
                 "other_app_foreground",
             )
         if package and (running if package == KODI else self.running(package)):
@@ -540,17 +589,33 @@ class Operations:
             # playback check would always report "unknown". Skip it only then.
             self.guard_tv(
                 "lifecycle",
-                interrupt_other_app,
+                allow_other_app=interrupt_other_app,
                 allow_offline=allow_offline,
                 assume_running=action != "start",
                 override_flag="interrupt_other_app",
             )
             if action in ("stop", "restart"):
-                self.t.shell("am", "force-stop", "org.xbmc.kodi")
-                self.stopped()
+                self.t.shell("am", "force-stop", KODI)
+                self.audit("kodi_stop", KODI)
+                try:
+                    still_running = self.kodi_running()
+                except ShieldError as exc:
+                    raise ShieldError(
+                        f"Kodi was force-stopped but its state could not be confirmed ({exc})"
+                        + ("; it was not started again" if action == "restart" else "")
+                        + ". Check shield_status before trying again",
+                        "stop_unconfirmed",
+                    ) from None
+                if still_running:
+                    raise ShieldError(
+                        "Kodi was still running after force-stop"
+                        + ("; restart abandoned" if action == "restart" else "")
+                        + ". Check kodi_status and shield_status",
+                        "stop_failed",
+                    )
             if action in ("start", "restart"):
                 self.t.shell("am", "start", "-n", "org.xbmc.kodi/.Splash")
-            self.audit("kodi_" + action, "org.xbmc.kodi")
+                self.audit("kodi_start", KODI)
             return {
                 "requested": action,
                 "note": "Run kodi_status to verify startup; launching an activity does not confirm Kodi is ready.",
@@ -561,17 +626,33 @@ class Operations:
         if button not in BUTTONS:
             raise ShieldError("Unknown remote button")
         with self.lock:
-            self.guard_tv("remote", allow_during_playback)
-            if button in MEDIA_KEYS and not allow_during_playback:
-                # Android routes media keys to whichever session is active, even a
-                # background app the foreground check cannot see.
-                playing = media_playing(self.t)
-                if playing:
+            state = self.guard_tv(
+                "remote",
+                allow_playback=allow_during_playback,
+                override_flag="allow_during_playback",
+            )
+            if button in MEDIA_KEYS:
+                if not allow_during_playback:
+                    # The guard found nothing playing, so a media key can only reach whichever
+                    # app last held a media session and start its audio.
                     raise ShieldError(
-                        f"{button} would reach another app's media ({', '.join(playing[:3])}); "
+                        f"Nothing is playing, so {button} would only wake another app's media; "
                         "no button sent",
-                        "other_app_playing",
+                        "nothing_playing",
                     )
+                if state["foreground"] in self.launchers() | {KODI, None}:
+                    try:
+                        players = self.t.rpc("Player.GetActivePlayers")
+                    except ShieldError:
+                        players = None
+                    if isinstance(players, list) and players:
+                        # Address Kodi's player directly rather than Android's media-button
+                        # routing, which can pick a background app.
+                        method = "Player.PlayPause" if button == "play_pause" else "Player.Stop"
+                        for player in players:
+                            self.t.rpc(method, {"playerid": player["playerid"]})
+                        self.audit("remote", button)
+                        return {"sent": button, "via": "Kodi JSON-RPC " + method}
             self.t.shell("input", "keyevent", BUTTONS[button])
             self.audit("remote", button)
         return {"sent": button}

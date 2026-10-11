@@ -206,7 +206,7 @@ def create_server(config: Config):
 
     @write_tool("Remote button")
     def shield_remote(button: Button, allow_during_playback: bool = False) -> dict[str, Any]:
-        """Send one remote button when Kodi is idle and only Kodi or the home screen is in front; play_pause/stop are refused while any app's media is playing or paused. allow_during_playback also needs the user's NVIDIA_MCP_ALLOW_INTERRUPT=1."""
+        """Send one remote button while nothing plays (Kodi or any app's media) and Kodi, the home screen or a screensaver is in front; refused while the Shield sleeps. play_pause/stop need allow_during_playback (plus the user's NVIDIA_MCP_ALLOW_INTERRUPT=1) and go to Kodi's player when it is playing."""
         return ops.remote(button, allow_during_playback)
 
     @write_tool("Start/stop Kodi")
@@ -215,7 +215,7 @@ def create_server(config: Config):
         allow_offline_recovery: bool = False,
         interrupt_other_app: bool = False,
     ) -> dict[str, Any]:
-        """Start/stop/restart Kodi. Refuses playback; offline recovery needs permission and interrupt_other_app also needs NVIDIA_MCP_ALLOW_INTERRUPT=1."""
+        """Start/stop/restart Kodi. Always refuses while Kodi plays or is paused; offline recovery (HTTP unreachable) needs permission. interrupt_other_app overrides only another app in front or playing and needs NVIDIA_MCP_ALLOW_INTERRUPT=1."""
         return ops.lifecycle(action, allow_offline_recovery, interrupt_other_app)
 
     @tool("Kodi status", read_only=True, idempotent=True)

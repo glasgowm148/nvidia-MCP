@@ -121,7 +121,7 @@ tools. *No TV changes* tools write only private local state or run opt-in, idle-
 | `kodi_layout_apply` | Apply hub layout | write mode | Optional Manager: apply the exact staged plan within 10 minutes; Manager backs up and rejects stale revisions. |
 | `kodi_layout_preview` | Preview hub layout | no TV changes | Optional Manager: stage existing section rows with section_id and expected_revision; no layout write. |
 | `kodi_layout_rebuild` | Rebuild skin menus | write mode | Optional Manager: request one skin-menu rebuild while Kodi is idle and in front. Inspect TV after it finishes. |
-| `kodi_lifecycle` | Start/stop Kodi | write mode | Start/stop/restart Kodi. Refuses playback; offline recovery needs permission and interrupt_other_app also needs NVIDIA_MCP_ALLOW_INTERRUPT=1. |
+| `kodi_lifecycle` | Start/stop Kodi | write mode | Start/stop/restart Kodi. Always refuses while Kodi plays or is paused; offline recovery (HTTP unreachable) needs permission. interrupt_other_app overrides only another app in front or playing and needs NVIDIA_MCP_ALLOW_INTERRUPT=1. |
 | `kodi_logs` | Kodi log tail | read-only | Inspect redacted Kodi log tail and crash/stream/storage signals; safe while viewing. |
 | `kodi_manager_inspect` | Kodi Manager inspect | read-only | Optional Kodi Manager 0.4+: inspect saved skin hubs/rows, sources, pipeline, health or fix status. |
 | `kodi_manager_widget_cache` | Kodi Manager widget cache | read-only | Optional Kodi Manager 0.6+: widget-cache status and cached rows for faster rows on any skin. |
@@ -144,7 +144,7 @@ tools. *No TV changes* tools write only private local state or run opt-in, idle-
 | `shield_connect` | Connect ADB | no TV changes | Connect ADB to the configured Shield only. Accept its debugging prompt on the TV. |
 | `shield_connection` | Shield connection check | read-only | Probe ADB, Kodi HTTP and optional Manager separately; explain authorization/readiness failures. |
 | `shield_logcat` | Android log tail | read-only | Read a bounded Android log tail for native crashes. Redaction is best effort. |
-| `shield_remote` | Remote button | write mode | Send one remote button when Kodi is idle and only Kodi or the home screen is in front; play_pause/stop are refused while any app's media is playing or paused. allow_during_playback also needs the user's NVIDIA_MCP_ALLOW_INTERRUPT=1. |
+| `shield_remote` | Remote button | write mode | Send one remote button while nothing plays (Kodi or any app's media) and Kodi, the home screen or a screensaver is in front; refused while the Shield sleeps. play_pause/stop need allow_during_playback (plus the user's NVIDIA_MCP_ALLOW_INTERRUPT=1) and go to Kodi's player when it is playing. |
 | `shield_screenshot` | TV screenshot | read-only | Capture the current TV screen without navigation. Screens can contain private information. |
 | `shield_status` | Shield status | read-only | Inspect Shield model, Android, memory/storage, uptime, thermal/throttling and Kodi process. |
 <!-- tools:end -->
