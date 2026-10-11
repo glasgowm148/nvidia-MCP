@@ -2,11 +2,23 @@
 
 ## 0.4.3 guard, profile and privacy fixes (offline only)
 
-288 automated tests and 5 shell subtests pass locally with synthetic fixtures; ruff, the README tool
-table check and release-archive inspection pass. No Shield or Kodi was contacted. Not yet confirmed
-on a live Shield: the `dumpsys media_session` parsing used by offline recovery and media-key checks
-(it fails closed if the dump is unreadable), and profile resolution against the household's own
-`profiles.xml`. Verify both read-only (`kodi_status`, `kodi_addon_settings`) before using writes.
+353 automated tests and 5 shell subtests pass locally with synthetic fixtures on mcp 1.28, 1.30
+and 2.3; ruff, the README tool table check and release-archive inspection pass. No Shield or Kodi
+was contacted. A subprocess regression test reproduces the mcp 1.x hang (a tool waiting for the
+operations lock while an APK preview reports progress) and now finishes.
+
+Not yet confirmed on a live Shield, all read-only to check before using writes:
+
+- the `dumpsys media_session` parsing used by every guard (it fails closed if the dump is
+  unreadable);
+- the screensaver (`DreamActivity`) and sleeping-display (`isSleeping=true` / `mSleeping=true` in
+  `dumpsys activity activities`) recognition, which lets settings, layout and lifecycle tools run
+  while the Shield is idle in standby; if the dump differs, they fail closed with
+  `foreground_unknown` as before;
+- `getprop ro.serialno` for backup ownership (without it, backups fall back to `host:port`);
+- profile resolution against the household's own `profiles.xml` (`kodi_status`,
+  `kodi_addon_settings`);
+- Kodi Manager 0.7.x error codes as surfaced by `kodi_manager_inspect` / widget-cache tools.
 
 ## 0.3.1 release preparation
 

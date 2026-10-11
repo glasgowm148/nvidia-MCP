@@ -71,6 +71,10 @@ person viewing as well. `shield_remote`'s `allow_during_playback` skips the view
 or stop what is on screen). `kodi_lifecycle`'s `interrupt_other_app` only covers *another* app in
 front or playing: Kodi's own playback is always refused.
 
+The guard checks the TV once, just before the action. A skin-menu rebuild (`kodi_layout_rebuild`)
+reloads the skin a few seconds later, and an APK install can take minutes after its last check, so
+somebody who starts watching in that window can still be interrupted.
+
 A Kodi that froze mid-film usually still looks like playback (Android's media session stays at
 playing or paused, and HTTP may still answer with an error), so no tool flag will stop it. Ask the
 viewer to close Kodi on the TV (Settings → Apps → Kodi → Force stop) or restart the Shield.

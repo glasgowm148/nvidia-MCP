@@ -53,6 +53,12 @@ embedded in an unrelated project's APK.
    startup and essential functionality separately; an installed version is not runtime validation.
    Disable write mode when finished.
 
+Known limits: the last viewing check runs just before `pm install`, which can take up to five
+minutes. If someone opens the target app during that window, Android's `pm install -r` closes it.
+If ADB times out, only the local ADB client is stopped; the install may still finish on the Shield
+after the tool reports a failure. Check `shield_apk_status(backup_id)` before retrying, and ask the
+household not to use the TV during an upgrade.
+
 ## Recover from a failed change
 
 Use `shield_apk_backups` to find this Shield's latest recovery bundles and `shield_apk_status(backup_id)`
