@@ -7,6 +7,7 @@ from pathlib import Path
 import pytest
 
 from nvidia_mcp import privacy
+from nvidia_mcp.config import ShieldError
 
 FIXTURES = Path(__file__).parent / "fixtures" / "privacy"
 FAKE = re.compile(r"FAKE-[A-Za-z0-9-]+")
@@ -137,3 +138,34 @@ def test_text_rules(raw, secret):
 def test_keymap_key_elements_are_not_redacted():
     xml = '<keymap><global><keyboard><key id="61448">Back</key></keyboard></global></keymap>'
     assert ">Back<" in privacy.file_text(xml)
+
+
+@pytest.mark.parametrize(
+    "label",
+    [
+        "Addon.SettingStr(plugin.video.fen,rd.auth)",
+        "addon.settingstr(plugin.video.pov,tb.token)",
+        "Addon.SettingInt(plugin.video.fen,trakt.expires)",
+        "Skin.String(pin)",
+        "Window(Home).Property(fen.trakt.refresh)",
+        "$INFO[Addon.SettingStr(plugin.video.fen,rd.auth)]",
+    ],
+)
+def test_info_labels_cannot_read_addon_settings_or_secrets(ops, label):
+    with pytest.raises(ShieldError, match="kodi_addon_settings"):
+        ops.rpc_read("XBMC.GetInfoLabels", {"labels": ["System.BuildVersion", label]})
+    assert not any(c[0] == "XBMC.GetInfoLabels" for c in ops.t.calls)
+
+
+def test_ordinary_info_labels_still_work(ops):
+    ops.rpc_read(
+        "XBMC.GetInfoLabels",
+        {
+            "labels": [
+                "System.BuildVersion",
+                "Skin.String(HomeMenuNoMoviesButton)",
+                "Window.Property(xmlfile)",
+            ]
+        },
+    )
+    assert any(c[0] == "XBMC.GetInfoLabels" for c in ops.t.calls)

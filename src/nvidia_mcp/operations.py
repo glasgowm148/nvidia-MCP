@@ -161,6 +161,24 @@ def unsafe_plugin_route(url):
     return found
 
 
+def secret_info_labels(labels):
+    """Info labels that would return add-on setting values or credential-like strings.
+
+    Kodi 20+ ``Addon.SettingStr(addon,id)`` returns raw add-on settings (tokens included), and
+    skins/add-ons keep secrets in ``Skin.String``/``Window.Property`` values. Result keys are the
+    label text, so value redaction by key cannot be relied on for these.
+    """
+    if not isinstance(labels, list):
+        return []
+    found = []
+    for label in labels:
+        value = str(label)
+        words = [w for w in re.split(r"[\s(),$\[\]]+", value) if w]
+        if re.search(r"addon\.setting", value, re.I) or any(privacy.is_secret(w) for w in words):
+            found.append(value)
+    return found
+
+
 def field(result, key, method):
     """Read a JSON-RPC result field, turning a missing key into an actionable error."""
     if not isinstance(result, dict) or key not in result:
@@ -449,6 +467,12 @@ class Operations:
             )
         if len(json.dumps(params)) > 12_000:
             raise ShieldError("Parameters exceed size limit")
+        if method == "XBMC.GetInfoLabels" and secret_info_labels(params.get("labels")):
+            raise ShieldError(
+                "Info labels that read add-on settings or credential-like skin strings/window "
+                "properties are refused; use kodi_addon_settings, which redacts credentials",
+                "secret_read",
+            )
         if method.startswith("VideoLibrary."):
             params = dict(params)
             limits = params.get("limits") or {}
