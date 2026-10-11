@@ -2,6 +2,7 @@
 
 import hashlib
 import json
+from dataclasses import replace
 
 import pytest
 
@@ -22,11 +23,13 @@ def test_refresh_tokens_are_still_credentials(key):
     assert privacy.SECRET.search(key)
 
 
-def test_refresh_rate_can_be_read_and_changed(ops):
+def test_refresh_rate_can_be_read_and_changed_once_allowed(ops):
     ops.t.settings["videoplayer.adjustrefreshrate"] = 0
     assert ops.rpc_read(
         "Settings.GetSettingValue", {"setting": "videoplayer.adjustrefreshrate"}
     ) == {"value": 0}
+    # Refresh-rate switching can blank some TVs, so it needs the user's exact opt-in.
+    ops.c = replace(ops.c, allow_settings=("videoplayer.adjustrefreshrate",))
     result = ops.set_core_setting("videoplayer.adjustrefreshrate", 2)
     assert result["current"] == 2
 

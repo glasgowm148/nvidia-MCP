@@ -133,7 +133,7 @@ tools. *No TV changes* tools write only private local state or run opt-in, idle-
 | `kodi_read_file` | Read Kodi file | read-only | Read a Kodi-relative text file (600 KB max) with redaction and original SHA-256. |
 | `kodi_restore_file` | Restore Kodi file | write mode | Restore one snapshot while Kodi is stopped; rejects stale checksums and creates an undo snapshot. |
 | `kodi_set_addon_setting` | Change add-on setting | write mode | Change a non-credential setting on a verified add-on version; backed up. Without Manager, stop Kodi first. |
-| `kodi_set_setting` | Change Kodi setting | write mode | Change one non-credential, non-security Kodi setting through its runtime API, with a guisettings.xml rollback snapshot. Refused during playback or with another app in front. |
+| `kodi_set_setting` | Change Kodi setting | write mode | Change one ordinary Kodi setting through its runtime API, with a guisettings.xml rollback snapshot. Credential, security/service, display, audio-device, refresh-rate and language settings are refused, as is any change during playback or with another app in front. |
 | `kodi_settings` | Kodi settings | read-only | Search/page Kodi's expert settings with current/default values, avoiding a whole-schema dump. |
 | `kodi_status` | Kodi status | read-only | Inspect Kodi version, skin, current profile/window and active players; no playback changes. |
 | `shield_apk_apply` | Install previewed APK | write mode | Install an exact unexpired APK preview. Stopped target/idle TV, backup and readback required; reports progress. Never uninstalls/downgrades/retries. |

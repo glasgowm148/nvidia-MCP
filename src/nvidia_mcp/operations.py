@@ -69,9 +69,12 @@ LAUNCHERS = frozenset(
         "com.spocky.projengmenu",
     }
 )
-# Kodi core settings that weaken security or expose services. kodi_set_setting refuses them.
+# Kodi core settings that weaken security, expose services or can leave the household TV
+# blank, silent or unreadable with no way to undo it from the remote (rollback needs ADB).
+# kodi_set_setting refuses them.
 PROTECTED_PREFIXES = (
     "services.",  # web server, auth, ports, event server, zeroconf, UPnP, AirPlay, SMB...
+    "videoscreen.",  # resolution, screen, refresh-rate whitelist, 3D/stereo, calibration
     "masterlock.",
     "system.",
     "debug.",
@@ -80,7 +83,16 @@ PROTECTED_PREFIXES = (
     "network.usehttpproxy",
 )
 PROTECTED_SETTINGS = frozenset(
-    {"addons.unknownsources", "addons.updatemode", "general.addonupdates", "lookandfeel.skin"}
+    {
+        "addons.unknownsources",
+        "addons.updatemode",
+        "general.addonupdates",
+        "lookandfeel.skin",
+        "audiooutput.audiodevice",
+        "audiooutput.passthroughdevice",
+        "videoplayer.adjustrefreshrate",
+        "locale.language",
+    }
 )
 # Harmless exceptions inside protected prefixes.
 UNPROTECTED_SETTINGS = frozenset({"debug.showloginfo"})
@@ -860,10 +872,10 @@ class Operations:
             raise ShieldError("Credential settings cannot be changed through this tool")
         if protected_setting(setting, getattr(self.c, "allow_settings", ())):
             raise ShieldError(
-                f"{setting} is a protected security/service setting (web server, add-on sources "
-                "and updates, master lock, system, debug, proxy or skin) and cannot be changed "
-                "by an agent. Change it on the TV, or the user can list this exact id in "
-                "NVIDIA_MCP_ALLOW_SETTINGS",
+                f"{setting} is a protected setting (web server, add-on sources and updates, "
+                "master lock, system, debug, proxy, skin, display, audio output device, "
+                "refresh-rate switching or language) and cannot be changed by an agent. Change "
+                "it on the TV, or the user can list this exact id in NVIDIA_MCP_ALLOW_SETTINGS",
                 "protected_setting",
             )
         if type(value) not in (bool, int, float, str) or len(str(value)) > 500:

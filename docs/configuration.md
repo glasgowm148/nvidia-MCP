@@ -81,8 +81,11 @@ Write mode is a capability switch, not a substitute for an agent's approval poli
 `kodi_set_setting` refuses settings that weaken security or expose services: `services.*` (web
 server, its authentication and port, event server, Zeroconf, UPnP, AirPlay, SMB...), `masterlock.*`,
 `system.*`, `debug.*` (except the harmless `debug.showloginfo` overlay), `pvrparental.*`, the HTTP
-proxy settings, `addons.unknownsources`, `addons.updatemode` and `lookandfeel.skin`. Change these on
-the TV. An advanced user who really wants an agent to change one can list its exact id in
+proxy settings, `addons.unknownsources`, `addons.updatemode` and `lookandfeel.skin`. It also refuses
+settings where a wrong value can leave the TV blank, silent or unreadable with no way back from the
+remote: `videoscreen.*` (resolution, screen, refresh-rate whitelist...), `audiooutput.audiodevice`,
+`audiooutput.passthroughdevice`, `videoplayer.adjustrefreshrate` and `locale.language`. Change these
+on the TV. An advanced user who really wants an agent to change one can list its exact id in
 `NVIDIA_MCP_ALLOW_SETTINGS`; wildcards are not accepted. Credential settings are always refused.
 
 ### Plugin browsing

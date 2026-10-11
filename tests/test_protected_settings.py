@@ -26,6 +26,13 @@ from nvidia_mcp.operations import protected_setting
         "lookandfeel.skin",
         "network.usehttpproxy",
         "network.httpproxyserver",
+        # A wrong value can leave the TV blank, silent or unreadable; undo needs ADB.
+        "videoscreen.resolution",
+        "videoscreen.screen",
+        "videoscreen.whitelist",
+        "audiooutput.audiodevice",
+        "videoplayer.adjustrefreshrate",
+        "locale.language",
     ],
 )
 def test_protected_settings_are_refused(ops, setting):
@@ -37,7 +44,7 @@ def test_protected_settings_are_refused(ops, setting):
 
 
 @pytest.mark.parametrize(
-    "setting", ["debug.showloginfo", "videoplayer.adjustrefreshrate", "audiooutput.passthrough"]
+    "setting", ["debug.showloginfo", "videoplayer.usedisplayasclock", "audiooutput.passthrough"]
 )
 def test_ordinary_settings_are_allowed(ops, setting):
     ops.t.settings[setting] = False
