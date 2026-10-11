@@ -197,3 +197,78 @@ def test_ordinary_info_labels_still_work(ops):
         },
     )
     assert any(c[0] == "XBMC.GetInfoLabels" for c in ops.t.calls)
+
+
+# Kodi logs and plugin:// paths usually carry nested URLs percent-encoded or JSON-escaped.
+ENCODED_LEAKS = [
+    (
+        "Playlist: plugin://plugin.video.fen/?mode=play&url=https%3A%2F%2Fabcd.download."
+        "real-debrid.com%2Fd%2FFAKEPATH01%2Ffile.mkv%3Ftoken%3DFAKETOK01",
+        ["FAKEPATH01", "FAKETOK01", "real-debrid"],
+        ["mode=play"],
+    ),
+    (
+        "info <general>: Creating InputStream - url=http%3a%2f%2fu%3aFAKEPASS02%40host%2fstream",
+        ["FAKEPASS02"],
+        ["Creating InputStream"],
+    ),
+    ('{"url": "https:\\/\\/x.alldebrid.com\\/dl\\/FAKEAD03"}', ["FAKEAD03", "alldebrid"], []),
+    ("cache key access_token%3DFAKETOK04", ["FAKETOK04"], ["cache key"]),
+    (
+        "CCurlFile::Open failed for https:\\/\\/api.real-debrid.com\\/rest\\/1.0\\/unrestrict"
+        "?auth_token\\u003dFAKETOK05",
+        ["FAKETOK05"],
+        ["CCurlFile::Open failed"],
+    ),
+    ("headers: Authorization%3A%20Bearer%20FAKEBEARER06", ["FAKEBEARER06"], ["headers"]),
+    (
+        "script param: ['plugin://plugin.video.fen/?mode=playback&rd_link=https%3A%2F%2F1."
+        "download.real-debrid.com%2Fd%2FFAKELINK07', '1']",
+        ["FAKELINK07"],
+        ["mode=playback"],
+    ),
+    ("davs://user:p@FAKEPASS08@host/share", ["FAKEPASS08"], ["@host/share"]),
+    ("{'access_token': u'FAKETOK09'}", ["FAKETOK09"], []),
+    ("premiumize customer_id: FAKECUST10 ready", ["FAKECUST10"], ["ready"]),
+    (
+        ".real-debrid.com\tTRUE\t/\tTRUE\t1999999999\tauth\tFAKECOOKIE11\n",
+        ["FAKECOOKIE11"],
+        [".real-debrid.com"],
+    ),
+]
+
+
+@pytest.mark.parametrize("sample,secrets,kept", ENCODED_LEAKS)
+def test_encoded_and_escaped_secrets_are_redacted(sample, secrets, kept):
+    clean = privacy.text(sample)
+    assert not [s for s in secrets if s in clean], clean
+    assert all(k in clean for k in kept), clean
+
+
+@pytest.mark.parametrize(
+    "line",
+    [
+        "url=https%3A%2F%2Fx%2Fd%3Ftoken%3DFAKETOK12",
+        "access_token%3DFAKETOK13",
+        "u%3AFAKE%40host smb%3A%2F%2Fu%3AFAKEPASS14%40nas%2Fshare",
+    ],
+)
+def test_patches_cannot_touch_encoded_secrets(line):
+    assert privacy.contains_secret(line)
+
+
+def test_benign_encoded_paths_are_kept():
+    sample = "special%3A%2F%2Fprofile%2Fplaylists plugin%3A%2F%2Fplugin.video.fen%2F%3Fmode%3Dlist"
+    assert privacy.text(sample) == sample
+
+
+@pytest.mark.parametrize("setting", ["tmdb_api", "omdb_api", "fanart.tv.client", "customer_id"])
+def test_personal_api_keys_are_secret(setting):
+    xml = f'<settings version="2"><setting id="{setting}">FAKEKEY15</setting></settings>'
+    assert "FAKEKEY15" not in privacy.file_text(xml)
+    assert "FAKEKEY15" not in privacy.text(xml)
+
+
+def test_cookie_files_are_withheld():
+    jar = "# Netscape HTTP Cookie File\n.example.com\tTRUE\t/\tTRUE\t1999999999\tsid\tFAKE16\n"
+    assert "FAKE16" not in privacy.file_text(jar)

@@ -8,33 +8,38 @@ Redaction is defence in depth, not a guarantee. Rules, applied in order:
 * Header rules (``Authorization:``, ``Cookie:``, ``Bearer``/``Basic`` values).
 * JSON/Python-style quoted pairs (``"access_token": "abc"``, ``'pin': 1234``).
 * ``key=value`` / ``key: value`` pairs, including quoted keys.
+* Netscape ``cookies.txt`` lines (cookie files are withheld entirely by ``file_text``).
 * URL userinfo (``smb://user:pass@host``) and secret query parameters for any scheme;
   http(s)/smb/ftp URLs are withheld entirely because signed stream URLs are common.
+* The same rules on percent-encoded (``https%3A%2F%2F...``, ``token%3D...``) and JSON-escaped
+  (``https:\\/\\/...``) runs, as Kodi logs and plugin:// paths usually carry nested URLs that way.
 * Email addresses.
 """
 
 import json
 import re
 import xml.etree.ElementTree as ET
+from urllib.parse import unquote
 
 from defusedxml.ElementTree import fromstring
 
 # Substrings that are credential-like anywhere in an identifier.
 _SUBSTRING = (
     r"password|passwd|passcode|token|secret|api[_.-]?key|authorization|cookie"
-    r"|refresh[_.-]?(?:token|key)|credential|client[_.-]?id|username|email|account|lockcode"
+    r"|refresh[_.-]?(?:token|key)|credential|client[_.-]?id|customer[_.-]?id|username|email"
+    r"|account|lockcode"
 )
 # Words that are credential-like only as a whole trailing segment (``rd.auth``, ``pin``).
 _SEGMENT_WORDS = (
     r"pass|passwd|password|passcode|pin|user|username|auth|refresh|token|secret|key"
-    r"|apikey|api_key|client_secret|lockcode|cookie|session|sessionid|sid"
+    r"|api|apikey|api_key|client|client_secret|lockcode|cookie|session|sessionid|sid"
 )
 SECRET = re.compile(rf"{_SUBSTRING}|(?:^|[._-])(?:{_SEGMENT_WORDS})$", re.I)
 # XML element names that hold a credential value. ``<key>`` is excluded: keymaps use it.
 XML_SECRET_EXEMPT = {"key"}
 
 URL = re.compile(r"(?:https?|smb|ftp)://[^\s<>\"']+", re.I)
-USERINFO = re.compile(r"(?i)\b([a-z][a-z0-9+.-]*://)[^\s/@<>\"':]+(?::[^\s/@<>\"']*)?@")
+USERINFO = re.compile(r"(?i)\b([a-z][a-z0-9+.-]*://)[^\s/@<>\"':]+(?::[^\s/<>\"']*)?@")
 QUERY = re.compile(
     r"(?i)([?&;](?:access_token|refresh_token|id_token|token|api[_-]?key|apikey|key|password"
     r"|pass|passwd|pin|auth|authorization|signature|sig|secret|client_secret|code|session"
@@ -48,7 +53,7 @@ BEARER = re.compile(r"(?i)\b(Bearer|Basic|Token)\s+[A-Za-z0-9._~+/=-]{4,}")
 QUOTED_PAIR = re.compile(
     r"""(?x)
     (?P<q>["'])(?P<key>[^"'\\\s]{1,80})(?P=q)\s*:\s*
-    (?P<value>"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|-?\d[\d.]*)
+    (?P<value>[uUbBrR]?"(?:[^"\\]|\\.)*"|[uUbBrR]?'(?:[^'\\]|\\.)*'|-?\d[\d.]*)
     """
 )
 PAIR = re.compile(
@@ -60,6 +65,14 @@ PAIR = re.compile(
     (?!\[redacted\])([^\s,;"'&}}<>]+)
     """
 )
+# Netscape cookies.txt: domain, flag, path, secure, expiry, name, then the value.
+COOKIE_JAR_LINE = re.compile(
+    r"(?im)^(\S+\t(?:TRUE|FALSE)\t[^\t\n]*\t(?:TRUE|FALSE)\t\d+\t[^\t\n]*\t)[^\n]+$"
+)
+COOKIE_JAR = re.compile(r"^\s*#\s*(?:Netscape )?HTTP Cookie File", re.I)
+# Runs between literal URL delimiters (so ``mode=play&url=https%3A...`` keeps ``mode=play``).
+# Runs holding percent-encoded or JSON-escaped characters are decoded and checked.
+ENCODED = re.compile(r"[^\s<>\"'?&=,;]+")
 MAIL = re.compile(r"\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b", re.I)
 # Plain-text XML rules for logs/snippets that are not a parseable document.
 XML_OPEN = re.compile(r"<(?P<tag>[A-Za-z_][\w.-]*)(?P<attrs>\s[^<>]*?)?(?P<end>/?)>")
@@ -73,7 +86,7 @@ def _quoted(match):
     if not SECRET.search(match["key"]):
         return match[0]
     value = match["value"]
-    quote = value[0] if value[0] in "\"'" else ""
+    quote = value[-1] if value[-1] in "\"'" else ""
     return match[0][: match.start("value") - match.start()] + f"{quote}[redacted]{quote}"
 
 
@@ -106,7 +119,37 @@ def _xml_element(match):
     return match[0]
 
 
+def _decode(run: str) -> str:
+    run = run.replace("\\/", "/")
+    run = re.sub(r"\\u00([0-9A-Fa-f]{2})", lambda m: chr(int(m[1], 16)), run)
+    return unquote(run)
+
+
+def _encoded(match, urls=False):
+    """Redact an encoded run when its decoded form holds a credential (or, with ``urls``, a
+    URL that ``text`` would withhold). Decoding strictly shortens the run, so nesting ends."""
+    run = match[0]
+    if not re.search(r"%[0-9A-Fa-f]{2}|\\/|\\u00[0-9A-Fa-f]{2}", run):
+        return run
+    decoded = _decode(run)
+    if decoded == run:
+        return run
+    if _credential_rules(decoded) != decoded:
+        return "[redacted]"
+    if urls and URL.search(decoded):
+        return "[URL redacted]"
+    return run
+
+
+def _decode_runs(value: str, urls=False) -> str:
+    if "%" not in value and "\\" not in value:
+        return value
+    return ENCODED.sub(lambda match: _encoded(match, urls), value)
+
+
 def _credential_rules(value: str) -> str:
+    value = _decode_runs(value)
+    value = COOKIE_JAR_LINE.sub(r"\1[redacted]", value)
     value = XML_ELEMENT.sub(_xml_element, value)
     value = XML_OPEN.sub(_xml_open, value)
     value = USERINFO.sub(r"\1[redacted]@", value)
@@ -121,6 +164,7 @@ def text(value: str, known=()) -> str:
     for secret in sorted((s for s in known if s and len(s) >= 8), key=len, reverse=True):
         value = value.replace(secret, "[redacted]")
     value = _credential_rules(value)
+    value = _decode_runs(value, urls=True)
     value = URL.sub("[URL redacted]", value)
     return MAIL.sub("[email redacted]", value)
 
@@ -197,6 +241,8 @@ def _secret_tag(tag) -> bool:
 
 
 def file_text(value: str, known=()) -> str:
+    if COOKIE_JAR.match(value):
+        return "[Cookie file; contents withheld]"
     if value.lstrip().startswith(("{", "[")):
         try:
             return json.dumps(scrub(json.loads(value), known), indent=2)

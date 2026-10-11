@@ -14,6 +14,7 @@
 - `kodi_lifecycle restart`: a Kodi that did not stop, or whose state could not be confirmed after force-stop, is reported as such (it previously said "Stop Kodi before editing files").
 - `kodi_set_setting` also protects settings that can leave the TV blank, silent or unreadable with no way back from the remote: `videoscreen.*`, `audiooutput.audiodevice`, `audiooutput.passthroughdevice`, `videoplayer.adjustrefreshrate` and `locale.language` (`NVIDIA_MCP_ALLOW_SETTINGS` can allow exact ids).
 - `kodi_read` also screens `XBMC.GetInfoBooleans` (`String.StartsWith(Addon.SettingStr(...),a)` was a one-character-at-a-time token oracle) and refuses skin strings/window properties whose names look like account values (`Window(Home).Property(fenlight.debrid.rd)`, `Skin.String(PVRAccessCode)`).
+- Redaction decodes percent-encoded and JSON-escaped runs (`url=https%3A%2F%2F…real-debrid.com%2Fd%2F…`, `https:\/\/…`, `access_token%3D…`, `Authorization%3A%20Bearer…`) before matching, so nested stream links, tokens and URL passwords in Kodi logs, plugin paths and patch diffs are withheld, and patches touching them are refused. It also covers `*_api`/`*.client` personal keys (`tmdb_api`, `fanart.tv.client`), `customer_id`, Python `u'…'` values, passwords containing `@` and Netscape cookie files.
 - Fix a server-wide hang under mcp 1.x: a tool call that waited for the operations lock while an APK preview/apply was reporting progress blocked the event loop the progress report needed. Every blocking tool now runs in a worker thread.
 
 ## 0.4.2 — 2026-10-11 (prerelease)
