@@ -215,7 +215,7 @@ def create_server(config: Config):
         allow_offline_recovery: bool = False,
         interrupt_other_app: bool = False,
     ) -> dict[str, Any]:
-        """Start/stop/restart Kodi. Always refuses while Kodi plays or is paused; offline recovery (HTTP unreachable) needs permission. interrupt_other_app overrides only another app in front or playing and needs NVIDIA_MCP_ALLOW_INTERRUPT=1."""
+        """Start/stop/restart Kodi. Always refuses while Kodi plays or is paused; offline recovery (HTTP unreachable, Android shows no Kodi media) needs allow_offline_recovery plus the user's NVIDIA_MCP_ALLOW_OFFLINE_RECOVERY=1. interrupt_other_app overrides only another app in front or playing and needs NVIDIA_MCP_ALLOW_INTERRUPT=1."""
         return ops.lifecycle(action, allow_offline_recovery, interrupt_other_app)
 
     @tool("Kodi status", read_only=True, idempotent=True)
@@ -351,6 +351,7 @@ def create_server(config: Config):
                 "version": __version__,
                 "writes": config.allow_writes,
                 "interrupt_override": config.allow_interrupt,
+                "offline_recovery": config.allow_offline_recovery,
                 "plugin_browse": config.allow_plugin_browse,
                 "manager": bool(config.manager_token),
                 "trusted_signers_configured": len(config.trusted_signers),

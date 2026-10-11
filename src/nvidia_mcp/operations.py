@@ -401,6 +401,16 @@ class Operations:
                 "interrupt_not_permitted",
             )
 
+    def require_offline_opt_in(self):
+        if not getattr(self.c, "allow_offline_recovery", False):
+            raise ShieldError(
+                "allow_offline_recovery=true was refused: acting on Kodi while its HTTP "
+                "server is unreachable also needs the user to set "
+                "NVIDIA_MCP_ALLOW_OFFLINE_RECOVERY=1 in the MCP client and restart the server. "
+                "No action performed",
+                "offline_recovery_not_permitted",
+            )
+
     def guard_tv(
         self,
         kind,
@@ -421,13 +431,15 @@ class Operations:
         Offline file edits need a stopped Kodi (``stopped``) instead.
 
         Overrides are model-controlled, so they are honoured only with
-        NVIDIA_MCP_ALLOW_INTERRUPT=1. ``allow_playback`` (shield_remote's
+        NVIDIA_MCP_ALLOW_INTERRUPT=1 (``allow_offline`` with NVIDIA_MCP_ALLOW_OFFLINE_RECOVERY=1). ``allow_playback`` (shield_remote's
         allow_during_playback) skips every viewing check. ``allow_other_app`` (kodi_lifecycle's
         interrupt_other_app) skips only the checks for other apps: Kodi's own playback is still
         refused. ``override_flag`` names the tool's flag for error messages, if it has one.
         """
         if allow_playback or allow_other_app:
             self.require_interrupt_opt_in(override_flag or "override")
+        if allow_offline:
+            self.require_offline_opt_in()
         allow_other_app = allow_other_app or allow_playback
         state = {"kind": kind, "override": allow_other_app}
         if assume_running:

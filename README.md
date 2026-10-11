@@ -99,7 +99,7 @@ Kodi Manager 0.4+ is supported; the widget-cache tools need 0.6+. Older installa
 
 ## Making changes
 
-**Read-only is the default.** Writes and plugin browsing have separate opt-ins; without write mode the write tools are not even listed. File/configuration changes use backups. Every disruptive tool checks Kodi playback, Android media sessions (background audio too) and the foreground Android app, so a Home press is refused while Netflix or SmartTube is in front; an unknown state blocks the change. "Interrupt anyway" flags also need `NVIDIA_MCP_ALLOW_INTERRUPT=1`. Security and service settings (web server, unknown sources, master lock...) cannot be changed by an agent, and new APK signers must be trusted in your own configuration.
+**Read-only is the default.** Writes and plugin browsing have separate opt-ins; without write mode the write tools are not even listed. File/configuration changes use backups. Every disruptive tool checks Kodi playback, Android media sessions (background audio too) and the foreground Android app, so a Home press is refused while Netflix or SmartTube is in front; an unknown state blocks the change. "Interrupt anyway" flags also need `NVIDIA_MCP_ALLOW_INTERRUPT=1`, and stopping a Kodi whose HTTP server does not answer needs `NVIDIA_MCP_ALLOW_OFFLINE_RECOVERY=1`. Security and service settings (web server, unknown sources, master lock...) cannot be changed by an agent, and new APK signers must be trusted in your own configuration.
 
 Ask the agent to inspect and preview a change before enabling it. Live companion writes also need Manager's own write mode. See [configuration and operation rules](docs/configuration.md), [repair workflows](docs/repairs.md) and [APK upgrades](docs/apk-upgrades.md).
 
@@ -121,7 +121,7 @@ tools. *No TV changes* tools write only private local state or run opt-in, idle-
 | `kodi_layout_apply` | Apply hub layout | write mode | Optional Manager: apply the exact staged plan within 10 minutes; Manager backs up and rejects stale revisions. |
 | `kodi_layout_preview` | Preview hub layout | no TV changes | Optional Manager: stage existing section rows with section_id and expected_revision; no layout write. |
 | `kodi_layout_rebuild` | Rebuild skin menus | write mode | Optional Manager: request one skin-menu rebuild while Kodi is idle and in front. Inspect TV after it finishes. |
-| `kodi_lifecycle` | Start/stop Kodi | write mode | Start/stop/restart Kodi. Always refuses while Kodi plays or is paused; offline recovery (HTTP unreachable) needs permission. interrupt_other_app overrides only another app in front or playing and needs NVIDIA_MCP_ALLOW_INTERRUPT=1. |
+| `kodi_lifecycle` | Start/stop Kodi | write mode | Start/stop/restart Kodi. Always refuses while Kodi plays or is paused; offline recovery (HTTP unreachable, Android shows no Kodi media) needs allow_offline_recovery plus the user's NVIDIA_MCP_ALLOW_OFFLINE_RECOVERY=1. interrupt_other_app overrides only another app in front or playing and needs NVIDIA_MCP_ALLOW_INTERRUPT=1. |
 | `kodi_logs` | Kodi log tail | read-only | Inspect redacted Kodi log tail and crash/stream/storage signals; safe while viewing. |
 | `kodi_manager_inspect` | Kodi Manager inspect | read-only | Optional Kodi Manager 0.4+: inspect saved skin hubs/rows, sources, pipeline, health or fix status. |
 | `kodi_manager_widget_cache` | Kodi Manager widget cache | read-only | Optional Kodi Manager 0.6+: widget-cache status and cached rows for faster rows on any skin. |

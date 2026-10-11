@@ -118,10 +118,39 @@ def test_kodi_in_front_is_checked_even_when_process_probe_misses_it(ops):
     assert not any(c[0] == "shell" and c[1][:2] == ("am", "start") for c in ops.t.calls)
 
 
+def offline_permitted(ops):
+    """The user's own NVIDIA_MCP_ALLOW_OFFLINE_RECOVERY=1, which the model flag needs."""
+    ops.c = replace(ops.c, allow_offline_recovery=True)
+
+
+def test_offline_recovery_flag_needs_the_users_env_opt_in(ops):
+    # Kodi HTTP is down and nothing plays: the flag alone (model-controlled) is not enough.
+    ops.t.offline = True
+    ops.t.running = True
+    with pytest.raises(ShieldError, match="NVIDIA_MCP_ALLOW_OFFLINE_RECOVERY") as error:
+        ops.lifecycle("restart", allow_offline=True)
+    assert error.value.kind == "offline_recovery_not_permitted"
+    assert not force_stops(ops)
+    assert not any(c[0] == "shell" and c[1][0] == "am" for c in ops.t.calls)
+    offline_permitted(ops)
+    assert ops.lifecycle("restart", allow_offline=True)["requested"] == "restart"
+    assert force_stops(ops)
+
+
+def test_offline_recovery_env_is_read_from_the_mcp_client_config(monkeypatch):
+    monkeypatch.setenv("SHIELD_HOST", "192.168.1.50")
+    monkeypatch.delenv("NVIDIA_MCP_ALLOW_OFFLINE_RECOVERY", raising=False)
+    assert Config.from_env().allow_offline_recovery is False
+    monkeypatch.setenv("NVIDIA_MCP_ALLOW_OFFLINE_RECOVERY", "1")
+    assert Config.from_env().allow_offline_recovery is True
+
+
 @pytest.mark.parametrize(
     "kind", ["authentication_denied", "rpc_error", "invalid_response", "service_error"]
 )
 def test_offline_recovery_needs_an_unreachable_kodi(ops, kind):
+    offline_permitted(ops)
+
     # Wrong credentials or a protocol error mean Kodi's HTTP server is alive; it may be playing.
     def rpc(method, params=None):
         raise ShieldError("Kodi answered but not usefully", kind)
@@ -134,6 +163,7 @@ def test_offline_recovery_needs_an_unreachable_kodi(ops, kind):
 
 @pytest.mark.parametrize("state", [2, 3, 6])  # paused, playing, buffering
 def test_offline_recovery_refused_while_android_reports_kodi_media(ops, state):
+    offline_permitted(ops)
     ops.t.offline = True
     ops.t.media = media_session("org.xbmc.kodi", state)
     with pytest.raises(ShieldError, match="playing or paused"):
@@ -142,6 +172,7 @@ def test_offline_recovery_refused_while_android_reports_kodi_media(ops, state):
 
 
 def test_offline_recovery_refused_when_media_state_unreadable(ops):
+    offline_permitted(ops)
     ops.t.offline = True
     shell = ops.t.shell
     ops.t.shell = lambda *a, **kw: "" if a == ("dumpsys", "media_session") else shell(*a, **kw)
@@ -151,6 +182,7 @@ def test_offline_recovery_refused_when_media_state_unreadable(ops):
 
 
 def test_offline_recovery_ignores_stopped_or_other_sessions(ops):
+    offline_permitted(ops)
     ops.t.offline = True
     ops.t.media = (
         media_session("org.xbmc.kodi", 1)

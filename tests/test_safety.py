@@ -89,6 +89,7 @@ def test_busy_or_unknown_playback_prevents_disruption(ops):
 
 def test_explicit_offline_recovery_and_other_app_guard(ops):
     ops.t.offline = True
+    ops.c = replace(ops.c, allow_offline_recovery=True)
     ops.lifecycle("start", allow_offline=True)
     original = ops.t.shell
     ops.t.shell = lambda *a, **kw: (

@@ -116,6 +116,8 @@ class Config:
     allow_plugin_browse: bool = False
     # Second, human-set opt-in for model-supplied "interrupt anyway" flags.
     allow_interrupt: bool = False
+    # Human-set opt-in for kodi_lifecycle's model-supplied allow_offline_recovery flag.
+    allow_offline_recovery: bool = False
     extra_launchers: tuple[str, ...] = ()
     # Exact protected Kodi setting ids an advanced user allows kodi_set_setting to change.
     allow_settings: tuple[str, ...] = ()
@@ -155,6 +157,7 @@ class Config:
             allow_writes=os.environ.get("NVIDIA_MCP_ALLOW_WRITES", "0") == "1",
             allow_plugin_browse=os.environ.get("NVIDIA_MCP_ALLOW_PLUGIN_BROWSE", "0") == "1",
             allow_interrupt=os.environ.get("NVIDIA_MCP_ALLOW_INTERRUPT", "0") == "1",
+            allow_offline_recovery=os.environ.get("NVIDIA_MCP_ALLOW_OFFLINE_RECOVERY", "0") == "1",
             extra_launchers=packages(os.environ.get("NVIDIA_MCP_EXTRA_LAUNCHERS", "")),
             allow_settings=setting_ids(os.environ.get("NVIDIA_MCP_ALLOW_SETTINGS", "")),
             trusted_signers=signers(

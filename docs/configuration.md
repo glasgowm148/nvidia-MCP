@@ -22,6 +22,7 @@ filled configuration or print account credentials into diagnostic output.
 | `NVIDIA_MCP_ALLOW_WRITES` | `0` | Register and allow write/disruptive tools. With `0` they are not listed at all |
 | `NVIDIA_MCP_ALLOW_PLUGIN_BROWSE` | `0` | Allow executing directory previews |
 | `NVIDIA_MCP_ALLOW_INTERRUPT` | `0` | Honour the model-supplied `allow_during_playback` (remote) / `interrupt_other_app` (lifecycle: other apps only, never Kodi playback) flags. Without it those flags are refused |
+| `NVIDIA_MCP_ALLOW_OFFLINE_RECOVERY` | `0` | Honour `kodi_lifecycle`'s model-supplied `allow_offline_recovery` flag (stop/restart a Kodi whose HTTP server is unreachable). Without it the flag is refused |
 | `NVIDIA_MCP_EXTRA_LAUNCHERS` | empty | Comma-separated home-screen package names treated like the built-in launchers |
 | `NVIDIA_MCP_ALLOW_SETTINGS` | empty | Comma-separated **exact** protected Kodi setting ids that `kodi_set_setting` may change |
 | `NVIDIA_MCP_TRUSTED_SIGNERS` | empty | Comma-separated SHA-256 APK signer fingerprints trusted for **new** app installs |
@@ -63,9 +64,12 @@ nobody watching, after the same playback checks; remote buttons are still refuse
 sleeps, because a key press wakes it and can switch the TV on through HDMI-CEC. `play_pause` and
 `stop` are refused when nothing is playing (they would only wake the last app that handled media
 buttons); with `allow_during_playback` they are sent to Kodi's player over JSON-RPC when Kodi is
-playing. Offline recovery (`allow_offline_recovery`) needs an explicit tool flag, applies only when
-Kodi's HTTP server is unreachable or times out (not on authentication or protocol errors), and is
-refused while Android's media session for Kodi reports playing or paused.
+playing. Offline recovery (`allow_offline_recovery`) needs the tool flag *and* the user's own
+`NVIDIA_MCP_ALLOW_OFFLINE_RECOVERY=1`, applies only when Kodi's HTTP server is unreachable or times
+out (not on authentication or protocol errors), and is refused while Android's media session for
+Kodi reports playing or paused. Without HTTP the server cannot ask Kodi what it is doing, so the
+decision rests on Android's media session and foreground app alone; that is why a person, not the
+model, has to enable it.
 The model-supplied override flags also need `NVIDIA_MCP_ALLOW_INTERRUPT=1`; get permission from the
 person viewing as well. `shield_remote`'s `allow_during_playback` skips the viewing checks (to pause
 or stop what is on screen). `kodi_lifecycle`'s `interrupt_other_app` only covers *another* app in
@@ -77,7 +81,8 @@ somebody who starts watching in that window can still be interrupted.
 
 A Kodi that froze mid-film usually still looks like playback (Android's media session stays at
 playing or paused, and HTTP may still answer with an error), so no tool flag will stop it. Ask the
-viewer to close Kodi on the TV (Settings → Apps → Kodi → Force stop) or restart the Shield.
+viewer to close Kodi on the TV (Settings → Apps → Kodi → Force stop) or restart the Shield. This
+is deliberate: a frozen Kodi and a film somebody has paused look the same from here (audit R2-05).
 Write mode is a capability switch, not a substitute for an agent's approval policy.
 
 ### Protected Kodi settings
