@@ -1,4 +1,5 @@
 """ADB patches must not turn executable helper scripts into data files."""
+
 from types import SimpleNamespace
 
 import pytest
@@ -20,8 +21,11 @@ def test_adb_patch_preserves_mode(tmp_path, monkeypatch, mode):
             state["data"] = b"patched"
         return ""
 
-    transport = SimpleNamespace(c=SimpleNamespace(mount=None, state=tmp_path), shell=shell,
-                                adb=lambda *args: calls.append(args))
+    transport = SimpleNamespace(
+        c=SimpleNamespace(mount=None, state=tmp_path),
+        shell=shell,
+        adb=lambda *args: calls.append(args),
+    )
     files = Files(transport)
     monkeypatch.setattr(files, "location", lambda *a, **kw: "/kodi/addons/example/helper.sh")
     monkeypatch.setattr(files, "read", lambda *a: state["data"])
@@ -32,8 +36,11 @@ def test_adb_patch_preserves_mode(tmp_path, monkeypatch, mode):
 
 def test_unknown_permissions_refuse_before_upload(tmp_path, monkeypatch):
     uploads = []
-    transport = SimpleNamespace(c=SimpleNamespace(mount=None, state=tmp_path),
-                                shell=lambda *a: "unavailable", adb=lambda *a: uploads.append(a))
+    transport = SimpleNamespace(
+        c=SimpleNamespace(mount=None, state=tmp_path),
+        shell=lambda *a: "unavailable",
+        adb=lambda *a: uploads.append(a),
+    )
     files = Files(transport)
     monkeypatch.setattr(files, "location", lambda *a, **kw: "/kodi/addons/example/helper.sh")
     monkeypatch.setattr(files, "read", lambda *a: b"original")
