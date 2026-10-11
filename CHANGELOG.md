@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.4.4 — 2026-10-11 (prerelease)
+
+- `kodi_lifecycle` stop/restart asks Kodi to quit (`Application.Quit`, so it saves its settings) and waits up to 30 s instead of force-stopping it straight away. Kodi 22.0 RC1 on the Shield can hang at "Stopping all" after quitting with a paused video; the tool then force-stops it only when the current `kodi.log` shows the full save sequence and the TV guard still passes on Android's media sessions and foreground app. Otherwise it reports `exit_hung`, does not start Kodi again and leaves it for the person at the TV. Offline recovery still force-stops directly.
+- `allow_offline_recovery` also needs the user's `NVIDIA_MCP_ALLOW_OFFLINE_RECOVERY=1`, like the other model-supplied override flags. A Kodi frozen mid-film still cannot be stopped by the agent, by design (docs/configuration.md).
+- `shield_apk_preview` refuses to pull the installed APKs (up to 1 GB over the Shield's network link) while any media is playing or paused, checking again before each APK.
+- Tool descriptions say what disruptive tools visibly do on the TV (APK apply replaces the app and can close one opened during the install; ADB connect can show the debugging prompt over playback; settings apply at once; browsing runs add-on code; widget-cache refresh loads the Shield; layout rebuild reloads the skin).
+- The `nvidia://configuration` resource reports `offline_recovery`.
+- Guard tests use `dumpsys` lines captured from the reference Shield (Android 11, Kodi 22.0 RC1, Projectivy launcher): Kodi's paused session (`state=2`) refuses, Projectivy with Kodi's lingering `state=1` session counts as nobody watching. docs/verification.md lists what was confirmed on the device and what is still pending.
+
 ## 0.4.3 — 2026-10-11 (prerelease)
 
 - Resolve the active profile from Kodi's real `profiles.xml` layout (`<id>` child elements; `lastloaded` is a position, not an id). `kodi_set_setting` no longer fails on the master profile, and offline add-on setting edits target the last-loaded profile.
