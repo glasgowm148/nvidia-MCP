@@ -209,7 +209,7 @@ def create_server(config: Config):
 
     @tool("Kodi JSON-RPC read", read_only=True, idempotent=True)
     def kodi_read(method: ReadMethod, params: dict | None = None) -> dict | list | str | int | bool:
-        """Run an allowlisted diagnostic JSON-RPC query (library reads default to 50 items, max 500). No arbitrary RPC, executebuiltin or playback calls."""
+        """Run an allowlisted diagnostic JSON-RPC query (library reads default to 50 items, max 500; results over 250 KB are refused). No arbitrary RPC, executebuiltin or playback calls."""
         return ops.rpc_read(method, params or {})
 
     @tool("Kodi log tail", read_only=True, idempotent=True)

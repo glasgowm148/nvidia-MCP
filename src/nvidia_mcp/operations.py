@@ -44,6 +44,8 @@ READ_METHODS = {
 }
 LIBRARY_DEFAULT = 50
 LIBRARY_MAX = 500
+# kodi_read results are model context; Settings.GetSettings alone is several hundred KB.
+READ_MAX = 250_000
 BUTTONS = {
     "up": "19",
     "down": "20",
@@ -483,7 +485,14 @@ class Operations:
             if not isinstance(end, int) or end <= start or end - start > LIBRARY_MAX:
                 end = start + (LIBRARY_DEFAULT if end is None else LIBRARY_MAX)
             params["limits"] = {"start": start, "end": end}
-        return self.safe(self.t.rpc(method, params))
+        result = self.safe(self.t.rpc(method, params))
+        if len(json.dumps(result)) > READ_MAX:
+            raise ShieldError(
+                "Kodi returned more than 250 KB; request fewer properties or items "
+                "(use kodi_settings to search settings)",
+                "too_large",
+            )
+        return result
 
     def addons(self, enabled_only=False):
         params = {

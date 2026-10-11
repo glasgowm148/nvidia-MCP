@@ -129,7 +129,7 @@ tools. *No TV changes* tools write only private local state or run opt-in, idle-
 | `kodi_patch_apply` | Apply Kodi file patch | write mode | Apply the edits from kodi_patch_preview. Needs Kodi stopped and a matching SHA; creates an automatic backup. |
 | `kodi_patch_file` | Patch Kodi file (deprecated) | write mode | Deprecated: use kodi_patch_preview and kodi_patch_apply. dry_run=true previews, false applies. |
 | `kodi_patch_preview` | Preview Kodi file patch | read-only | Validate exact before/after replacements and return a redacted unified diff. Credential edits and add-on .py files are refused. No write. |
-| `kodi_read` | Kodi JSON-RPC read | read-only | Run an allowlisted diagnostic JSON-RPC query (library reads default to 50 items, max 500). No arbitrary RPC, executebuiltin or playback calls. |
+| `kodi_read` | Kodi JSON-RPC read | read-only | Run an allowlisted diagnostic JSON-RPC query (library reads default to 50 items, max 500; results over 250 KB are refused). No arbitrary RPC, executebuiltin or playback calls. |
 | `kodi_read_file` | Read Kodi file | read-only | Read a Kodi-relative text file (600 KB max) with redaction and original SHA-256. |
 | `kodi_restore_file` | Restore Kodi file | write mode | Restore one snapshot while Kodi is stopped; rejects stale checksums and creates an undo snapshot. |
 | `kodi_set_addon_setting` | Change add-on setting | write mode | Change a non-credential setting on a verified add-on version; backed up. Without Manager, stop Kodi first. |

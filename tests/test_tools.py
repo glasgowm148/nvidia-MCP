@@ -281,3 +281,17 @@ def test_secret_helpers():
     assert privacy.contains_secret('<setting id="rd.auth">x</setting>')
     assert not privacy.contains_secret('<setting id="widget_limit">20</setting>')
     assert not privacy.contains_secret("https://example.com/repo/")
+
+
+def test_kodi_read_results_are_bounded(ops):
+    everything = {
+        "categories": [
+            {"id": f"c{i}", "settings": [{"id": f"s{i}.{j}", "value": "x" * 40} for j in range(40)]}
+            for i in range(200)
+        ]
+    }
+    ops.t.rpc = lambda method, params=None: everything
+    with pytest.raises(ShieldError, match="kodi_settings"):
+        ops.rpc_read("Settings.GetSettings", {"level": "expert"})
+    ops.t.rpc = lambda method, params=None: {"version": {"major": 21}}
+    assert ops.rpc_read("Application.GetProperties", {"properties": ["version"]})
