@@ -53,7 +53,12 @@ Every disruptive tool (remote buttons, Kodi lifecycle, skin-menu rebuild, plugin
 install) uses one guard. It refuses active Kodi playback, fails closed if playback state is unknown,
 and checks the foreground Android app against one launcher set (Google TV/Android TV launchers and
 Projectivy, plus `NVIDIA_MCP_EXTRA_LAUNCHERS`): with Netflix, YouTube or SmartTube in front, a Home or
-Back press would go to that app, so it is refused. Offline recovery needs an explicit tool flag.
+Back press would go to that app, so it is refused. Kodi in front is always checked for playback,
+even when the process probe misses it. `play_pause` and `stop` are also refused while any Android
+app's media session is playing or paused, because Android sends media keys to that app even from the
+home screen. Offline recovery (`allow_offline_recovery`) needs an explicit tool flag, applies only
+when Kodi's HTTP server is unreachable or times out (not on authentication or protocol errors), and
+is refused while Android's media session for Kodi reports playing or paused.
 Interrupting playback or another app needs the tool flag **and** `NVIDIA_MCP_ALLOW_INTERRUPT=1`,
 because tool arguments are chosen by the model; get permission from the person viewing as well.
 Write mode is a capability switch, not a substitute for an agent's approval policy.

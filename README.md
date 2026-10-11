@@ -144,7 +144,7 @@ tools. *No TV changes* tools write only private local state or run opt-in, idle-
 | `shield_connect` | Connect ADB | no TV changes | Connect ADB to the configured Shield only. Accept its debugging prompt on the TV. |
 | `shield_connection` | Shield connection check | read-only | Probe ADB, Kodi HTTP and optional Manager separately; explain authorization/readiness failures. |
 | `shield_logcat` | Android log tail | read-only | Read a bounded Android log tail for native crashes. Redaction is best effort. |
-| `shield_remote` | Remote button | write mode | Send one remote button when Kodi is idle and only Kodi or the home screen is in front. allow_during_playback also needs the user's NVIDIA_MCP_ALLOW_INTERRUPT=1. |
+| `shield_remote` | Remote button | write mode | Send one remote button when Kodi is idle and only Kodi or the home screen is in front; play_pause/stop are refused while any app's media is playing or paused. allow_during_playback also needs the user's NVIDIA_MCP_ALLOW_INTERRUPT=1. |
 | `shield_screenshot` | TV screenshot | read-only | Capture the current TV screen without navigation. Screens can contain private information. |
 | `shield_status` | Shield status | read-only | Inspect Shield model, Android, memory/storage, uptime, thermal/throttling and Kodi process. |
 <!-- tools:end -->

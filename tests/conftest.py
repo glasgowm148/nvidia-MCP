@@ -15,11 +15,14 @@ class FakeTransport:
         self.profile = "Adults"
         self.calls = []
         self.settings = {"audiooutput.passthrough": False}
+        # Body of `dumpsys media_session` after its header; see media_session() below.
+        self.media = ""
 
     def rpc(self, method, params=None):
         self.calls.append((method, params))
         if self.offline:
-            raise ShieldError("offline")
+            # What a stopped/hung Kodi HTTP server looks like to the real transport.
+            raise ShieldError("Cannot reach device HTTP service", "unreachable")
         if method == "Player.GetActivePlayers":
             return self.players
         if method == "Profiles.GetCurrentProfile":
@@ -39,11 +42,27 @@ class FakeTransport:
             return "1234" if self.running else ""
         if args == ("dumpsys", "activity", "activities"):
             return "mResumedActivity: org.xbmc.kodi/.Splash"
+        if args == ("dumpsys", "media_session"):
+            return "MEDIA SESSION SERVICE (dumpsys media_session)\n" + self.media
         return ""
 
     def manager(self, path, method="GET", body=None):
         self.calls.append((path, method, json.loads(json.dumps(body))))
         return {"can_apply": True, "backup_id": "manager-owned-backup"}
+
+
+def media_session(package, state, active=True):
+    """One session block in the shape Android 9-11 `dumpsys media_session` prints."""
+    return (
+        f"    {package}/MediaSession (userId=0)\n"
+        f"      ownerPid=4242, ownerUid=10085, userId=0\n"
+        f"      package={package}\n"
+        f"      launchIntent=null\n"
+        f"      active={'true' if active else 'false'}\n"
+        f"      flags=3\n"
+        f"      state=PlaybackState {{state={state}, position=1000, buffered position=0, "
+        f"speed=1.0, updated=1, actions=822, custom actions=[], active item id=-1, error=null}}\n"
+    )
 
 
 @pytest.fixture

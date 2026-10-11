@@ -185,7 +185,7 @@ def create_server(config: Config):
 
     @write_tool("Remote button")
     def shield_remote(button: Button, allow_during_playback: bool = False) -> dict[str, Any]:
-        """Send one remote button when Kodi is idle and only Kodi or the home screen is in front. allow_during_playback also needs the user's NVIDIA_MCP_ALLOW_INTERRUPT=1."""
+        """Send one remote button when Kodi is idle and only Kodi or the home screen is in front; play_pause/stop are refused while any app's media is playing or paused. allow_during_playback also needs the user's NVIDIA_MCP_ALLOW_INTERRUPT=1."""
         return ops.remote(button, allow_during_playback)
 
     @write_tool("Start/stop Kodi")

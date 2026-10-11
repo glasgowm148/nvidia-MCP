@@ -4,6 +4,7 @@ from dataclasses import replace
 from pathlib import Path
 
 import pytest
+from conftest import media_session
 
 from nvidia_mcp.config import Config, ShieldError
 from nvidia_mcp.operations import LAUNCHERS
@@ -99,3 +100,74 @@ def test_single_launcher_set_and_pidof_helper():
     assert text.count("pidof ") == 1
     assert text.count("com.google.android.tvlauncher") == 1
     assert "com.google.android.tvlauncher" in LAUNCHERS
+
+
+def force_stops(ops):
+    return [c for c in ops.t.calls if c[0] == "shell" and c[1][:2] == ("am", "force-stop")]
+
+
+def test_kodi_in_front_is_checked_even_when_process_probe_misses_it(ops):
+    # pidof can miss a Kodi the viewer has just opened; the resumed activity says otherwise.
+    ops.t.running = False
+    ops.t.players = [{"playerid": 1}]
+    with pytest.raises(ShieldError, match="playing"):
+        ops.remote("stop")
+    assert not keyevents(ops)
+    with pytest.raises(ShieldError, match="playing"):
+        ops.lifecycle("start")
+    assert not any(c[0] == "shell" and c[1][:2] == ("am", "start") for c in ops.t.calls)
+
+
+@pytest.mark.parametrize(
+    "kind", ["authentication_denied", "rpc_error", "invalid_response", "service_error"]
+)
+def test_offline_recovery_needs_an_unreachable_kodi(ops, kind):
+    # Wrong credentials or a protocol error mean Kodi's HTTP server is alive; it may be playing.
+    def rpc(method, params=None):
+        raise ShieldError("Kodi answered but not usefully", kind)
+
+    ops.t.rpc = rpc
+    with pytest.raises(ShieldError, match="unknown"):
+        ops.lifecycle("restart", allow_offline=True)
+    assert not force_stops(ops)
+
+
+@pytest.mark.parametrize("state", [2, 3, 6])  # paused, playing, buffering
+def test_offline_recovery_refused_while_android_reports_kodi_media(ops, state):
+    ops.t.offline = True
+    ops.t.media = media_session("org.xbmc.kodi", state)
+    with pytest.raises(ShieldError, match="playing or paused"):
+        ops.lifecycle("restart", allow_offline=True)
+    assert not force_stops(ops)
+
+
+def test_offline_recovery_refused_when_media_state_unreadable(ops):
+    ops.t.offline = True
+    shell = ops.t.shell
+    ops.t.shell = lambda *a, **kw: "" if a == ("dumpsys", "media_session") else shell(*a, **kw)
+    with pytest.raises(ShieldError, match="media playback state is unknown"):
+        ops.lifecycle("stop", allow_offline=True)
+    assert not force_stops(ops)
+
+
+def test_offline_recovery_ignores_stopped_or_other_sessions(ops):
+    ops.t.offline = True
+    ops.t.media = (
+        media_session("org.xbmc.kodi", 1)
+        + media_session("org.xbmc.kodi", 3, active=False)
+        + media_session("com.spotify.tv.android", 2, active=False)
+    )
+    assert ops.lifecycle("restart", allow_offline=True)["requested"] == "restart"
+    assert force_stops(ops)
+
+
+@pytest.mark.parametrize("button", ["play_pause", "stop"])
+def test_media_keys_refused_while_a_background_app_plays(ops, button):
+    # Android routes media keys to the active session, not to the foreground launcher.
+    ops.t.offline = True
+    foreground(ops, "com.google.android.tvlauncher")
+    ops.t.media = media_session("com.spotify.tv.android", 3)
+    with pytest.raises(ShieldError, match="another app's media"):
+        ops.remote(button)
+    assert not keyevents(ops)
+    assert ops.remote("down") == {"sent": "down"}

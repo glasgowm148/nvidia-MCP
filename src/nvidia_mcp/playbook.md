@@ -9,7 +9,9 @@ Return compact findings. Do not recursively enumerate every add-on folder or dum
 Never stop, restart, navigate or switch profiles during somebody's viewing without their permission.
 Another app (for example YouTube) can be playing even when Kodi reports no players. Check foreground
 activity before interrupting the TV. Do not run random input/monkey stress tests.
-If Kodi HTTP is unavailable, playback state is unknown. Offline recovery requires explicit permission.
+If Kodi HTTP is unavailable, playback state is unknown. Offline recovery requires explicit
+permission, works only when Kodi HTTP is unreachable (fix credentials instead of forcing past an
+authentication error) and is refused while Android reports Kodi media playing or paused.
 Read-only diagnostics can be collected while playback continues; avoid expensive plugin previews then.
 Capture the issue, make one focused change, verify the result and keep a rollback ID.
 

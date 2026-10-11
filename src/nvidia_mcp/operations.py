@@ -198,6 +198,46 @@ def foreground(transport):
     return packages.pop()
 
 
+# android.media.session.PlaybackState values where nobody is watching or listening:
+# NONE, STOPPED and ERROR. Paused, playing, buffering, seeking etc. all count as viewing.
+IDLE_MEDIA_STATES = frozenset({0, 1, 7})
+MEDIA_KEYS = frozenset({"play_pause", "stop"})
+
+
+def media_sessions(transport):
+    """Active Android media sessions as (package, PlaybackState) pairs.
+
+    Independent of Kodi's HTTP API. Refuses when the dump cannot be read.
+    """
+    text = transport.shell("dumpsys", "media_session", limit=1_000_000)
+    if "MEDIA SESSION SERVICE" not in text:
+        raise ShieldError(
+            "Android media playback state is unknown; no disruptive action performed",
+            "playback_unknown",
+        )
+    sessions, package, active = [], None, False
+    for line in text.splitlines():
+        line = line.strip()
+        if match := re.match(r"package=([A-Za-z][A-Za-z0-9_]*(?:\.[A-Za-z][A-Za-z0-9_]*)+)$", line):
+            package, active = match[1], False
+        elif line.startswith("active="):
+            active = line == "active=true"
+        elif package and active and (match := re.match(r"state=PlaybackState \{state=(\d+)", line)):
+            sessions.append((package, int(match[1])))
+    return sessions
+
+
+def media_playing(transport, package=None):
+    """Packages whose active media session reports anything other than stopped/none/error."""
+    return sorted(
+        {
+            name
+            for name, state in media_sessions(transport)
+            if state not in IDLE_MEDIA_STATES and (package is None or name == package)
+        }
+    )
+
+
 class Operations:
     def __init__(self, transport):
         self.t = transport
@@ -220,10 +260,26 @@ class Operations:
     def idle(self, allow_offline=False):
         try:
             players = self.t.rpc("Player.GetActivePlayers")
-        except ShieldError:
-            if allow_offline:
-                return "Kodi HTTP unavailable; explicitly permitted offline recovery"
-            raise ShieldError("Playback state is unknown; no disruptive action performed") from None
+        except ShieldError as exc:
+            # Offline recovery is for a Kodi whose HTTP server does not answer. An
+            # authentication or protocol error means Kodi is alive and may be playing.
+            if not allow_offline or exc.kind not in ("unreachable", "timeout"):
+                raise ShieldError(
+                    "Playback state is unknown; no disruptive action performed"
+                    + (
+                        ""
+                        if not allow_offline
+                        else ". Offline recovery applies only when Kodi HTTP is unreachable"
+                    ),
+                    "playback_unknown",
+                ) from None
+            if media_playing(self.t, KODI):
+                raise ShieldError(
+                    "Kodi HTTP is unavailable but Android reports Kodi media is playing or "
+                    "paused; no disruptive action performed",
+                    "playing",
+                ) from None
+            return "Kodi HTTP unavailable; explicitly permitted offline recovery"
         if not isinstance(players, list):
             raise ShieldError("Playback state is unknown; no disruptive action performed")
         if players:
@@ -280,6 +336,12 @@ class Operations:
             state["playback"] = self.idle(allow_offline)
         app = foreground(self.t)
         state["foreground"] = app
+        if app == KODI and not running:
+            # The process probe can miss a Kodi that has just been opened. The resumed
+            # activity is authoritative: check its playback before doing anything.
+            running = True
+            if not allow_override:
+                state["playback"] = self.idle(allow_offline)
         if app not in self.launchers() | {KODI} and not allow_override:
             raise ShieldError(
                 f"Another TV app ({app}) is in the foreground. Get the viewer's permission "
@@ -466,6 +528,16 @@ class Operations:
             raise ShieldError("Unknown remote button")
         with self.lock:
             self.guard_tv("remote", allow_during_playback)
+            if button in MEDIA_KEYS and not allow_during_playback:
+                # Android routes media keys to whichever session is active, even a
+                # background app the foreground check cannot see.
+                playing = media_playing(self.t)
+                if playing:
+                    raise ShieldError(
+                        f"{button} would reach another app's media ({', '.join(playing[:3])}); "
+                        "no button sent",
+                        "other_app_playing",
+                    )
             self.t.shell("input", "keyevent", BUTTONS[button])
             self.audit("remote", button)
         return {"sent": button}

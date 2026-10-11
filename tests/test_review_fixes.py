@@ -34,6 +34,12 @@ def test_refresh_rate_can_be_read_and_changed(ops):
 def test_start_needs_no_offline_flag_when_kodi_is_stopped(ops):
     ops.t.offline = True
     ops.t.running = False
+    shell = ops.t.shell
+    ops.t.shell = lambda *a, **kw: (
+        "mResumedActivity: com.google.android.tvlauncher/.MainActivity"
+        if a == ("dumpsys", "activity", "activities")
+        else shell(*a, **kw)
+    )
     assert ops.lifecycle("start")["requested"] == "start"
 
 
