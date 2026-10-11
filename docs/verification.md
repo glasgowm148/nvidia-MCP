@@ -1,5 +1,13 @@
 # Verification
 
+## 0.4.3 guard, profile and privacy fixes (offline only)
+
+288 automated tests and 5 shell subtests pass locally with synthetic fixtures; ruff, the README tool
+table check and release-archive inspection pass. No Shield or Kodi was contacted. Not yet confirmed
+on a live Shield: the `dumpsys media_session` parsing used by offline recovery and media-key checks
+(it fails closed if the dump is unreadable), and profile resolution against the household's own
+`profiles.xml`. Verify both read-only (`kodi_status`, `kodi_addon_settings`) before using writes.
+
 ## 0.3.1 release preparation
 
 70 MCP tests pass locally, plus clean-wheel stdio/tool/resource/prompt and disabled-write checks
