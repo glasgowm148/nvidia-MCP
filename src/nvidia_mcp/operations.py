@@ -498,6 +498,28 @@ class Operations:
         state["kodi_running"] = running
         return state
 
+    def nothing_playing(self, transfer):
+        """Refuse a large transfer (not otherwise disruptive) while anyone watches or listens.
+
+        Pulling hundreds of MB over the Shield's network link competes with a stream, and a
+        paused film is about to resume. Android's media sessions are read on every call;
+        Kodi's player list is added when its HTTP server answers (it may be stopped).
+        """
+        playing = media_playing(self.t)
+        try:
+            players = self.t.rpc("Player.GetActivePlayers")
+        except ShieldError:
+            players = None
+        if isinstance(players, list) and players and KODI not in playing:
+            playing = [KODI, *playing]
+        if playing:
+            raise ShieldError(
+                f"Media is playing or paused ({', '.join(playing[:3])}); {transfer} would "
+                "compete with it for the network. Try again when viewing has finished; "
+                "nothing kept and no TV changes",
+                "playing",
+            )
+
     def stopped(self):
         if self.kodi_running():
             raise ShieldError(

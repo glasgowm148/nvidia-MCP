@@ -6,6 +6,7 @@ from dataclasses import replace
 from pathlib import Path
 
 import pytest
+from conftest import media_session
 
 from nvidia_mcp import android_tools
 from nvidia_mcp.apks import SNAPSHOT_EXCLUDES, ApkOperations
@@ -58,9 +59,12 @@ def apk_env(ops, monkeypatch, tmp_path):
             self.wrong_version = False
             self.fail_snapshot = False
             self.tar_exit = 0
+            self.media = ""
+            self.players = []
+            self.downloads = []
 
         def rpc(self, *args):
-            return []
+            return self.players
 
         def shell(self, *args, **kwargs):
             self.calls.append(args)
@@ -95,7 +99,7 @@ def apk_env(ops, monkeypatch, tmp_path):
             if args == ("dumpsys", "activity", "activities"):
                 return f"mResumedActivity: {self.foreground}/.Main" if self.foreground else ""
             if args == ("dumpsys", "media_session"):
-                return "MEDIA SESSION SERVICE (dumpsys media_session)\n"
+                return "MEDIA SESSION SERVICE (dumpsys media_session)\n" + self.media
             if args[:2] == ("sh", "-c"):
                 return "123" if any(f"pidof {pkg} " in args[2] for pkg in self.running) else ""
             if args[0] == "readlink":
@@ -126,6 +130,7 @@ def apk_env(ops, monkeypatch, tmp_path):
             return b""
 
         def download(self, remote, destination, **kwargs):
+            self.downloads.append(remote)
             destination.write_bytes(self.installed[remote])
 
         def stream_to_file(self, command, destination, limit, timeout):
@@ -179,6 +184,47 @@ def test_verified_upgrade_stages_exact_bytes_and_preserves_original(apk_env):
     assert ops.apks.backups()["backups"][0]["status"] == "verified"
     with pytest.raises(ShieldError, match="missing or expired"):
         ops.apks.apply(preview["preview_id"])
+
+
+@pytest.mark.parametrize(
+    "who,state",
+    [("org.xbmc.kodi", 2), ("org.xbmc.kodi", 3), ("com.spotify.tv.android", 3), ("kodi", None)],
+)
+def test_preview_does_not_pull_installed_apks_while_anything_plays(apk_env, who, state):
+    # Saving the originals pulls up to 1 GB over the Shield's network link; during a stream
+    # (or with a film paused, about to resume) that competes with playback.
+    ops, device, candidate = apk_env
+    if state is None:
+        device.players = [{"playerid": 1, "type": "video"}]
+    else:
+        device.media = media_session(who, state)
+    with pytest.raises(ShieldError, match="playing or paused") as error:
+        ops.apks.preview([candidate()])
+    assert error.value.kind == "playing"
+    assert not device.downloads
+    assert not ops.apks.plans
+    assert not list((ops.c.state / "apk_previews").glob("*"))
+    device.media, device.players = media_session("org.xbmc.kodi", 1), []  # Lingering, stopped.
+    assert ops.apks.preview([candidate()])["original_apks_saved"] == 1
+    assert device.downloads
+
+
+def test_preview_rechecks_before_each_pull(apk_env):
+    ops, device, candidate = apk_env
+    device.installed = {
+        "/data/app/example/base.apk": apk_bytes(),
+        "/data/app/example/split_config.apk": apk_bytes(split="config.xx"),
+    }
+    download = device.download
+
+    def first_then_playback(remote, destination, **kwargs):
+        download(remote, destination, **kwargs)
+        device.media = media_session("org.xbmc.kodi", 3)
+
+    device.download = first_then_playback
+    with pytest.raises(ShieldError, match="playing or paused"):
+        ops.apks.preview([candidate(), candidate(split="config.xx")])
+    assert device.downloads == ["/data/app/example/base.apk"]
 
 
 @pytest.mark.parametrize(

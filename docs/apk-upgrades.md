@@ -27,7 +27,10 @@ embedded in an unrelated project's APK.
 
 1. Call `shield_apk_preview` with `apk_paths` containing 1–20 local `.apk` files. The agent verifies
    metadata and signatures using `aapt2` and `apksigner`, checks Android/CPU requirements, and saves
-   private staged copies plus verified originals. No Shield files are changed.
+   private staged copies plus verified originals. No Shield files are changed. Saving the originals
+   pulls the installed APKs (Kodi's are a few hundred MB, up to 1 GB in total) over the Shield's
+   network link, so the preview is refused while any app's media is playing or paused and checks
+   again before each APK; run it when nobody is watching.
 2. Review package, installed/candidate versionCode, signer fingerprints and APK count. Updates must
    increase versionCode and preserve the complete signer set. New installs need signer
    fingerprints the **user** configured in `NVIDIA_MCP_TRUSTED_SIGNERS` (comma-separated SHA-256,

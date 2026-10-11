@@ -132,6 +132,8 @@ class ApkOperations:
                         target = folder / f"{index}.apk"
                         if remaining <= 0:
                             raise ShieldError("Installed APK set exceeds 1 GB")
+                        # Checked before every pull: playback can start between them.
+                        self.ops.nothing_playing("saving the installed APKs (up to 1 GB)")
                         self.t.download(remote, target, limit=min(600_000_000, remaining))
                         remaining -= target.stat().st_size
                         if sha256_file(target) != expected:

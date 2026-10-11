@@ -138,7 +138,7 @@ tools. *No TV changes* tools write only private local state or run opt-in, idle-
 | `kodi_status` | Kodi status | read-only | Inspect Kodi version, skin, current profile/window and active players; no playback changes. |
 | `shield_apk_apply` | Install previewed APK | write mode | Install an exact unexpired APK preview. Stopped target/idle TV, backup and readback required; reports progress. Never uninstalls/downgrades/retries. |
 | `shield_apk_backups` | APK recovery bundles | read-only | List private APK recovery bundles for this Shield, with phases and Kodi data snapshot checksums. |
-| `shield_apk_preview` | Preview APK upgrade | no TV changes | Stage 1–20 local APKs, verify SDK/ABI/signers and save the installed originals (downloads up to 1 GB locally). New apps need signers configured in NVIDIA_MCP_TRUSTED_SIGNERS; trusted_signers can only narrow that set. No TV changes. |
+| `shield_apk_preview` | Preview APK upgrade | no TV changes | Stage 1–20 local APKs, verify SDK/ABI/signers and save the installed originals (pulls up to 1 GB from the Shield over the network; refused while any media is playing or paused). New apps need signers configured in NVIDIA_MCP_TRUSTED_SIGNERS; trusted_signers can only narrow that set. No TV changes. |
 | `shield_apk_status` | APK recovery bundle status | read-only | Report one recovery bundle's phase, saved files and the version now installed on the Shield. |
 | `shield_apps` | Installed Android apps | read-only | List installed Android package names (no app/account data). |
 | `shield_connect` | Connect ADB | no TV changes | Connect ADB to the configured Shield only. Accept its debugging prompt on the TV. |

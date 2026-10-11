@@ -153,7 +153,7 @@ def create_server(config: Config):
     async def shield_apk_preview(
         apk_paths: list[str], ctx: Context, trusted_signers: list[str] | None = None
     ) -> dict[str, Any]:
-        """Stage 1–20 local APKs, verify SDK/ABI/signers and save the installed originals (downloads up to 1 GB locally). New apps need signers configured in NVIDIA_MCP_TRUSTED_SIGNERS; trusted_signers can only narrow that set. No TV changes."""
+        """Stage 1–20 local APKs, verify SDK/ABI/signers and save the installed originals (pulls up to 1 GB from the Shield over the network; refused while any media is playing or paused). New apps need signers configured in NVIDIA_MCP_TRUSTED_SIGNERS; trusted_signers can only narrow that set. No TV changes."""
         progress = progress_callback(ctx)
         return await anyio.to_thread.run_sync(
             lambda: ops.apks.preview(apk_paths, trusted_signers, progress)
