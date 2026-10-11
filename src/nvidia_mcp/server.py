@@ -161,7 +161,7 @@ def create_server(config: Config):
 
     @write_tool("Install previewed APK")
     async def shield_apk_apply(preview_id: str, ctx: Context) -> dict[str, Any]:
-        """Install an exact unexpired APK preview. Stopped target/idle TV, backup and readback required; reports progress. Never uninstalls/downgrades/retries."""
+        """Install an exact unexpired APK preview, replacing the installed app. Stopped target/idle TV, backup and readback required; reports progress. The install can take minutes after the last TV check, and an app opened meanwhile is closed by Android. Never uninstalls/downgrades/retries."""
         progress = progress_callback(ctx)
         return await anyio.to_thread.run_sync(lambda: ops.apks.apply(preview_id, progress))
 
@@ -177,7 +177,7 @@ def create_server(config: Config):
 
     @tool("Connect ADB", read_only=False, destructive=False, idempotent=True, open_world=True)
     def shield_connect() -> dict[str, Any]:
-        """Connect ADB to the configured Shield only. Accept its debugging prompt on the TV."""
+        """Connect ADB to the configured Shield only. A new or revoked authorization shows Android's debugging prompt on the TV over whatever is playing; someone at the TV must accept it."""
         return ops.connect()
 
     @tool("Installed Android apps", read_only=True, idempotent=True)
@@ -298,12 +298,12 @@ def create_server(config: Config):
 
     @write_tool("Change Kodi setting", idempotent=True)
     def kodi_set_setting(setting: str, value: bool | int | float | str) -> dict[str, Any]:
-        """Change one ordinary Kodi setting through its runtime API, with a guisettings.xml rollback snapshot. Credential, security/service, display, audio-device, refresh-rate and language settings are refused, as is any change during playback or with another app in front."""
+        """Change one ordinary Kodi setting through its runtime API (takes effect on the TV at once), with a guisettings.xml rollback snapshot. Credential, security/service, display, audio-device, refresh-rate and language settings are refused, as is any change during playback or with another app in front."""
         return ops.set_core_setting(setting, value)
 
     @tool("Browse Kodi folder", read_only=False, destructive=False, open_world=True)
     def kodi_browse(path: str, start: int = 0, limit: int = 24) -> dict[str, Any]:
-        """Preview one page of actual provider/library folders; opt-in, idle-only. Routes with play/auth/settings/maintenance verbs are refused."""
+        """Preview one page of actual provider/library folders; opt-in, idle-only. Runs the add-on's own code, which contacts its provider and can show notifications or dialogs on the TV. Routes with play/auth/settings/maintenance verbs are refused."""
         return ops.directory(path, start, limit)
 
     @tool("Kodi Manager inspect", read_only=True, idempotent=True)
@@ -320,7 +320,7 @@ def create_server(config: Config):
 
     @write_tool("Refresh widget cache", destructive=False)
     def kodi_manager_widget_cache_refresh() -> dict[str, Any]:
-        """Optional Kodi Manager 0.6+: queue a refresh of every cached widget row while Kodi is idle and no other app is in front."""
+        """Optional Kodi Manager 0.6+: queue a refresh of every cached widget row while Kodi is idle and no other app is in front. Runs each row's add-on in the background on the Shield (CPU and network load for a while)."""
         return ops.widget_cache_refresh()
 
     @tool("Preview hub layout", read_only=False, destructive=False)
@@ -330,12 +330,12 @@ def create_server(config: Config):
 
     @write_tool("Apply hub layout")
     def kodi_layout_apply(preview_id: str) -> dict[str, Any]:
-        """Optional Manager: apply the exact staged plan within 10 minutes; Manager backs up and rejects stale revisions."""
+        """Optional Manager: apply the exact staged plan within 10 minutes, changing the household's home-screen rows; Manager backs up and rejects stale revisions."""
         return ops.layout_apply(preview_id)
 
     @write_tool("Rebuild skin menus")
     def kodi_layout_rebuild() -> dict[str, Any]:
-        """Optional Manager: request one skin-menu rebuild while Kodi is idle and in front. Inspect TV after it finishes."""
+        """Optional Manager: request one skin-menu rebuild while Kodi is idle and in front. The skin reloads visibly on the TV a few seconds later (after the only check). Inspect TV after it finishes."""
         return ops.rebuild_layout()
 
     @mcp.resource("nvidia://playbook")
