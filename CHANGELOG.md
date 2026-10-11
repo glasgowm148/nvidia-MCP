@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.4.5 — 2026-10-11 (prerelease)
+
+- Bundle Kodi Manager 0.7.10 (was 0.7.5), built deterministically from the public release commit. Its Shield exit watcher now ends an exit that stalls after Kodi has saved its settings about a minute later, measured on the clock, and never acts once playback starts again. 0.7.6–0.7.9 add all-or-nothing settings saves and restores with rollback, no checkpoints or re-applies during playback, a DNS-rebinding defence (open the dashboard by IP address or `.local` name), masked log lines and the redesigned dashboard. MCP tools are unchanged and still support Kodi Manager 0.4+ (widget-cache tools 0.6+).
+- The companion export test also checks that no household-only module is in the bundled ZIP.
+
 ## 0.4.4 — 2026-10-11 (prerelease)
 
 - `kodi_lifecycle` stop/restart asks Kodi to quit (`Application.Quit`, so it saves its settings) and waits up to 30 s instead of force-stopping it straight away. Kodi 22.0 RC1 on the Shield can hang at "Stopping all" after quitting with a paused video; the tool then force-stops it only when the current `kodi.log` shows the full save sequence and the TV guard still passes on Android's media sessions and foreground app. Otherwise it reports `exit_hung`, does not start Kodi again and leaves it for the person at the TV. Offline recovery still force-stops directly.
