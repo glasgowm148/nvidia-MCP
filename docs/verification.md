@@ -1,5 +1,50 @@
 # Verification
 
+## 0.4.4 on the reference Shield (2026-10-11)
+
+Reference Shield today: Android 11, Kodi 22.0 RC1 (`22.0-RC1 (21.90.901)`), Kodi Manager 0.7.6
+(household build), skin.bingie 2.0.2.2, Projectivy launcher. The observations below are `adb`
+output captured on that Shield during the day's deployment, not calls through this server's tools.
+Their exact lines are now test fixtures (`tests/test_live_fixtures.py`, `tests/test_lifecycle_exit.py`).
+
+Confirmed against the real device output:
+
+- `dumpsys media_session` parsing. Kodi with a film paused reported `package=org.xbmc.kodi`,
+  `active=true`, `state=PlaybackState {state=2, position=2971175, ..., speed=0.0, ...,
+  actions=-1, ...}`: the guard reads this as "Kodi paused" and refuses. After Kodi stopped, its
+  session stayed listed as active with `state=1` (STOPPED): the guard reads this as idle, so a
+  lingering session does not block anything.
+- Foreground parsing of `mResumedActivity` lines on Android 11, for Projectivy
+  (`com.spocky.projengmenu/.ui.home.MainActivity`, a built-in launcher: nobody watching) and Kodi
+  (`org.xbmc.kodi/.Main`).
+- `dumpsys power` while in use: `mWakefulness=Awake`, `Display Power: state=ON`. Nothing asleep was
+  observed, so the sleeping-display path is still unconfirmed (below).
+- Kodi's exit hang. Quitting Kodi with a paused video, `kodi.log` showed "Stopping the
+  application...", "Saving settings", "Saving skin settings", "Stopping all" and then nothing for
+  more than 90 s; a force-stop was needed. `kodi_lifecycle` now handles exactly this sequence.
+- The contrib profile-relaunch `relaunch.sh` (sha256 `d24b0bbc…`, with per-number validation) was
+  deployed into the household's profile-switch add-on; an Adults→Kids→Adults switch took about
+  18 s each way and Kodi's PID changed.
+
+Automated: 378 tests and 5 shell subtests pass with synthetic fixtures on mcp 2.3, 1.30 and 1.28;
+ruff, the README tool table check, the package build and release-archive inspection pass.
+
+Still to confirm on the Shield, read-only first:
+
+- `kodi_lifecycle stop` through the server: that `Application.Quit` gets an answer or a dropped
+  connection (both are treated as sent), that a normal exit finishes within the 30 s wait, and how
+  a hung exit is reported (`exit_hung`, or a force-stop with the `kodi.log` evidence in the result);
+- whether Kodi's media session during a hung exit is already at `state=1` (needed for the
+  force-stop) or still at `state=2` (then the tool leaves Kodi for the person at the TV);
+- the screensaver (`DreamActivity`) and sleeping-display (`isSleeping=true` / `mSleeping=true`)
+  recognition (fails closed with `foreground_unknown` if the dump differs);
+- `getprop ro.serialno` for backup ownership (otherwise backups fall back to `host:port`);
+- profile resolution against the household's own `profiles.xml` (`kodi_status`,
+  `kodi_addon_settings`);
+- Kodi Manager 0.7.6 error codes as surfaced by `kodi_manager_inspect` / widget-cache tools;
+- `shield_apk_preview` refusing while something plays (only synthetic so far), and any APK
+  install or recovery.
+
 ## 0.4.3 guard, profile and privacy fixes (offline only)
 
 353 automated tests and 5 shell subtests pass locally with synthetic fixtures on mcp 1.28, 1.30
