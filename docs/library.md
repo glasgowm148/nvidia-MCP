@@ -59,7 +59,8 @@ in any release.
 | `process_deaths(package="org.xbmc.kodi", lines=2000)` | `list[dict]` | `am_proc_died`/`am_kill` records from Android's event log: `time`, `event`, `pid`, `oom_adj`, `proc_state` or `reason` |
 
 Failures raise `nvidia_mcp.ShieldError`; `.kind` is a stable short code (`unreachable`,
-`timeout`, `authorization_required`, `rpc_error`, `exit_hung`, `verify_failed`, `not_found`,
+`timeout`, `authorization_required`, `rpc_error`, `exit_hung`, `restarted`, `respawned`,
+`verify_failed`, `not_found`,
 `invalid_request`, ...), `.message` is readable text. Programming mistakes (`adb("shell ls")`
 instead of a list, an unknown `kodi_route`) raise `TypeError`/`ValueError`.
 
@@ -93,6 +94,13 @@ Refuses (ShieldError) unless nobody is watching, then sends `Application.Quit` a
 result then has `stopped_by: "force-stop after a hung exit"` and the `exit_evidence` lines.
 Otherwise it raises `exit_hung` and leaves Kodi for the person at the TV. Returns
 `stopped_by: None` when Kodi was not running.
+
+The wait follows the processes that were running when `Application.Quit` was sent, not just
+the package name: Android can start a new, empty `org.xbmc.kodi` process seconds after Kodi
+exits. Once the quitting Kodi has gone, such a process is force-stopped while Kodi is not the
+app in front (`respawned_process_stopped` lists its pid); a Kodi that is on screen again raises
+`restarted`, and one whose foreground app cannot be read raises `respawned`, both leaving it
+running.
 
 ### `push_verified(local, remote, mode=None)`
 

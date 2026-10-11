@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.4.7 — 2026-10-11 (prerelease)
+
+- `kodi_lifecycle stop`/`restart` and `Shield.quit_kodi` follow the Kodi processes that were running when `Application.Quit` was sent. On the household Shield Kodi exited cleanly after a quit and Android started a new, empty `org.xbmc.kodi` process 2 s later; the package-wide `pidof` mistook it for the old Kodi and reported `exit_hung`. Once the quitting Kodi has gone, such a process is force-stopped while Kodi is not the app in front (`respawned_process_stopped` in the result); a Kodi that is on screen again is left running (`restarted`), as is one whose foreground app cannot be read (`respawned`). The single `pidof` probe now returns process IDs.
+
 ## 0.4.6 — 2026-10-11 (prerelease)
 
 - Library API: `nvidia_mcp.Shield(config)` lets other tools on the computer reuse the server's device code instead of duplicating it: `adb`, `shell`, `rpc`, `viewing_state()` (verdict idle/playing/paused/other_app/screensaver/asleep/unknown from the guard's own signals), `kodi_alive()`, `quit_kodi(wait)` and `start_kodi(wait)` (the same guard and quit-then-force-stop rule as `kodi_lifecycle`), `pull`, `push_verified` (temporary file, on-device SHA-256 check, `mv`, check again), `memory()` and `process_deaths()`. Kodi JSON-RPC can go through an `adb forward` (`kodi_route="forward"` or `"auto"`) for processes the OS blocks from the LAN, such as macOS Local Network permission. Documented with a semver promise in docs/library.md; exported from `nvidia_mcp`. MCP tools are unchanged and always use direct HTTP.

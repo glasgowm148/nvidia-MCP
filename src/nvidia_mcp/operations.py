@@ -387,6 +387,9 @@ class Operations:
         # kodi_lifecycle: how long to wait for Kodi to exit after Application.Quit.
         self.quit_wait = 30
         self.quit_poll = 1.0
+        # After Kodi exits, Android may start a new, empty org.xbmc.kodi process for a receiver
+        # within a couple of seconds; look again once this long after the exit.
+        self.respawn_grace = 3.0
 
     def safe(self, result):
         return privacy.scrub(result, self.known_secrets)
@@ -426,12 +429,20 @@ class Operations:
             raise ShieldError("Kodi is playing. Wait until viewing has finished")
         return "idle"
 
+    def pids(self, package=KODI):
+        """The one process probe: IDs of every process of ``package`` (empty when it is not
+        running); ``|| true`` keeps a stopped app from being an ADB error."""
+        out = self.t.shell("sh", "-c", "pidof " + shlex.quote(package) + " || true")
+        return {pid for pid in str(out).split() if pid.isdigit()}
+
     def running(self, package=KODI):
-        """The one process probe; ``|| true`` keeps a stopped app from being an ADB error."""
-        return bool(self.t.shell("sh", "-c", "pidof " + shlex.quote(package) + " || true"))
+        return bool(self.pids(package))
 
     def kodi_running(self):
         return self.running(KODI)
+
+    def kodi_pids(self):
+        return self.pids(KODI)
 
     def launchers(self):
         return LAUNCHERS | set(getattr(self.c, "extra_launchers", ()) or ())
@@ -855,11 +866,16 @@ class Operations:
             )
             return result
 
-    def wait_for_exit(self, action):
+    def wait_for_exit(self, action, pids=None):
+        """True once the Kodi that was asked to quit has gone. With ``pids`` (the processes that
+        were running when Application.Quit was sent) a different, newer Kodi process does not
+        count as the old one still exiting."""
         deadline = time.monotonic() + self.quit_wait
         while True:
             try:
                 if not self.kodi_running():
+                    return True
+                if pids and not (self.kodi_pids() & pids):
                     return True
             except ShieldError as exc:
                 raise ShieldError(
@@ -875,6 +891,10 @@ class Operations:
     def quit_kodi(self, action, interrupt_other_app):
         """Application.Quit lets Kodi save settings; force-stop only a provably saved, hung exit."""
         try:
+            pids = self.kodi_pids()
+        except ShieldError:
+            pids = set()
+        try:
             self.t.rpc("Application.Quit")
         except ShieldError as exc:
             # Kodi often closes its HTTP server before answering; that is a sent request.
@@ -884,8 +904,11 @@ class Operations:
                     "quit_failed",
                 ) from None
         self.audit("kodi_quit", KODI)
-        if self.wait_for_exit(action):
-            return {"stopped_by": "Application.Quit"}
+        if self.wait_for_exit(action, pids):
+            result = {"stopped_by": "Application.Quit"}
+            if pids:
+                result.update(self.stop_respawned(pids, action))
+            return result
         not_started = "; it was not started again" if action == "restart" else ""
         try:
             evidence = settings_saved_on_exit(self.files.tail("temp/kodi.log", 400))
@@ -918,6 +941,39 @@ class Operations:
             "stopped_by": "force-stop after a hung exit",
             "exit_evidence": privacy.text("\n".join(evidence), self.known_secrets).splitlines(),
         }
+
+    def stop_respawned(self, pids, action):
+        """After the quitting Kodi has gone, stop a new Kodi process Android started by itself.
+
+        On the Shield (2026-10-11) a new org.xbmc.kodi process appeared 2 s after Kodi exited, with
+        no activity and no CPU time used; it is not the Kodi that was asked to quit, so it is
+        neither a hung exit nor something being watched. It is force-stopped only while Kodi is
+        not the app in front: a Kodi someone opened again is left running."""
+        grace = min(self.respawn_grace, self.quit_wait)
+        if grace > 0:
+            time.sleep(grace)
+        current = self.kodi_pids()
+        if not current:
+            return {}
+        new = sorted(current - pids)
+        not_started = "; it was not started again" if action == "restart" else ""
+        try:
+            _screen, package = foreground_state(self.t)
+        except ShieldError as exc:
+            raise ShieldError(
+                f"Kodi exited after Application.Quit, but a new Kodi process ({', '.join(new)}) "
+                f"started and the app in front could not be checked ({exc.message}); it was left "
+                f"running{not_started}. Check shield_status",
+                "respawned",
+            ) from None
+        if package == KODI:
+            raise ShieldError(
+                f"Kodi exited after Application.Quit, but Kodi was opened again ({', '.join(new)}) "
+                f"and is on screen; it was left running{not_started}",
+                "restarted",
+            )
+        self.force_stop(action)
+        return {"respawned_process_stopped": new}
 
     def force_stop(self, action):
         self.t.shell("am", "force-stop", KODI)

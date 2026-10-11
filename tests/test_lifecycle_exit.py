@@ -173,3 +173,43 @@ def test_parser_needs_the_whole_save_sequence():
     assert not settings_saved_on_exit(STARTED + MID_SAVE)
     assert not settings_saved_on_exit(HUNG_EXIT + STARTED)
     assert not settings_saved_on_exit(HUNG_EXIT.replace("Saving settings", "Saving settings!"))
+
+
+KODI_IN_FRONT = "    mResumedActivity: ActivityRecord{20632b5 u0 org.xbmc.kodi/.Main t3482}\n"
+
+
+def respawn(activities=None):
+    """Kodi exits, then Android starts a new org.xbmc.kodi process (pid 29040 on 2026-10-11)."""
+
+    def after(ops, tv):
+        ops.t.pid = "29040"
+        if activities:
+            tv["activities"] = activities
+
+    return after
+
+
+@pytest.mark.parametrize("action", ["stop", "restart"])
+def test_a_new_kodi_process_after_the_exit_is_not_a_hung_exit(ops, action):
+    shield(ops, exits=False, after_quit=respawn())
+    result = ops.lifecycle(action)
+    assert result["stopped_by"] == "Application.Quit"
+    assert result["respawned_process_stopped"] == ["29040"]
+    assert len(shell_calls(ops, "am", "force-stop")) == 1
+    assert bool(shell_calls(ops, "am", "start")) == (action == "restart")
+
+
+def test_a_kodi_someone_opened_again_is_left_running(ops):
+    shield(ops, exits=False, after_quit=respawn(KODI_IN_FRONT))
+    with pytest.raises(ShieldError, match="opened again") as error:
+        ops.lifecycle("stop")
+    assert error.value.kind == "restarted"
+    assert not shell_calls(ops, "am", "force-stop")
+
+
+def test_the_same_process_still_running_is_still_a_hung_exit(ops):
+    shield(ops, exits=False, log=STARTED + MID_SAVE)
+    with pytest.raises(ShieldError, match="did not exit") as error:
+        ops.lifecycle("stop")
+    assert error.value.kind == "exit_hung"
+    assert not shell_calls(ops, "am", "force-stop")

@@ -42,7 +42,7 @@ class FakeTransport:
     def shell(self, *args, **kwargs):
         self.calls.append(("shell", args))
         if args[:2] == ("sh", "-c"):
-            return "1234" if self.running else ""
+            return getattr(self, "pid", "1234") if self.running else ""
         if args[:2] == ("am", "force-stop"):
             self.running = False
         if args == ("dumpsys", "activity", "activities"):
