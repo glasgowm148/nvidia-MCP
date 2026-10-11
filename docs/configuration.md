@@ -83,6 +83,15 @@ A Kodi that froze mid-film usually still looks like playback (Android's media se
 playing or paused, and HTTP may still answer with an error), so no tool flag will stop it. Ask the
 viewer to close Kodi on the TV (Settings → Apps → Kodi → Force stop) or restart the Shield. This
 is deliberate: a frozen Kodi and a film somebody has paused look the same from here (audit R2-05).
+
+`kodi_lifecycle` stop/restart asks Kodi to quit over JSON-RPC (`Application.Quit`, so it saves its
+settings) and waits up to 30 seconds for the process to end. Kodi 22 on the Shield can hang after
+"Stopping all" for minutes. In that case the tool force-stops it only when the current `kodi.log`
+shows the whole save sequence ("Stopping the application...", "Saving settings", "Saving skin
+settings", "Stopping all") *and* the TV guard still passes on Android's own signals (no media
+playing or paused, no other app in front). Otherwise it reports `exit_hung`, does not start Kodi
+again, and leaves the stuck Kodi for the person at the TV. Force-stop without a quit is used only for
+permitted offline recovery, when Kodi's HTTP server cannot take the request.
 Write mode is a capability switch, not a substitute for an agent's approval policy.
 
 ### Protected Kodi settings

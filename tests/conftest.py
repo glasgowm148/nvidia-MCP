@@ -32,6 +32,9 @@ class FakeTransport:
         if method == "Settings.SetSettingValue":
             self.settings[params["setting"]] = params["value"]
             return True
+        if method == "Application.Quit":
+            self.running = False  # A clean exit; tests/test_lifecycle_exit.py covers hangs.
+            return "OK"
         if method == "Addons.GetAddonDetails":
             return {"addon": {"enabled": True}}
         return {"files": [], "limits": {"total": 0}}
@@ -84,4 +87,6 @@ def ops(tmp_path):
         allow_writes=True,
         allow_plugin_browse=True,
     )
-    return Operations(FakeTransport(config))
+    operations = Operations(FakeTransport(config))
+    operations.quit_wait = 0  # No real waiting for a fake Kodi to exit.
+    return operations

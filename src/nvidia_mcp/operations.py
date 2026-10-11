@@ -334,6 +334,32 @@ def media_playing(transport, package=None):
     )
 
 
+# What Kodi logs on a clean exit once its settings are on disk (CApplication::Stop). Kodi 22
+# on the Shield can then hang at "Stopping all" for minutes; a force-stop after that point
+# loses nothing Kodi would have saved.
+EXIT_SAVE_STEPS = ("Stopping the application...", "Saving settings", "Saving skin settings")
+EXIT_DONE = "Stopping all"
+LOG_MESSAGE = re.compile(r"<general>: (.*?)\s*$")
+
+
+def settings_saved_on_exit(log):
+    """kodi.log lines proving the running Kodi saved its settings while exiting, else []."""
+    lines = log.splitlines()
+    # kodi.log starts afresh with every Kodi start; only the current process's exit counts.
+    started = [i for i, line in enumerate(lines) if "<general>: Starting Kodi (" in line]
+    lines = lines[started[-1] + 1 :] if started else lines
+    messages = [(m[1], line.strip()) for line in lines if (m := LOG_MESSAGE.search(line))]
+    begin = max((i for i, (msg, _) in enumerate(messages) if msg == EXIT_SAVE_STEPS[0]), default=-1)
+    if begin < 0:
+        return []
+    evidence, wanted = [], [*EXIT_SAVE_STEPS, EXIT_DONE]
+    for msg, line in messages[begin:]:
+        if wanted and msg == wanted[0]:
+            evidence.append(line)
+            wanted.pop(0)
+    return evidence if not wanted else []
+
+
 class Operations:
     def __init__(self, transport):
         self.t = transport
@@ -343,6 +369,9 @@ class Operations:
         self.plans = {}
         self.known_secrets = (self.c.password, self.c.manager_token)
         self.apks = ApkOperations(self)
+        # kodi_lifecycle: how long to wait for Kodi to exit after Application.Quit.
+        self.quit_wait = 30
+        self.quit_poll = 1.0
 
     def safe(self, result):
         return privacy.scrub(result, self.known_secrets)
@@ -421,6 +450,7 @@ class Operations:
         assume_running=False,
         package=None,
         override_flag=None,
+        check_http=True,
     ):
         """One guard for every UI-disruptive action.
 
@@ -435,6 +465,8 @@ class Operations:
         allow_during_playback) skips every viewing check. ``allow_other_app`` (kodi_lifecycle's
         interrupt_other_app) skips only the checks for other apps: Kodi's own playback is still
         refused. ``override_flag`` names the tool's flag for error messages, if it has one.
+        ``check_http=False`` is only for a Kodi that is already exiting (its HTTP server is
+        closed): Android's media sessions and foreground app are then the whole check.
         """
         if allow_playback or allow_other_app:
             self.require_interrupt_opt_in(override_flag or "override")
@@ -449,11 +481,13 @@ class Operations:
             running = self.kodi_running()
         if kind in ("layout", "browse") and not running:
             raise ShieldError("Kodi is not running; start it first", "kodi_stopped")
-        if running and not allow_playback:
+        if not check_http:
+            state["playback"] = "Kodi exiting; HTTP closed"
+        elif running and not allow_playback:
             state["playback"] = self.idle(allow_offline)
         screen, app = foreground_state(self.t)
         state["screen"], state["foreground"] = screen, app
-        if app == KODI and not running:
+        if app == KODI and not running and check_http:
             # The process probe can miss a Kodi that has just been opened. The resumed
             # activity is authoritative: check its playback before doing anything.
             running = True
@@ -703,39 +737,115 @@ class Operations:
         with self.lock:
             # A stopped Kodi cannot be playing, and its HTTP API is down, so the
             # playback check would always report "unknown". Skip it only then.
-            self.guard_tv(
+            state = self.guard_tv(
                 "lifecycle",
                 allow_other_app=interrupt_other_app,
                 allow_offline=allow_offline,
                 assume_running=action != "start",
                 override_flag="interrupt_other_app",
             )
+            result = {"requested": action}
             if action in ("stop", "restart"):
-                self.t.shell("am", "force-stop", KODI)
-                self.audit("kodi_stop", KODI)
-                try:
-                    still_running = self.kodi_running()
-                except ShieldError as exc:
-                    raise ShieldError(
-                        f"Kodi was force-stopped but its state could not be confirmed ({exc})"
-                        + ("; it was not started again" if action == "restart" else "")
-                        + ". Check shield_status before trying again",
-                        "stop_unconfirmed",
-                    ) from None
-                if still_running:
-                    raise ShieldError(
-                        "Kodi was still running after force-stop"
-                        + ("; restart abandoned" if action == "restart" else "")
-                        + ". Check kodi_status and shield_status",
-                        "stop_failed",
-                    )
+                if state.get("playback") == "idle":
+                    result.update(self.quit_kodi(action, interrupt_other_app))
+                else:
+                    # Explicitly permitted offline recovery: Kodi HTTP cannot take a quit.
+                    self.force_stop(action)
+                    result["stopped_by"] = "force-stop (Kodi HTTP unreachable)"
             if action in ("start", "restart"):
                 self.t.shell("am", "start", "-n", "org.xbmc.kodi/.Splash")
                 self.audit("kodi_start", KODI)
-            return {
-                "requested": action,
-                "note": "Run kodi_status to verify startup; launching an activity does not confirm Kodi is ready.",
-            }
+            result["note"] = (
+                "Run kodi_status to verify startup; launching an activity does not confirm "
+                "Kodi is ready."
+                if action != "stop"
+                else "Kodi has exited."
+            )
+            return result
+
+    def wait_for_exit(self, action):
+        deadline = time.monotonic() + self.quit_wait
+        while True:
+            try:
+                if not self.kodi_running():
+                    return True
+            except ShieldError as exc:
+                raise ShieldError(
+                    f"Kodi was asked to quit but its state could not be confirmed ({exc})"
+                    + ("; it was not started again" if action == "restart" else "")
+                    + ". Check shield_status before trying again",
+                    "stop_unconfirmed",
+                ) from None
+            if time.monotonic() >= deadline:
+                return False
+            time.sleep(self.quit_poll)
+
+    def quit_kodi(self, action, interrupt_other_app):
+        """Application.Quit lets Kodi save settings; force-stop only a provably saved, hung exit."""
+        try:
+            self.t.rpc("Application.Quit")
+        except ShieldError as exc:
+            # Kodi often closes its HTTP server before answering; that is a sent request.
+            if exc.kind not in ("unreachable", "timeout"):
+                raise ShieldError(
+                    f"Kodi refused Application.Quit ({exc.message}); Kodi was left running",
+                    "quit_failed",
+                ) from None
+        self.audit("kodi_quit", KODI)
+        if self.wait_for_exit(action):
+            return {"stopped_by": "Application.Quit"}
+        not_started = "; it was not started again" if action == "restart" else ""
+        try:
+            evidence = settings_saved_on_exit(self.files.tail("temp/kodi.log", 400))
+        except ShieldError:
+            evidence = []
+        if not evidence:
+            reason = "kodi.log does not show it finished saving its settings"
+        else:
+            try:
+                self.guard_tv(
+                    "lifecycle",
+                    allow_other_app=interrupt_other_app,
+                    assume_running=True,
+                    override_flag="interrupt_other_app",
+                    check_http=False,
+                )
+                reason = None
+            except ShieldError as exc:
+                reason = f"the TV guard refused a force-stop: {exc.message}"
+        if reason:
+            raise ShieldError(
+                f"Kodi did not exit within {self.quit_wait} s of Application.Quit and was left "
+                f"as it is ({reason}){not_started}. Its HTTP server is usually closed by now. "
+                "Check kodi_logs and shield_status; if it stays stuck, ask the person at the TV "
+                "to force-stop Kodi (Settings > Apps > Kodi > Force stop)",
+                "exit_hung",
+            )
+        self.force_stop(action)
+        return {
+            "stopped_by": "force-stop after a hung exit",
+            "exit_evidence": privacy.text("\n".join(evidence), self.known_secrets).splitlines(),
+        }
+
+    def force_stop(self, action):
+        self.t.shell("am", "force-stop", KODI)
+        self.audit("kodi_stop", KODI)
+        try:
+            still_running = self.kodi_running()
+        except ShieldError as exc:
+            raise ShieldError(
+                f"Kodi was force-stopped but its state could not be confirmed ({exc})"
+                + ("; it was not started again" if action == "restart" else "")
+                + ". Check shield_status before trying again",
+                "stop_unconfirmed",
+            ) from None
+        if still_running:
+            raise ShieldError(
+                "Kodi was still running after force-stop"
+                + ("; restart abandoned" if action == "restart" else "")
+                + ". Check kodi_status and shield_status",
+                "stop_failed",
+            )
 
     def remote(self, button, allow_during_playback=False):
         self.writes()

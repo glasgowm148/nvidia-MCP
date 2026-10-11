@@ -17,7 +17,8 @@ secret settings is refused: update the add-on or change the account on the TV in
 2. Read the file and retain its SHA-256.
 3. Call `kodi_patch_preview` with exact `before`/`after` anchors and review the redacted diff.
 4. Review the proposed behaviour and get permission to interrupt if someone is viewing.
-5. Enable write mode. Stop Kodi with `kodi_lifecycle`; it refuses active Kodi playback.
+5. Enable write mode. Stop Kodi with `kodi_lifecycle`; it refuses active Kodi playback, asks Kodi to
+   quit and waits up to 30 s. If it reports `exit_hung`, do not edit files: Kodi is still running.
 6. Apply the same edits with `kodi_patch_apply`. Retain its `backup_id` and new checksum.
    (`kodi_patch_file` with `dry_run=true/false` still works but is deprecated.)
 7. Start Kodi, verify `kodi_status` and test the specific behaviour.

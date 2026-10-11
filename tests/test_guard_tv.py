@@ -314,16 +314,22 @@ def test_foreground_message_offers_no_flag_the_tool_lacks(ops):
 
 
 def test_restart_that_cannot_stop_kodi_says_so(ops):
+    # Offline recovery goes straight to force-stop (Kodi HTTP cannot take a quit request).
+    offline_permitted(ops)
+    ops.t.offline = True
     shell = ops.t.shell
     ops.t.shell = lambda *a, **kw: "" if a[:2] == ("am", "force-stop") else shell(*a, **kw)
     ops.t.running = True  # pidof still finds Kodi after force-stop.
     with pytest.raises(ShieldError, match="still running after force-stop") as error:
-        ops.lifecycle("restart")
+        ops.lifecycle("restart", allow_offline=True)
     assert "editing files" not in str(error.value)
     assert not any(c[0] == "shell" and c[1][:2] == ("am", "start") for c in ops.t.calls)
 
 
 def test_restart_reports_unconfirmed_stop(ops):
+    offline_permitted(ops)
+    ops.t.offline = True
+    ops.t.running = True
     shell = ops.t.shell
     stopped = []
 
@@ -336,7 +342,7 @@ def test_restart_reports_unconfirmed_stop(ops):
 
     ops.t.shell = flaky
     with pytest.raises(ShieldError, match="force-stopped .*not started again"):
-        ops.lifecycle("restart")
+        ops.lifecycle("restart", allow_offline=True)
 
 
 def guarded_writes(ops, tmp_path):
