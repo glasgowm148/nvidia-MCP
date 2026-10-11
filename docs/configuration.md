@@ -26,7 +26,7 @@ filled configuration or print account credentials into diagnostic output.
 | `NVIDIA_MCP_ALLOW_SETTINGS` | empty | Comma-separated **exact** protected Kodi setting ids that `kodi_set_setting` may change |
 | `NVIDIA_MCP_TRUSTED_SIGNERS` | empty | Comma-separated SHA-256 APK signer fingerprints trusted for **new** app installs |
 | `NVIDIA_MCP_TRUSTED_SIGNERS_FILE` | unset | File with one fingerprint per line (`#` comments), merged with the variable above |
-| `NVIDIA_MCP_STATE_DIR` | OS user app-data directory | Private snapshots and value-free audit records |
+| `NVIDIA_MCP_STATE_DIR` | OS user app-data directory | Private snapshots and value-free audit records. Snapshots are tied to the Shield's `ro.serialno` (older ones, or ones taken without ADB, to `SHIELD_HOST:SHIELD_ADB_PORT`), so a new DHCP address keeps them usable |
 | `NVIDIA_MCP_RETENTION_DAYS` | `90` | On start, prune backups older than this beyond the kept count; `0` disables pruning |
 | `NVIDIA_MCP_KEEP_FILE_BACKUPS` | `50` | Newest per-file snapshots always kept |
 | `NVIDIA_MCP_KEEP_APK_BACKUPS` | `3` | Newest *verified* APK recovery bundles always kept; unverified bundles are never pruned |

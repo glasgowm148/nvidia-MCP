@@ -352,7 +352,7 @@ class ApkOperations:
             backup = private_dir(private_dir(self.c.state) / "apk_backups" / backup_id)
             manifest = {
                 "backup_id": backup_id,
-                "device": self.c.serial,
+                **self.ops.files.owner(),
                 "package": plan["package"],
                 "created": time.time(),
                 "original_version_code": plan["installed"]["version_code"]
@@ -498,7 +498,7 @@ class ApkOperations:
             raise ShieldError(
                 "APK backup not found in local private storage", "not_found"
             ) from None
-        if not isinstance(manifest, dict) or manifest.get("device") != self.c.serial:
+        if not self.ops.files.owns(manifest):
             raise ShieldError("APK backup belongs to a different Shield")
         files = []
         for index, item in enumerate(manifest.get("original_apks") or []):
@@ -556,7 +556,7 @@ class ApkOperations:
             for path in manifests:
                 try:
                     value = json.loads(path.read_text())
-                    if value["device"] == self.c.serial:
+                    if self.ops.files.owns(value):
                         rows.append(
                             {
                                 key: value[key]
@@ -571,7 +571,7 @@ class ApkOperations:
                                 )
                             }
                         )
-                except (OSError, ValueError, KeyError):
+                except (OSError, ValueError, KeyError, TypeError):
                     continue
         return {
             "backups": rows,

@@ -78,4 +78,6 @@ The optional [Kodi Manager companion](companion.md) adds live skin/settings APIs
 it separately if those features are needed.
 
 If the router later changes the Shield's address, find it again using step 1 and tell the agent to update
-the saved connection. The agent can explain your router's DHCP reservation option if you want a stable IP.
+the saved connection. Earlier private backups stay available: they are tied to the Shield's serial
+number, not its address. The agent can explain your router's DHCP reservation option if you want a
+stable IP.

@@ -11,6 +11,7 @@ from pathlib import Path, PurePosixPath
 from .config import ShieldError
 
 MAX_FILE = 600_000
+SERIALNO = re.compile(r"[A-Za-z0-9._-]{4,64}")
 
 
 def digest(data):
@@ -38,6 +39,38 @@ class Files:
         self.t = transport
         self.c = transport.c
         self.backups = self.c.state / "backups"
+        self._device_id = False  # Not asked yet; None once ADB could not say.
+
+    def device_id(self):
+        """The Shield's hardware serial (``ro.serialno``), or None when ADB cannot report it.
+
+        Private backups are tied to it, so a new DHCP address (and an updated SHIELD_HOST) does
+        not orphan earlier snapshots. ``host:port`` stays the fallback for older manifests.
+        """
+        if self._device_id is False:
+            try:
+                value = str(self.t.shell("getprop", "ro.serialno")).strip()
+            except ShieldError:
+                value = ""
+            self._device_id = value if SERIALNO.fullmatch(value) else None
+        return self._device_id
+
+    def owner(self):
+        """Ownership fields for a new local backup manifest."""
+        owner = {"device": self.c.serial}
+        if self.device_id():
+            owner["device_id"] = self.device_id()
+        return owner
+
+    def owns(self, manifest):
+        """True when a backup manifest belongs to the configured Shield."""
+        if not isinstance(manifest, dict):
+            return False
+        saved = manifest.get("device_id")
+        current = self.device_id() if saved else None
+        if saved and current:
+            return saved == current
+        return manifest.get("device") == self.c.serial
 
     def location(self, path, must_exist=False):
         path = relative(path)
@@ -103,7 +136,7 @@ class Files:
         blob.chmod(0o600)
         manifest = self.backups / (backup_id + ".json")
         manifest.write_text(
-            json.dumps({"path": relative(path), "sha256": digest(data), "device": self.c.serial})
+            json.dumps({"path": relative(path), "sha256": digest(data), **self.owner()})
         )
         manifest.chmod(0o600)
         return backup_id
@@ -159,7 +192,7 @@ class Files:
         for p in manifests:
             try:
                 d = json.loads(p.read_text())
-                if d.get("device") == self.c.serial:
+                if self.owns(d):
                     rows.append({"backup_id": p.stem, "path": d["path"], "sha256": d["sha256"]})
             except (OSError, ValueError, KeyError, TypeError, AttributeError):
                 continue  # A corrupt manifest must not hide every other snapshot.
@@ -170,7 +203,7 @@ class Files:
             raise ShieldError("Invalid backup ID")
         try:
             info = json.loads((self.backups / (backup_id + ".json")).read_text())
-            device, path, expected = info["device"], info["path"], info["sha256"]
+            path, expected = info["path"], info["sha256"]
             data = (self.backups / (backup_id + ".bin")).read_bytes()
         except (OSError, ValueError, KeyError, TypeError):
             # Never echo local state paths; list_backups shows what can be restored.
@@ -178,7 +211,7 @@ class Files:
                 "Backup is missing or incomplete in local private storage; see kodi_backups",
                 "not_found",
             ) from None
-        if device != self.c.serial:
+        if not self.owns(info):
             raise ShieldError("Backup belongs to a different Shield")
         if len(data) > MAX_FILE or digest(data) != expected:
             raise ShieldError("Backup checksum failed")
