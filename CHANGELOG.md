@@ -13,6 +13,7 @@
 - `shield_remote`: `play_pause`/`stop` are refused when nothing is playing (they could start a background app's audio) and, with `allow_during_playback`, go to Kodi's player over JSON-RPC when Kodi is playing.
 - `kodi_lifecycle restart`: a Kodi that did not stop, or whose state could not be confirmed after force-stop, is reported as such (it previously said "Stop Kodi before editing files").
 - `kodi_set_setting` also protects settings that can leave the TV blank, silent or unreadable with no way back from the remote: `videoscreen.*`, `audiooutput.audiodevice`, `audiooutput.passthroughdevice`, `videoplayer.adjustrefreshrate` and `locale.language` (`NVIDIA_MCP_ALLOW_SETTINGS` can allow exact ids).
+- `kodi_read` also screens `XBMC.GetInfoBooleans` (`String.StartsWith(Addon.SettingStr(...),a)` was a one-character-at-a-time token oracle) and refuses skin strings/window properties whose names look like account values (`Window(Home).Property(fenlight.debrid.rd)`, `Skin.String(PVRAccessCode)`).
 - Fix a server-wide hang under mcp 1.x: a tool call that waited for the operations lock while an APK preview/apply was reporting progress blocked the event loop the progress report needed. Every blocking tool now runs in a worker thread.
 
 ## 0.4.2 — 2026-10-11 (prerelease)

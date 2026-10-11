@@ -175,12 +175,58 @@ def unsafe_plugin_route(url):
     return found
 
 
+# Words that make a skin string or window property name look like it holds an account value
+# (``Window(Home).Property(fenlight.debrid.rd)``, ``Skin.String(PVRAccessCode)``).
+STORED_SECRET_WORDS = frozenset(
+    {
+        "access",
+        "account",
+        "ad",
+        "alldebrid",
+        "apikey",
+        "auth",
+        "code",
+        "cookie",
+        "credential",
+        "credentials",
+        "debrid",
+        "email",
+        "key",
+        "login",
+        "oauth",
+        "pass",
+        "password",
+        "pin",
+        "pm",
+        "premiumize",
+        "rd",
+        "realdebrid",
+        "secret",
+        "session",
+        "tb",
+        "token",
+        "torbox",
+        "trakt",
+        "user",
+    }
+)
+STORED_VALUE = re.compile(r"(?:property|skin\.string)\(([^()]*)\)", re.I)
+
+
+def name_words(value):
+    """Lower-case words of an identifier, split on separators and camelCase."""
+    value = re.sub(r"([A-Z]+)([A-Z][a-z])", r"\1 \2", value)
+    value = re.sub(r"([a-z0-9])([A-Z])", r"\1 \2", value)
+    return [w for w in re.split(r"[^a-z0-9]+", value.lower()) if w]
+
+
 def secret_info_labels(labels):
-    """Info labels that would return add-on setting values or credential-like strings.
+    """Info labels/booleans that would read or test add-on settings or credential-like strings.
 
     Kodi 20+ ``Addon.SettingStr(addon,id)`` returns raw add-on settings (tokens included), and
     skins/add-ons keep secrets in ``Skin.String``/``Window.Property`` values. Result keys are the
-    label text, so value redaction by key cannot be relied on for these.
+    label text, so value redaction by key cannot be relied on for these. Booleans matter too:
+    ``String.StartsWith(Addon.SettingStr(...),a)`` leaks a token one character at a time.
     """
     if not isinstance(labels, list):
         return []
@@ -188,7 +234,12 @@ def secret_info_labels(labels):
     for label in labels:
         value = str(label)
         words = [w for w in re.split(r"[\s(),$\[\]]+", value) if w]
-        if re.search(r"addon\.setting", value, re.I) or any(privacy.is_secret(w) for w in words):
+        stored = [w for name in STORED_VALUE.findall(value) for w in name_words(name)]
+        if (
+            re.search(r"addon\.setting", value, re.I)
+            or any(privacy.is_secret(w) for w in words)
+            or any(w in STORED_SECRET_WORDS for w in stored)
+        ):
             found.append(value)
     return found
 
@@ -530,10 +581,13 @@ class Operations:
             )
         if len(json.dumps(params)) > 12_000:
             raise ShieldError("Parameters exceed size limit")
-        if method == "XBMC.GetInfoLabels" and secret_info_labels(params.get("labels")):
+        if (method == "XBMC.GetInfoLabels" and secret_info_labels(params.get("labels"))) or (
+            method == "XBMC.GetInfoBooleans" and secret_info_labels(params.get("booleans"))
+        ):
             raise ShieldError(
-                "Info labels that read add-on settings or credential-like skin strings/window "
-                "properties are refused; use kodi_addon_settings, which redacts credentials",
+                "Info labels or booleans that read or test add-on settings or credential-like "
+                "skin strings/window properties are refused; use kodi_addon_settings, which "
+                "redacts credentials",
                 "secret_read",
             )
         if method.startswith("VideoLibrary."):

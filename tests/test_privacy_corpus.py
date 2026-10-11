@@ -149,12 +149,40 @@ def test_keymap_key_elements_are_not_redacted():
         "Skin.String(pin)",
         "Window(Home).Property(fen.trakt.refresh)",
         "$INFO[Addon.SettingStr(plugin.video.fen,rd.auth)]",
+        "Window(Home).Property(fenlight.debrid.rd)",
+        "Skin.String(PVRAccessCode)",
+        "Window.Property(TraktUser)",
     ],
 )
 def test_info_labels_cannot_read_addon_settings_or_secrets(ops, label):
     with pytest.raises(ShieldError, match="kodi_addon_settings"):
         ops.rpc_read("XBMC.GetInfoLabels", {"labels": ["System.BuildVersion", label]})
     assert not any(c[0] == "XBMC.GetInfoLabels" for c in ops.t.calls)
+
+
+@pytest.mark.parametrize(
+    "boolean",
+    [
+        # A boolean oracle extracts a token one character at a time.
+        "String.StartsWith(Addon.SettingStr(plugin.video.fen,rd.auth),a)",
+        "String.IsEqual(Skin.String(PVRAccessCode),1234)",
+        "String.Contains(Window(Home).Property(fenlight.debrid.rd),x)",
+        "String.IsEmpty(Addon.SettingBool(plugin.video.pov,trakt.enabled))",
+    ],
+)
+def test_info_booleans_cannot_probe_addon_settings_or_secrets(ops, boolean):
+    with pytest.raises(ShieldError, match="secret_read|kodi_addon_settings") as error:
+        ops.rpc_read("XBMC.GetInfoBooleans", {"booleans": ["Player.HasVideo", boolean]})
+    assert error.value.kind == "secret_read"
+    assert not any(c[0] == "XBMC.GetInfoBooleans" for c in ops.t.calls)
+
+
+def test_ordinary_info_booleans_still_work(ops):
+    ops.rpc_read(
+        "XBMC.GetInfoBooleans",
+        {"booleans": ["Player.HasVideo", "Skin.HasSetting(HomeMenuNoMoviesButton)"]},
+    )
+    assert any(c[0] == "XBMC.GetInfoBooleans" for c in ops.t.calls)
 
 
 def test_ordinary_info_labels_still_work(ops):
