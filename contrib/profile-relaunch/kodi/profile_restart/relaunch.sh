@@ -19,7 +19,10 @@ cancel() {
 }
 trap cancel EXIT
 trap 'exit 1' TERM INT
-case "$pid:$index:$offset" in *[!0-9:]*|'') exit 1;; esac
+# Each number on its own: an empty index would otherwise write <lastloaded></lastloaded>.
+for number in "$pid" "$index" "$offset"; do
+    case "$number" in ''|*[!0-9]*) exit 1;; esac
+done
 [ "$pid" -gt 1 ] || exit 1
 umask 077
 CLASSPATH="$dex" /system/bin/app_process /system/bin KodiProfileLauncher arm "$token" > "$status.launch.log" 2>&1 || exit 1

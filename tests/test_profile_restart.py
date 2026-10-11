@@ -1,6 +1,8 @@
 import importlib.util
 import json
 import os
+import shutil
+import subprocess
 import tempfile
 import types
 import unittest
@@ -141,3 +143,54 @@ class Tests(unittest.TestCase):
             self.assertTrue(m.required())
             m.xbmc.getInfoLabel = lambda v: "22.0"
             self.assertFalse(m.required())
+
+
+SCRIPT = (
+    Path(__file__).resolve().parents[1]
+    / "contrib/profile-relaunch/kodi/profile_restart/relaunch.sh"
+)
+
+
+@unittest.skipUnless(os.name == "posix" and shutil.which("sh"), "needs a POSIX shell")
+class RelaunchArguments(unittest.TestCase):
+    """relaunch.sh must reject malformed numbers before arming or touching profiles.xml."""
+
+    def run_script(self, pid, index, offset):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            profiles = root / "profiles.xml"
+            profiles.write_text("<profiles><lastloaded>0</lastloaded></profiles>")
+            status = root / "result.json"
+            done = subprocess.run(
+                [
+                    shutil.which("sh"),
+                    str(SCRIPT),
+                    pid,
+                    index,
+                    str(profiles),
+                    str(status),
+                    str(root / "x.dex"),
+                    str(root / "kodi.log"),
+                    offset,
+                    "synthetic-token",
+                ],
+                capture_output=True,
+                timeout=20,
+                env={"PATH": "/nonexistent"},
+            )
+            touched = sorted(p.name for p in root.iterdir())
+            return done.returncode, touched, profiles.read_text()
+
+    def test_empty_or_non_numeric_arguments_exit_before_arming(self):
+        for pid, index, offset in [
+            ("4242", "", "0"),
+            ("", "1", "0"),
+            ("4242", "1", ""),
+            ("4242", "1a", "0"),
+            ("4242", "-1", "0"),
+        ]:
+            with self.subTest(pid=pid, index=index, offset=offset):
+                code, touched, profiles = self.run_script(pid, index, offset)
+                self.assertNotEqual(code, 0)
+                self.assertEqual(touched, ["profiles.xml"])  # No launch log, status or temp file.
+                self.assertIn("<lastloaded>0</lastloaded>", profiles)
