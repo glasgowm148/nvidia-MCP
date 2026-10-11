@@ -264,7 +264,7 @@ def test_layout_preview_is_immutable_profile_bound_and_expires(ops):
 @pytest.mark.parametrize("damage", ["missing", "no_blob", "bad_json", "not_a_dict"])
 def test_missing_or_damaged_backup_is_a_clean_refusal(ops, damage):
     path = "userdata/test.py"
-    (ops.c.mount / path).write_text("value = 1\n")
+    (ops.c.mount / path).write_bytes(b"value = 1\n")
     backup = "0" * 32 if damage == "missing" else ops.files.snapshot(path, ops.files.read(path))
     manifest = ops.files.backups / (backup + ".json")
     if damage == "no_blob":
