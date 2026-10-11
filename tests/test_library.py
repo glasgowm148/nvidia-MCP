@@ -1,5 +1,6 @@
 """nvidia_mcp.Shield, the library API (docs/library.md), against the replayed reference Shield."""
 
+import os
 import stat
 
 import pytest
@@ -239,7 +240,8 @@ def test_pull_bytes_and_to_a_private_file(tmp_path):
     target = tmp_path / "kodi.log"
     assert tv.pull(remote, target) == target.stat().st_size
     assert target.read_bytes() == capture("kodi-exit-hang-idle.txt").encode()
-    assert stat.S_IMODE(target.stat().st_mode) == 0o600
+    if os.name != "nt":  # Windows has no POSIX permission bits to check.
+        assert stat.S_IMODE(target.stat().st_mode) == 0o600
     with pytest.raises(ShieldError) as exc:
         tv.pull(f"{KODI_ROOT}/temp/missing.log")
     assert exc.value.kind == "not_found"
