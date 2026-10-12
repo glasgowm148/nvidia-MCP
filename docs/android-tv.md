@@ -43,6 +43,9 @@ Set `ANDROID_TV_HOST` to the device's private IP and `ANDROID_TV_ADB_PORT` to it
 port** (5555 for typical Fire OS/vendor network debugging). The legacy `SHIELD_HOST` and
 `SHIELD_ADB_PORT` work on every supported Android device too. If both names are set, they must
 agree; conflicting targets are rejected. Preserve the remaining [configuration](configuration.md).
+Set `ADB_PATH` to the installed ADB executable. Run the CLI using its virtual environment's absolute
+`nvidia-mcp` path (`nvidia-mcp.exe` on Windows); neither executable needs a global PATH edit.
+Pass these environment values to the CLI too: it does not load `.env` or your MCP client's config.
 
 For code-based Wireless debugging, first run the installed executable with:
 

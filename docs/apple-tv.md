@@ -34,7 +34,8 @@ release does not make an unknown or modified skin writable, and does not install
    agent can prepare/export the ZIP; initial installation and security settings use Kodi's UI.
 4. In Manager's Kodi settings, enable **Allow LAN access** (normally port 8765). Apple TV requires
    direct HTTP; loopback forwarding is unavailable. Enter Manager's token privately into the
-   computer configuration using the token shown in Kodi's settings. The redacted file tool cannot
+   computer configuration using **Video add-ons → Kodi Manager → Open the dashboard on another device**
+   in Kodi. This shows the full token; the settings field may be masked. The redacted file tool cannot
    recover that token. Tokens belong to the active profile; update privately after switching.
 5. When ready for paired controls, keep **Settings → Remotes and Devices → Remote App and Devices**
    open if pairing needs it. Enter each displayed PIN through the agent's private input/hidden
@@ -42,14 +43,30 @@ release does not make an unknown or modified skin writable, and does not install
 
 ## Computer setup (agent performs this)
 
-Install the reviewed release with its optional dependency:
-
-Resolve the installed environment's paths; Windows uses `.venv\Scripts\python.exe` and
-`.venv\Scripts\nvidia-mcp.exe` instead of `.venv/bin/…`.
+Use Python **3.11+**, Git and a stdio-capable MCP client on the computer. Inspect and reuse an existing
+checkout/environment without discarding local changes. For a fresh installation, clone the reviewed release:
 
 ```sh
+git clone --branch v0.5.6 https://github.com/glasgowm148/nvidia-MCP.git
+cd nvidia-MCP
+```
+
+Create the virtual environment and install the optional dependency. On macOS/Linux:
+
+```sh
+python3 -m venv .venv
 .venv/bin/python -m pip install -e '.[apple-tv]'
 ```
+
+On Windows (PowerShell):
+
+```powershell
+py -3 -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -e '.[apple-tv]'
+```
+
+Verify the selected Python is 3.11+ before creating the environment. Resolve its absolute executable
+paths; Windows uses `.venv\Scripts\nvidia-mcp.exe` instead of `.venv/bin/nvidia-mcp`.
 
 Merge an **Apple TV server entry** into the client's private configuration without replacing an
 existing Shield entry. Each server instance targets one explicit host; do not scan the LAN.
@@ -69,13 +86,18 @@ Remove Android/Shield host values from this entry. Conflicting host values and a
 route are rejected. No ADB/SDK Build Tools installation is needed. Existing Shield entries should
 keep their current environment and backend.
 
-Run both pairing actions sequentially using that private environment, outside MCP:
+Run both pairing actions sequentially using that private environment, outside MCP. These macOS/Linux
+commands run from the checkout; use the resolved `.venv\Scripts\nvidia-mcp.exe` path on Windows:
 
 ```sh
-nvidia-mcp --pair-apple-tv Companion
-nvidia-mcp --pair-apple-tv AirPlay
-nvidia-mcp --doctor
+.venv/bin/nvidia-mcp --pair-apple-tv Companion
+.venv/bin/nvidia-mcp --pair-apple-tv AirPlay
+.venv/bin/nvidia-mcp --doctor
 ```
+
+Pass the table's environment values to each CLI process as well as the registered MCP server.
+The CLI does not read `.env` or your MCP client's saved configuration automatically. Keep secrets
+out of shell commands and output; use the agent's private environment/input mechanism.
 
 The CLI reads four-digit PINs with hidden terminal input or private stdin; it merges both secrets
 into an atomically saved 0600 file and prints no secret. PINs never go in command arguments. Input runs on the calling terminal thread so Ctrl-C/EOF closes pairing without leaving a blocked executor reader. Pairing

@@ -1,5 +1,10 @@
 # Library API
 
+Install the server package in a Python 3.11+ virtual environment using [agent setup](agent-setup.md).
+For `AppleTV`, install the optional `apple-tv` dependency using [Apple TV setup](apple-tv.md#computer-setup-agent-performs-this).
+Run these examples with the installed environment's Python; importing the library alone does not
+configure credentials or install Kodi Manager on the TV.
+
 For Apple TV, use `AppleTV(Config(host="PRIVATE_IP", platform="apple_tv", ...))` or
 `AppleTV.from_env()` with an Apple TV environment. The same `operations` object supplies
 Kodi/Manager skin/settings/widget/backup contracts. `kodi_alive()` means HTTP responsiveness,

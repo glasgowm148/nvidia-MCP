@@ -30,6 +30,15 @@ specific action; resume installation/verification afterward. Avoid reinstalling 
 ## 2. Install the local server
 
 Run from the checkout. Resolve the commands to the actual installed Python/executable paths.
+For a fresh installation, clone the reviewed release first (these Git commands work on all three OSes):
+
+```sh
+git clone --branch v0.5.6 https://github.com/glasgowm148/nvidia-MCP.git
+cd nvidia-MCP
+```
+
+For an existing checkout, inspect its branch and local changes before selecting the release;
+do not discard customizations to make it match these commands.
 
 Mac/Linux:
 
@@ -42,7 +51,7 @@ Windows:
 
 ```powershell
 py -3 -m venv .venv
-.venv\Scripts\python.exe -m pip install -e .
+.\.venv\Scripts\python.exe -m pip install -e .
 ```
 
 Verify the selected interpreter is 3.11+ before creating the environment. If `.venv` already exists,
@@ -64,8 +73,9 @@ tool with proper quoting; do not scan the LAN. Fire OS/Shield network debugging 
 set `ANDROID_TV_ADB_PORT`. Confirm Android-based Fire OS rather than Vega OS.
 
 For code-based Android Wireless debugging, obtain the separate pairing port from the open TV
-pairing dialog. Run the installed `nvidia-mcp --pair-adb PAIRING_PORT` with `ANDROID_TV_HOST`
-in the subprocess environment, sending the six-digit code plus newline via private stdin. A
+pairing dialog. Run the installed **absolute MCP executable** with `--pair-adb PAIRING_PORT` and set
+`ANDROID_TV_HOST`, `ANDROID_TV_ADB_PORT` and the resolved `ADB_PATH` in its subprocess environment
+before pairing; a separately downloaded ADB need not be on PATH. Send the six-digit code plus newline via private stdin. A
 local terminal can use the hidden prompt. Never put the code in arguments, logs, saved config or
 an MCP tool call. Then `adb connect` the connection port; do not use the pairing port for normal
 commands. See [Android TV / Fire TV setup](android-tv.md).

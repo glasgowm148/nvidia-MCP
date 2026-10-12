@@ -87,6 +87,8 @@ The optional [Kodi Manager companion](companion.md) adds live skin/settings APIs
 it separately if those features are needed.
 
 If the router later changes the TV's address, find it again using step 1 and tell the agent to update
-the saved connection. Earlier private backups stay available: they are tied to the device's serial
-number, not its address. The agent can explain your router's DHCP reservation option if you want a
-stable IP.
+the saved connection. Snapshots with a recorded hardware serial remain tied to that device after
+an address change. Older snapshots, or file snapshots made without ADB identity, are tied to their
+recorded host/port and may refuse at the new address. Inspect their ownership instead of bypassing it.
+See [backup ownership](configuration.md#storage-and-platform-limits). A router DHCP reservation can
+keep the address stable.

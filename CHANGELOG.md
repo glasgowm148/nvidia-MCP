@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Complete fresh Apple TV installation and CLI environment/path instructions; correct the sample Manager minimum and backup-ownership guidance, and document private token entry when storage is blocked.
 - Shorten the project and profile-helper READMEs, add a documentation index, move the generated tool catalogue to `docs/tools.md`, and correct outdated setup/build examples. Runtime and bundled companion are unchanged.
 
 ## 0.5.6 — 2026-10-12 (prerelease)

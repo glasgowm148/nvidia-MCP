@@ -37,6 +37,8 @@ the computer work below; the user only needs TV actions the agent cannot perform
    available file access. Capture/parse it in a local process without printing it in tool output, then
    write it to private client configuration. It differs from Kodi HTTP credentials; MCP's redacted
    file-read output intentionally cannot supply its raw value.
+   If file access is blocked, use **Video add-ons → Kodi Manager → Open the dashboard on another device**
+   on the TV and enter the displayed token through private input. Do not bypass Android storage permissions.
 6. **Agent:** merge `KODI_MANAGER_TOKEN` and optionally `KODI_MANAGER_PORT` into the private MCP client
    configuration, reload the connection and verify layout/pipeline reads. No user JSON editing is needed.
 7. For requested changes, enable both the Manager service's write mode and `NVIDIA_MCP_ALLOW_WRITES=1`.
