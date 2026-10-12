@@ -1,5 +1,16 @@
 # Verification
 
+## 0.5.4 backup audit (2026-10-12)
+
+Manager 0.7.22 regressions reproduce failed self-restore rollback after a concurrent access
+change on POSIX and virtual storage, for both add-on and checkpoint restore. Aliased backup
+paths keep XML in virtual storage across backup/restore/undo. Missing virtual backup keys
+refuse physical shadows before any live change. No live TV mutations or physical Apple TV
+validation. Existing pairing, guard and tool-count tests remain required; inspect actual CI
+for the full Windows matrix. Local checks passed 784 Manager Python tests (one environment
+skip), 98 UI tests and 608 MCP tests plus 5 subtests with the optional SDK installed.
+Release checks verify the exact public Manager ZIP and isolated wheel behavior.
+
 ## 0.5.3 additional audit pass (2026-10-12)
 
 Synthetic regressions cover private pairing with explicit SDK debug levels, new SDK loggers,

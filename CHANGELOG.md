@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.5.4 — 2026-10-12 (prerelease)
+
+- Bundle Manager 0.7.22: failed self-restore rollback preserves live access/identity, and aliased tvOS backup paths keep XML in virtual storage.
+- Clarify older alias-affected snapshot refusal and fresh-backup guidance. No MCP tool/backend contract changes; retain private pairing traces, Android defaults and reviewed layout gates. Physical Apple TV validation remains pending.
+
 ## 0.5.3 — 2026-10-12 (prerelease)
 
 - Silence pyatv's PIN/key logs throughout private pairing, including when debug logging is enabled. Restore prior logger levels after success, cancellation or failure; retain unrelated application logs.

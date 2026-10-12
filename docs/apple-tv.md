@@ -119,6 +119,11 @@ important text to private computer snapshots before risky work; per-file snapsho
 restored automatically on tvOS, and do not back up the IPA or entire app container.
 Never uninstall Kodi to obtain a clean slate without an independent backup.
 
+Manager 0.7.22 preserves translated backup paths for virtual XML under directory aliases and
+keeps live access/identity untouched during failed restore rollback. Take a fresh validated
+snapshot after updating: older alias-affected physical XML snapshots may fail completeness
+checks. Retained files stay intact; keep independent private recovery copies.
+
 The persistent Manager ID binds local snapshots to that Manager instance, not a hardware serial.
 Deleting its userdata, reinstalling Kodi or cloning its preferences affects identity; reconnect
 and inspect rather than bypassing ownership checks. Active-profile/add-on text reads use simple

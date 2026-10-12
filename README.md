@@ -19,7 +19,7 @@
 **Local MCP tools for Kodi on NVIDIA Shield, Android TV, Google TV and Android-based Fire TV, with experimental Apple TV support.** Give your assistant the tools to inspect your setup, diagnose playback problems, adjust settings and apply reversible repairs from your computer. Works over your home network on macOS, Windows and Linux, with an MCP client that supports stdio. No cloud account is required for the server.
 
 > [!NOTE]
-> **Alpha / prerelease (0.5.3).** Start with read-only access. See [tested compatibility](docs/compatibility.md)
+> **Alpha / prerelease (0.5.4).** Start with read-only access. See [tested compatibility](docs/compatibility.md)
 > and [verification evidence](docs/verification.md) before using repair or upgrade tools.
 
 ## What you can do
@@ -36,7 +36,7 @@
 
 The bundled repair playbook covers profiles, audio, autoplay, source priorities, skin widgets and stale stream URLs. It helps distinguish **installed**, **enabled**, **configured** and **actually used**. It is available as the `nvidia://playbook` resource and `audit_kodi` prompt.
 
-**New in 0.5.3:** The follow-up audit suppresses private pairing PIN/key debug logs and bundles fixes for nested-profile reads and Siri Remote XML storage. Apple TV reuses the Kodi/Manager skin, settings, widget, backup and undo workflows. Optional private Companion/AirPlay pairing adds launch, installed-app listing, Home and power. Android-only tools are omitted on tvOS. Hardware validation is pending; see the [Apple TV setup and parity table](docs/apple-tv.md). Shield configuration stays the default.
+**New in 0.5.4:** The backup audit bundles Manager fixes for access preservation during failed restore rollback and virtual XML snapshots under aliased tvOS storage paths. Apple TV reuses the Kodi/Manager skin, settings, widget, backup and undo workflows. Optional private Companion/AirPlay pairing adds launch, installed-app listing, Home and power. Android-only tools are omitted on tvOS. Hardware validation is pending; see the [Apple TV setup and parity table](docs/apple-tv.md). Shield configuration stays the default.
 
 ## Quick start
 
@@ -110,7 +110,7 @@ See [device support and evidence](docs/android-tv.md). Core diagnostics and file
 
 *Optional companion dashboard, captured from the public UI with synthetic demo data. The MCP server itself is a stdio service.*
 
-The MCP distribution includes a pinned **Kodi Manager 0.7.21** ZIP (built from the source commit pinned in the bundled manifest, checksum-verified). Your agent can export it with `nvidia-mcp --export-manager ./companion`, verify it and transfer it to the TV. Install through Kodi's native **Install from zip file**, then let the agent configure the connection. Follow the [companion setup guide](docs/companion.md).
+The MCP distribution includes a pinned **Kodi Manager 0.7.22** ZIP (built from the source commit pinned in the bundled manifest, checksum-verified). Your agent can export it with `nvidia-mcp --export-manager ./companion`, verify it and transfer it to the TV. Install through Kodi's native **Install from zip file**, then let the agent configure the connection. Follow the [companion setup guide](docs/companion.md).
 
 Apple TV skin/file management needs **Manager 0.7.17+** and direct authenticated HTTP. Pairing uses the optional open-source `pyatv` computer dependency; no proprietary connector. Its guards require reported idle media and confirmed active Kodi; unknown state blocks changes. APK installs, offline file writes, screenshots, logcat and force-stop are unavailable.
 

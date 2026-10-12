@@ -17,7 +17,7 @@ For **Apple TV**, follow [Apple TV computer setup](apple-tv.md#computer-setup-ag
   and a dedicated virtual environment; preserve the user's system Python and other projects.
 - Reuse an existing suitable nvidia-MCP checkout. Inspect its state before updating; preserve local
   changes. Otherwise clone this repo to an appropriate user-owned workspace.
-  For a released install, prefer tag **v0.5.3** (or a newer reviewed release) rather than an
+  For a released install, prefer tag **v0.5.4** (or a newer reviewed release) rather than an
   unreviewed moving `main`. Downloading GitHub's Source code ZIP alone does not register an MCP server.
 
 Use the [official Python downloads](https://www.python.org/downloads/),
