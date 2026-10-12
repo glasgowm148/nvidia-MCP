@@ -6,13 +6,37 @@ The persistent event loop belongs to this transport and is closed with it.
 
 import asyncio
 import json
+import logging
 import os
 import re
 import threading
 import uuid
+from contextlib import contextmanager
 from ipaddress import IPv4Address
 
 from .config import ShieldError
+
+_PAIR_LOG_LOCK = threading.RLock()
+
+
+@contextmanager
+def private_pairing_logs():
+    """pyatv debug traces include PINs/keys; silence its namespace during pairing."""
+    with _PAIR_LOG_LOCK:
+        package = logging.getLogger("pyatv")
+        loggers = [package] + [
+            value
+            for name, value in list(logging.root.manager.loggerDict.items())
+            if name.startswith("pyatv.") and isinstance(value, logging.Logger)
+        ]
+        levels = [(logger, logger.level) for logger in loggers]
+        try:
+            for logger in loggers:
+                logger.setLevel(logging.CRITICAL + 1)
+            yield  # Newly imported SDK loggers inherit the silent package level.
+        finally:
+            for logger, level in levels:
+                logger.setLevel(level)
 
 
 class AppleBridge:
@@ -269,6 +293,10 @@ class AppleBridge:
         self._run(send)
 
     def pair(self, protocol, read_pin):
+        with private_pairing_logs():
+            return self._pair(protocol, read_pin)
+
+    def _pair(self, protocol, read_pin):
         if protocol not in ("Companion", "AirPlay"):
             raise ShieldError("Choose Companion or AirPlay for pairing", "pairing_invalid")
 

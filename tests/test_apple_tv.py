@@ -9,7 +9,7 @@ from urllib.parse import parse_qs, urlsplit
 import pytest
 from conftest import FakeTransport
 
-from nvidia_mcp.apple_bridge import AppleBridge
+from nvidia_mcp.apple_bridge import AppleBridge, private_pairing_logs
 from nvidia_mcp.apple_tv import AppleOperations, AppleTransport, make_operations
 from nvidia_mcp.config import Config, ShieldError
 from nvidia_mcp.files import digest
@@ -353,6 +353,78 @@ def test_pairing_failure_does_not_echo_sdk_secrets(paired_bridge, monkeypatch):
     with pytest.raises(ShieldError) as error:
         bridge.pair("Companion", lambda: "7751")
     assert "synthetic-secret" not in str(error.value)
+
+
+@pytest.mark.parametrize("fail", [False, True])
+def test_private_pairing_suppresses_sdk_pin_and_key_logs(paired_bridge, caplog, monkeypatch, fail):
+    import logging
+
+    bridge, _target, calls = paired_bridge
+    sdk, _names, _states, _protocols = bridge.sdk()
+    original_pair = sdk.pair
+    logger = logging.getLogger("pyatv.protocols.companion.pairing")
+    package = logging.getLogger("pyatv")
+    monkeypatch.setattr(logger, "level", logging.DEBUG)
+    monkeypatch.setattr(package, "level", logging.WARNING)
+    caplog.set_level(logging.DEBUG)
+
+    async def noisy_pair(*args):
+        handler = await original_pair(*args)
+        original_pin = handler.pin
+
+        def pin(value):
+            logger.debug("Companion PIN changed to %04d", value)
+            original_pin(value)
+
+        async def finish():
+            # A logger first created inside pairing inherits the silent package.
+            logging.getLogger("pyatv.synthetic_new_pairing_logger").error("synthetic-new-key")
+            logger.error("synthetic-private-pair-secret")
+            logging.getLogger("synthetic_application").warning("application log retained")
+            if fail:
+                raise ValueError("synthetic-private-pair-secret")
+
+        handler.pin, handler.finish = pin, finish
+        return handler
+
+    sdk.pair = noisy_pair
+    if fail:
+        with pytest.raises(ShieldError):
+            bridge.pair("Companion", lambda: "0751")
+        assert not bridge.c.apple_credentials.exists()
+    else:
+        assert bridge.pair("Companion", lambda: "0751")["paired"] == "Companion"
+        assert bridge.credentials()["services"]["Companion"] == "synthetic-private-pair-secret"
+    assert ("pin", 751) in calls and ("closed",) in calls
+    assert (
+        "0751" not in caplog.text
+        and "synthetic-private" not in caplog.text
+        and "synthetic-new-key" not in caplog.text
+    )
+    assert "application log retained" in caplog.text
+    assert logger.level == logging.DEBUG and package.level == logging.WARNING
+
+
+@pytest.mark.parametrize("protocol", ["companion", "airplay"])
+def test_installed_sdk_pin_logs_are_private_and_keep_leading_zero(protocol, caplog):
+    import importlib
+    import logging
+
+    pytest.importorskip("pyatv")
+    module = importlib.import_module("pyatv.protocols." + protocol + ".pairing")
+    handler_type = getattr(
+        module, {"companion": "Companion", "airplay": "AirPlay"}[protocol] + "PairingHandler"
+    )
+    handler = handler_type.__new__(handler_type)  # No network/core required by pin().
+    logger = logging.getLogger(module.__name__)
+    caplog.set_level(logging.DEBUG, logger=logger.name)
+    handler.pin(751)
+    assert "0751" in caplog.text  # Demonstrate the installed SDK's actual trace.
+    caplog.clear()
+    with private_pairing_logs():
+        handler.pin(751)
+    assert handler.pin_code == "0751" and "0751" not in caplog.text
+    assert logger.level == logging.DEBUG
 
 
 def test_apple_library_uses_same_backend_without_android_access(apple):

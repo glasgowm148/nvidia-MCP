@@ -1,5 +1,19 @@
 # Verification
 
+## 0.5.3 additional audit pass (2026-10-12)
+
+Synthetic regressions cover private pairing with explicit SDK debug levels, new SDK loggers,
+leading-zero PINs and failed authentication. Installed pyatv 0.16.1 Companion/AirPlay
+PIN methods also verify that the actual SDK debug trace is hidden without losing PIN padding. PIN/key traces are suppressed; unrelated logs and
+previous SDK logger levels survive. Manager 0.7.21 tests configured nested-profile boundaries and
+Siri Remote XML physical read/write/backup/delete routing, including aliased master userdata
+paths for virtual profile configuration. Release checks verify the exact public
+Manager ZIP embedded in the MCP wheel. Physical Apple TV validation remains pending; no live TV
+mutations were performed. Local validation passed 608 MCP tests plus 5 subtests with the
+optional SDK installed; Manager passed 778 Python tests (one environment skip), 98 UI tests,
+Python 3.8 types and deterministic ZIP/isolated wheel recovery checks. Inspect actual release
+CI before claiming a complete Windows matrix.
+
 ## 0.5.2 final audit follow-up (2026-10-12)
 
 Private PIN tests verify calling-thread input and Ctrl-C cleanup without saving credentials. The full MCP suite passes 604 tests plus 5 subtests with the optional SDK installed.

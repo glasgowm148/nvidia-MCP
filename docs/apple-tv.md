@@ -79,7 +79,8 @@ nvidia-mcp --doctor
 
 The CLI reads four-digit PINs with hidden terminal input or private stdin; it merges both secrets
 into an atomically saved 0600 file and prints no secret. PINs never go in command arguments. Input runs on the calling terminal thread so Ctrl-C/EOF closes pairing without leaving a blocked executor reader. Pairing
-does not enable write mode. Both protocols are required for the paired playback/power guard.
+suppresses the pyatv logging namespace during pairing, including PIN/key debug traces, and restores
+its previous log levels after success or failure. Pairing does not enable write mode. Both protocols are required for the paired playback/power guard.
 `shield_apps` lists installed bundle IDs; confirm Kodi's ID instead of guessing `org.xbmc.kodi`.
 Start with `kodi_status`, `shield_connection` and `kodi_manager_inspect(area='layout')`.
 
@@ -111,7 +112,8 @@ terminated; a launch request is not readiness. Hung exits need manual TV recover
 Kodi stores tvOS userdata XML in its virtual filesystem/NSUserDefaults. Manager writes each XML
 preference in one operation, verifies it and rolls back on failure. POSIX rename/SMB copies of
 that userdata XML can read stale physical shadows, so they are not a configuration backup.
-Non-XML data, directories, cache databases and backup manifests can be purged by tvOS. Manager's
+Kodi keeps `customcontroller.SiriRemote*.xml` as physical files; Manager 0.7.20 handles that
+exception. Non-XML data, directories, cache databases and backup manifests can be purged by tvOS. Manager's
 on-device snapshots are useful undo points, **not a durable disaster-recovery backup**. Copy
 important text to private computer snapshots before risky work; per-file snapshots cannot be
 restored automatically on tvOS, and do not back up the IPA or entire app container.

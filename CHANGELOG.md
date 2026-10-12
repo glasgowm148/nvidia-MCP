@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.3 — 2026-10-12 (prerelease)
+
+- Silence pyatv's PIN/key logs throughout private pairing, including when debug logging is enabled. Restore prior logger levels after success, cancellation or failure; retain unrelated application logs.
+- Bundle Manager 0.7.21 with nested-profile read confinement and Kodi's physical Siri Remote XML exception. Add regressions for both successful and failed noisy pairing.
+- Preserve Android/Shield defaults, tool contracts and reviewed layout gates. Physical Apple TV validation remains pending.
+
 ## 0.5.2 — 2026-10-12 (prerelease)
 
 - Read private pairing PINs on the calling terminal thread so Ctrl-C/EOF can restore terminal input and close pairing; avoid executor workers stuck on stdin during shutdown.
