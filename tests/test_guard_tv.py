@@ -97,7 +97,7 @@ def test_extra_launchers_from_env(monkeypatch, ops):
 def test_single_launcher_set_and_pidof_helper():
     source = Path(__file__).parents[1] / "src" / "nvidia_mcp"
     text = "".join(p.read_text() for p in source.glob("*.py"))
-    assert text.count("pidof ") == 1
+    assert text.count("def pids(") == 1
     assert text.count("com.google.android.tvlauncher") == 1
     assert "com.google.android.tvlauncher" in LAUNCHERS
 

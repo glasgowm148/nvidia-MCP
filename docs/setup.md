@@ -2,7 +2,11 @@
 
 Your part is the **TV settings and permission prompt**. An agent with terminal/file access handles
 downloads, installation, commands and MCP configuration on the computer. Both devices should be on
-the same home network; the Shield can use Ethernet while the computer uses Wi-Fi.
+the same home network; the TV can use Ethernet while the computer uses Wi-Fi.
+
+For **Android TV / Google TV or Android-based Fire TV**, follow [device-specific preparation](android-tv.md)
+for IP/debugging menus and pairing ports, then continue at **step 3** below. Vega OS devices are
+unsupported. Steps 1–2 below are the Shield reference menus.
 
 ## 1. Find the Shield's IP — on the TV
 
@@ -48,8 +52,11 @@ Replace the IP and port below; the agent can resolve the operating system, paths
 ```text
 Set up https://github.com/glasgowm148/nvidia-MCP on this computer.
 Read docs/agent-setup.md and complete the computer setup automatically.
-The TV is prepared: Shield network debugging and Kodi HTTP control are enabled.
-Shield IP: YOUR_SHIELD_IP
+TV model / OS: YOUR_MODEL_AND_OS
+ADB mode: network debugging or paired Wireless debugging
+TV IP: YOUR_TV_IP
+ADB connection port: YOUR_ADB_PORT
+Kodi HTTP control is enabled.
 Kodi HTTP port: 8080
 Ask privately for the Kodi username/password if needed.
 Install any missing dependencies, connect ADB, preserve my existing MCP servers,
@@ -64,20 +71,20 @@ to hand this task to one that has it; the MCP server cannot bootstrap itself bef
 
 ## 5. Approve the connection when the agent tells you — on the TV
 
-The first computer connection triggers a debugging dialog on the Shield. Select **Allow**. Optionally
+The first computer connection triggers a debugging dialog on the TV (already-paired Wireless debugging may not show another dialog). Select **Allow**. Optionally
 select **Always allow from this computer** if it is your own trusted computer. The dialog may say
 USB debugging even though the connection is over the network.
 
 Tell the agent you have approved it; the agent checks authorization, Kodi connectivity and MCP tools.
-If no prompt appears, keep the Shield awake and let the agent troubleshoot before changing more settings.
+If no prompt appears, keep the TV awake and let the agent troubleshoot before changing more settings.
 An operating-system permission prompt or a client restart may also need your interaction if the agent
 cannot handle it through its available tools.
 
-After setup, ask: **“Read the Shield repair playbook and audit Kodi without interrupting anything.”**
+After setup, ask: **“Read the Kodi repair playbook and audit Kodi without interrupting anything.”**
 The optional [Kodi Manager companion](companion.md) adds live skin/settings APIs; the agent can prepare
 it separately if those features are needed.
 
-If the router later changes the Shield's address, find it again using step 1 and tell the agent to update
-the saved connection. Earlier private backups stay available: they are tied to the Shield's serial
+If the router later changes the TV's address, find it again using step 1 and tell the agent to update
+the saved connection. Earlier private backups stay available: they are tied to the device's serial
 number, not its address. The agent can explain your router's DHCP reservation option if you want a
 stable IP.

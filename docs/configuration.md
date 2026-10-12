@@ -1,5 +1,7 @@
 # Configuration and operation rules
 
+For Android TV, Google TV and Fire OS menus, pairing codes and OS limits, see [device setup](android-tv.md).
+
 The [agent setup guide](agent-setup.md) explains where to put these values in your MCP client's
 private server configuration. The server does **not** load `.env` automatically. Never commit a
 filled configuration or print account credentials into diagnostic output.
@@ -8,8 +10,8 @@ filled configuration or print account credentials into diagnostic output.
 
 | Variable | Default | Meaning |
 | --- | --- | --- |
-| `SHIELD_HOST` | required | Private LAN IP; one device per server instance |
-| `SHIELD_ADB_PORT` | `5555` | Shield network debugging port |
+| `ANDROID_TV_HOST` / `SHIELD_HOST` | required | Private LAN IP; one Android TV / Fire OS device per instance; conflicting aliases are rejected |
+| `ANDROID_TV_ADB_PORT` / `SHIELD_ADB_PORT` | `5555` | ADB connection port; paired Wireless debugging can use a dynamic port; conflicting aliases are rejected |
 | `ADB_PATH` | `adb` | Platform Tools executable |
 | `AAPT2_PATH` | `aapt2` | Optional SDK Build Tools metadata executable; needed for APK tools |
 | `APKSIGNER_PATH` | `apksigner` | Optional SDK signature verifier or `lib/apksigner.jar` |

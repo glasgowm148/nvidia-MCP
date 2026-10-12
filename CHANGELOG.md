@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.4.9 — 2026-10-12 (prerelease)
+
+- Extend device scope to Android TV / Google TV and Android-based Fire OS. Keep existing
+  package/tool names; add `AndroidTV` library alias and `ANDROID_TV_HOST` / `ANDROID_TV_ADB_PORT`
+  configuration names, rejecting conflicting legacy aliases.
+- Recognize Amazon’s home launcher and legacy focused-activity dumps without overriding modern
+  resumed state. Keep paused/background media guards; unreadable active media blocks changes.
+- Fall back to bounded SDK-appropriate process listings when older Android lacks `pidof`;
+  malformed/unknown process state cannot masquerade as a stopped app.
+- Add `--pair-adb PAIRING_PORT`: pair only the configured host using a six-digit secret via
+  hidden terminal input/private stdin, never command arguments or echoed ADB errors. Separate
+  pairing from connection readiness; no pairing tool is exposed through MCP.
+- Document vendor debugging menus, dynamic ports, storage/ABI limits, synthetic versus physical
+  testing, and unsupported Vega OS Firesticks. Bundle public Kodi Manager 0.7.14.
+
 ## 0.4.8 — 2026-10-12 (prerelease)
 
 - Fix `kodi_addons`: `type` is returned automatically by Kodi, but is not a valid requested

@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/images/banner.svg" alt="nvidia-MCP — Your Shield. Your assistant. Local control." width="100%">
+  <img src="docs/images/banner.svg" alt="nvidia-MCP — Your TV. Your assistant. Local control." width="100%">
 </p>
 
 <p align="center">
@@ -16,17 +16,17 @@
   <a href="#documentation">Documentation</a>
 </p>
 
-**Local MCP tools for NVIDIA Shield TV and Kodi.** Give your assistant the tools to inspect your setup, diagnose playback problems, adjust settings and apply reversible repairs from your computer. Works over your home network on macOS, Windows and Linux, with an MCP client that supports stdio. No cloud account is required for the server.
+**Local MCP tools for Kodi on NVIDIA Shield, Android TV, Google TV and Android-based Fire TV.** Give your assistant the tools to inspect your setup, diagnose playback problems, adjust settings and apply reversible repairs from your computer. Works over your home network on macOS, Windows and Linux, with an MCP client that supports stdio. No cloud account is required for the server.
 
 > [!NOTE]
-> **Alpha / prerelease (0.4.8).** Start with read-only access. See [tested compatibility](docs/compatibility.md)
+> **Alpha / prerelease (0.4.9).** Start with read-only access. See [tested compatibility](docs/compatibility.md)
 > and [verification evidence](docs/verification.md) before using repair or upgrade tools.
 
 ## What you can do
 
 | Task | What the assistant can inspect or do | Connection |
 | --- | --- | --- |
-| Diagnose the Shield | Connection readiness, installed apps, bounded logs and screenshots | ADB |
+| Diagnose the TV | Connection readiness, installed apps, bounded logs and screenshots | ADB |
 | Understand Kodi | Version, skin, active profile, playback state and installed add-ons | Kodi HTTP |
 | Investigate playback | Read redacted logs and relevant profile settings | ADB or mounted storage |
 | Explore widget sources | Preview one page of an installed add-on's folders | Kodi HTTP; browsing opt-in |
@@ -38,18 +38,21 @@ The bundled repair playbook covers profiles, audio, autoplay, source priorities,
 
 ## Quick start
 
-**You prepare the TV. Your agent handles the computer.** Use an agent with terminal/file access; the computer and Shield must be on the same home network.
+**You prepare the TV. Your agent handles the computer.** Use an agent with terminal/file access; the computer and TV must be on the same home network.
 
-### 1. Prepare the Shield and Kodi
+### 1. Prepare your TV and Kodi
 
-| On the TV | Where to go | What to do |
-| --- | --- | --- |
-| Find the Shield IP | **Home → Settings gear → Device Preferences → About → Status → IP address** | Note the local IPv4 address, such as `192.168.1.50`. Use yours. |
-| Unlock developer options | **Settings → Device Preferences → About → Build** | Press the remote's centre/select button **seven times**. |
-| Enable network debugging | Back to **Device Preferences → Developer options → Debugging** | Turn **Network debugging** on. |
-| Enable Kodi control | Inside Kodi: **Settings → Services → Control** | Enable **Allow remote control via HTTP** and **Require authentication**. Set a username/password and note the port, usually `8080`. |
+| Device | ADB preparation |
+| --- | --- |
+| NVIDIA Shield | Unlock Build with seven presses; enable Network debugging, normally port 5555 |
+| Android TV / Google TV | Vendor Network debugging or paired Wireless debugging; use the displayed connection port |
+| Fire TV / Firestick running Fire OS | My Fire TV → Developer Options → ADB Debugging, normally port 5555 |
 
-Older firmware may put **About** directly under Settings. If Kodi hides the control options, select the **Standard** or **Expert** settings level. Leave the Shield awake and Kodi open. The [TV preparation guide](docs/setup.md) has full directions and troubleshooting.
+Find the TV’s private IP, then inside Kodi enable **Settings → Services → Control → Allow remote
+control via HTTP**, require authentication and note the port (usually 8080). Leave Kodi open.
+The [TV preparation guide](docs/setup.md) and [Android TV / Fire TV guide](docs/android-tv.md) give
+menu steps and pairing instructions. **Vega OS Firesticks are unsupported**: check
+[Amazon’s OS table](https://developer.amazon.com/docs/fire-tv/fire-os-overview.html).
 
 ### 2. Give this prompt to your agent
 
@@ -58,8 +61,11 @@ Replace the IP and port. Provide Kodi credentials privately when requested.
 ```text
 Set up https://github.com/glasgowm148/nvidia-MCP on this computer.
 Read docs/agent-setup.md and complete the computer setup automatically.
-Shield network debugging and Kodi HTTP control are enabled.
-Shield IP: YOUR_SHIELD_IP
+TV model / OS: YOUR_MODEL_AND_OS
+ADB mode: network debugging or paired Wireless debugging
+TV IP: YOUR_TV_IP
+ADB connection port: YOUR_ADB_PORT
+Kodi HTTP control is enabled.
 Kodi HTTP port: 8080
 Ask privately for the Kodi username/password if needed.
 Install missing dependencies, connect ADB, preserve my existing MCP servers,
@@ -71,9 +77,9 @@ Keep write mode and plugin browsing off; do not interrupt playback.
 
 ### 3. Approve the connection on the TV
 
-When the agent connects, select **Allow** on the Shield's debugging prompt. Optionally select **Always allow from this computer** for your trusted computer. Tell the agent you have approved it.
+When the agent connects, select **Allow** on the TV's debugging prompt. Optionally select **Always allow from this computer** for your trusted computer. Tell the agent you have approved it.
 
-Then try: **“Read the Shield repair playbook and audit Kodi without interrupting anything.”**
+Then try: **“Read the Kodi repair playbook and audit Kodi without interrupting anything.”**
 
 Use a computer-side MCP client that supports **local stdio servers** and an agent with computer
 access for installation. A normal browser chat cannot launch this server by itself. No Python or
@@ -85,10 +91,12 @@ client, authorization, network and missing-tool problems.
 ```mermaid
 flowchart LR
     A[Your assistant] -->|MCP · stdio| B[nvidia-MCP on your computer]
-    B -->|ADB + Kodi HTTP| C[NVIDIA Shield / Kodi]
+    B -->|ADB + Kodi HTTP| C[Android TV or Fire OS / Kodi]
     B -.->|Optional live settings and layout API| D[Kodi Manager inside Kodi]
 ```
- The server targets **one configured Shield**. Core diagnostics and file repairs work without the companion. Credentials and recovery backups stay in your local configuration/storage.
+ The server targets **one configured Android device**. The public ADB/Kodi interfaces need no proprietary connector. Legacy `shield_*` tool names remain
+compatible; `ANDROID_TV_HOST` / `ANDROID_TV_ADB_PORT` also accept existing `SHIELD_*` names.
+See [device support and evidence](docs/android-tv.md). Core diagnostics and file repairs work without the companion. Credentials and recovery backups stay in your local configuration/storage.
 
 ## Optional Kodi Manager companion
 
@@ -98,7 +106,7 @@ flowchart LR
 
 *Optional companion dashboard, captured from the public UI with synthetic demo data. The MCP server itself is a stdio service.*
 
-The MCP distribution includes a pinned **Kodi Manager 0.7.13** ZIP (built from the source commit pinned in the bundled manifest, checksum-verified). Your agent can export it with `nvidia-mcp --export-manager ./companion`, verify it and transfer it to the Shield. Install through Kodi's native **Install from zip file**, then let the agent configure the connection. Follow the [companion setup guide](docs/companion.md).
+The MCP distribution includes a pinned **Kodi Manager 0.7.14** ZIP (built from the source commit pinned in the bundled manifest, checksum-verified). Your agent can export it with `nvidia-mcp --export-manager ./companion`, verify it and transfer it to the TV. Install through Kodi's native **Install from zip file**, then let the agent configure the connection. Follow the [companion setup guide](docs/companion.md).
 
 Kodi Manager 0.4+ is supported; the widget-cache tools need 0.6+. Older installations should be upgraded; back up customized installations before replacing them. Layout writes require reviewed **Bingie 2.0.2 / Skin Shortcuts 2.0.3 source hashes**; unknown variants remain view-only. Installing the Python library alone does not install the TV service.
 
@@ -120,7 +128,7 @@ tools. *No TV changes* tools write only private local state or run opt-in, idle-
 | --- | --- | --- | --- |
 | `kodi_addon_settings` | Add-on settings | read-only | Search/page redacted settings in the active profile; Manager includes schema/defaults, otherwise saved XML only. |
 | `kodi_addons` | Kodi add-ons | read-only | List installed add-on IDs, versions and enabled states; enabled is not proof of use/authentication. |
-| `kodi_backup_file` | Back up Kodi file | read-only | Save a private local rollback snapshot of one Kodi file. Does not modify the Shield. |
+| `kodi_backup_file` | Back up Kodi file | read-only | Save a private local rollback snapshot of one Kodi file. Does not modify the TV. |
 | `kodi_backups` | Kodi file backups | read-only | List the latest 50 private per-file snapshots without exposing their contents. |
 | `kodi_browse` | Browse Kodi folder | no TV changes | Preview one page of actual provider/library folders; opt-in, idle-only. Runs the add-on's own code, which contacts its provider and can show notifications or dialogs on the TV. Routes with play/auth/settings/maintenance verbs are refused. |
 | `kodi_layout_apply` | Apply hub layout | write mode | Optional Manager: apply the exact staged plan within 10 minutes, changing the household's home-screen rows; Manager backs up and rejects stale revisions. |
@@ -130,7 +138,7 @@ tools. *No TV changes* tools write only private local state or run opt-in, idle-
 | `kodi_logs` | Kodi log tail | read-only | Inspect redacted Kodi log tail and crash/stream/storage signals; safe while viewing. |
 | `kodi_manager_inspect` | Kodi Manager inspect | read-only | Optional Kodi Manager 0.4+: inspect saved skin hubs/rows, sources, pipeline, health or fix status. |
 | `kodi_manager_widget_cache` | Kodi Manager widget cache | read-only | Optional Kodi Manager 0.6+: widget-cache status and cached rows for faster rows on any skin. |
-| `kodi_manager_widget_cache_refresh` | Refresh widget cache | write mode | Optional Kodi Manager 0.6+: queue a refresh of every cached widget row while Kodi is idle and no other app is in front. Runs each row's add-on in the background on the Shield (CPU and network load for a while). |
+| `kodi_manager_widget_cache_refresh` | Refresh widget cache | write mode | Optional Kodi Manager 0.6+: queue a refresh of every cached widget row while Kodi is idle and no other app is in front. Runs each row's add-on in the background on the TV (CPU and network load for a while). |
 | `kodi_patch_apply` | Apply Kodi file patch | write mode | Apply the edits from kodi_patch_preview. Needs Kodi stopped and a matching SHA; creates an automatic backup. |
 | `kodi_patch_file` | Patch Kodi file (deprecated) | write mode | Deprecated: use kodi_patch_preview and kodi_patch_apply. dry_run=true previews, false applies. |
 | `kodi_patch_preview` | Preview Kodi file patch | read-only | Validate exact before/after replacements and return a redacted unified diff. Credential edits and add-on .py files are refused. No write. |
@@ -142,23 +150,23 @@ tools. *No TV changes* tools write only private local state or run opt-in, idle-
 | `kodi_settings` | Kodi settings | read-only | Search/page Kodi's expert settings with current/default values, avoiding a whole-schema dump. |
 | `kodi_status` | Kodi status | read-only | Inspect Kodi version, skin, current profile/window and active players; no playback changes. |
 | `shield_apk_apply` | Install previewed APK | write mode | Install an exact unexpired APK preview, replacing the installed app. Stopped target/idle TV, backup and readback required; reports progress. The install can take minutes after the last TV check, and an app opened meanwhile is closed by Android. Never uninstalls/downgrades/retries. |
-| `shield_apk_backups` | APK recovery bundles | read-only | List private APK recovery bundles for this Shield, with phases and Kodi data snapshot checksums. |
-| `shield_apk_preview` | Preview APK upgrade | no TV changes | Stage 1–20 local APKs, verify SDK/ABI/signers and save the installed originals (pulls up to 1 GB from the Shield over the network; refused while any media is playing or paused). New apps need signers configured in NVIDIA_MCP_TRUSTED_SIGNERS; trusted_signers can only narrow that set. No TV changes. |
-| `shield_apk_status` | APK recovery bundle status | read-only | Report one recovery bundle's phase, saved files and the version now installed on the Shield. |
+| `shield_apk_backups` | APK recovery bundles | read-only | List private APK recovery bundles for this TV, with phases and Kodi data snapshot checksums. |
+| `shield_apk_preview` | Preview APK upgrade | no TV changes | Stage 1–20 local APKs, verify SDK/ABI/signers and save the installed originals (pulls up to 1 GB from the TV over the network; refused while any media is playing or paused). New apps need signers configured in NVIDIA_MCP_TRUSTED_SIGNERS; trusted_signers can only narrow that set. No TV changes. |
+| `shield_apk_status` | APK recovery bundle status | read-only | Report one recovery bundle's phase, saved files and the version now installed on the TV. |
 | `shield_apps` | Installed Android apps | read-only | List installed Android package names (no app/account data). |
-| `shield_connect` | Connect ADB | no TV changes | Connect ADB to the configured Shield only. A new or revoked authorization shows Android's debugging prompt on the TV over whatever is playing; someone at the TV must accept it. |
-| `shield_connection` | Shield connection check | read-only | Probe ADB, Kodi HTTP and optional Manager separately; explain authorization/readiness failures. |
+| `shield_connect` | Connect ADB | no TV changes | Connect ADB to the configured TV only. A new or revoked authorization shows Android's debugging prompt on the TV over whatever is playing; someone at the TV must accept it. |
+| `shield_connection` | TV connection check | read-only | Probe ADB, Kodi HTTP and optional Manager separately; explain authorization/readiness failures. |
 | `shield_logcat` | Android log tail | read-only | Read a bounded Android log tail for native crashes. Redaction is best effort. |
-| `shield_remote` | Remote button | write mode | Send one remote button while nothing plays (Kodi or any app's media) and Kodi, the home screen or a screensaver is in front; refused while the Shield sleeps. play_pause/stop need allow_during_playback (plus the user's NVIDIA_MCP_ALLOW_INTERRUPT=1) and go to Kodi's player when it is playing. |
+| `shield_remote` | Remote button | write mode | Send one remote button while nothing plays (Kodi or any app's media) and Kodi, the home screen or a screensaver is in front; refused while the TV sleeps. play_pause/stop need allow_during_playback (plus the user's NVIDIA_MCP_ALLOW_INTERRUPT=1) and go to Kodi's player when it is playing. |
 | `shield_screenshot` | TV screenshot | read-only | Capture the current TV screen without navigation. Screens can contain private information. |
-| `shield_status` | Shield status | read-only | Inspect Shield model, Android, memory/storage, uptime, thermal/throttling and Kodi process. |
+| `shield_status` | Android TV status | read-only | Inspect device model, Android, memory/storage, uptime, thermal/throttling and Kodi process. |
 <!-- tools:end -->
 
 ## Documentation
 
 | Guide | Use it for |
 | --- | --- |
-| [TV preparation](docs/setup.md) | Shield menus, IP address and first connection approval |
+| [TV preparation](docs/setup.md) | Device menus, IP address and first connection approval |
 | [Agent setup](docs/agent-setup.md) | Computer installation, MCP registration and verification |
 | [Configuration](docs/configuration.md) | Environment variables, storage and operation rules |
 | [Kodi Manager](docs/companion.md) | Optional live settings, dashboard and Bingie integration |

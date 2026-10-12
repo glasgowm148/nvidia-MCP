@@ -1,15 +1,15 @@
 # Library API
 
-Other tools on the same computer (for example a household deploy script) can drive the Shield
-with nvidia-MCP's own device code instead of copying it. `nvidia_mcp.Shield` wraps the transport
+Other tools on the same computer (for example a household deploy script) can drive an Android TV / Fire OS device
+with nvidia-MCP's own device code instead of copying it. `nvidia_mcp.AndroidTV` (also exported as the original `Shield`) wraps the transport
 and operations the MCP tools use: the viewing guard, the quit-then-force-stop rule and the
 checksum-verified file push are the same code, not re-implementations.
 
 ```python
-from nvidia_mcp import Config, Shield, ShieldError
+from nvidia_mcp import AndroidTV, Config, ShieldError
 
 config = Config(host="192.168.1.50", password="...", allow_writes=True)
-with Shield(config, kodi_route="auto") as tv:
+with AndroidTV(config, kodi_route="auto") as tv:
     state = tv.viewing_state()
     if state["verdict"] in ("idle", "screensaver", "asleep"):
         tv.quit_kodi(wait=30)
@@ -20,7 +20,7 @@ with Shield(config, kodi_route="auto") as tv:
         tv.start_kodi(wait=60)
 ```
 
-`Shield.from_env()` reads the same environment variables as the server (`SHIELD_HOST`,
+`AndroidTV.from_env()` / `Shield.from_env()` read the same environment variables as the server (`ANDROID_TV_HOST` or `SHIELD_HOST`,
 `KODI_PASSWORD`, `NVIDIA_MCP_ALLOW_WRITES`, ...; see [configuration](configuration.md)).
 
 ## Stability

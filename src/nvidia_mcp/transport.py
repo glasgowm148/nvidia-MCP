@@ -12,7 +12,7 @@ from pathlib import Path
 import httpx
 
 from . import privacy
-from .config import Config, ShieldError
+from .config import Config, ShieldError, port, private_host
 
 KODI_ROUTES = ("direct", "forward", "auto")
 
@@ -178,20 +178,49 @@ class Transport:
             raise manager_error(200, json.dumps(result).encode(), self.known_secrets)
         return result["data"]
 
-    def adb(self, *args, limit=1_000_000, timeout=30, device=True):
+    def pair(self, pairing_port, code):
+        """Pair only this host. The temporary six-digit secret goes through stdin."""
+        pairing_port = port(str(pairing_port))
+        private_host(self.c.host)
+        if not re.fullmatch(r"[0-9]{6}", code):
+            raise ShieldError("ADB pairing needs a six-digit code", "pairing_failed")
+        host = f"[{self.c.host}]" if ":" in self.c.host else self.c.host
+        try:
+            output = self.adb(
+                "pair",
+                f"{host}:{pairing_port}",
+                device=False,
+                input_data=(code + "\n").encode("ascii"),
+                timeout=60,
+                limit=8192,
+            )
+        except ShieldError as exc:
+            # ADB/OS output may echo the pairing code. Never expose it to the client.
+            raise ShieldError(
+                "ADB pairing failed: use current official Platform Tools and check the "
+                "TV's pairing port/code while its pairing dialog stays open",
+                exc.kind,
+            ) from None
+        if b"Successfully paired to " not in output:
+            raise ShieldError("ADB did not confirm pairing; check the TV", "pairing_failed")
+        return {"paired": True, "connected": False}
+
+    def adb(self, *args, limit=1_000_000, timeout=30, device=True, input_data=None):
         command = [self.c.adb_path] + (["-s", self.c.serial] if device else []) + list(args)
         try:
             # Spooled output avoids unbounded pipe buffers, including Android logcat.
             with tempfile.TemporaryFile() as out, tempfile.TemporaryFile() as err:
-                proc = subprocess.Popen(command, stdout=out, stderr=err)
+                kwargs = {"stdin": subprocess.PIPE} if input_data is not None else {}
+                proc = subprocess.Popen(command, stdout=out, stderr=err, **kwargs)
                 try:
-                    proc.wait(timeout=timeout)
+                    if input_data is None:
+                        proc.wait(timeout=timeout)
+                    else:
+                        proc.communicate(input=input_data, timeout=timeout)
                 except subprocess.TimeoutExpired:
                     proc.kill()
                     proc.wait()
-                    raise ShieldError(
-                        "ADB timed out; check the Shield connection", "timeout"
-                    ) from None
+                    raise ShieldError("ADB timed out; check the TV connection", "timeout") from None
                 if proc.returncode:
                     err.seek(0)
                     raise adb_error(err.read(8192))

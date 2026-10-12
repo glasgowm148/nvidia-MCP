@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "nvidia-shield-mcp"
 dynamic = ["version"]
-description = "Local MCP tools for NVIDIA Shield TV and Kodi diagnostics, backups and repairs"
+description = "Local MCP tools for Kodi on NVIDIA Shield, Android TV, Google TV and Fire OS"
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.11"

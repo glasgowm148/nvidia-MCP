@@ -1,7 +1,7 @@
 # Security and recovery
 
 Run this stdio server on your own computer, for one trusted LAN device. It opens no MCP network
-listener. Never port-forward Shield ADB, Kodi HTTP or Kodi Manager. Their traffic/credentials are not
+listener. Never port-forward Android/Fire OS ADB, Kodi HTTP or Kodi Manager. Their traffic/credentials are not
 protected from a hostile LAN; use a trusted network. Public IPs, HTTP redirects and proxy environment
 variables are not used for device requests.
 

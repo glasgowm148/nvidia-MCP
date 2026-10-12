@@ -7,10 +7,10 @@ inside Kodi** and supplies the live profile, settings, pipeline and skin APIs. C
 offline repairs do not require it. Kodi Manager also has a Python client/parser library for applications
 that want these APIs without MCP.
 
-The bundled version is **0.7.13** (MCP tools support Kodi Manager 0.4+; widget-cache tools need 0.6+), from the
+The bundled version is **0.7.14** (MCP tools support Kodi Manager 0.4+; widget-cache tools need 0.6+), from the
 [Kodi Manager repository](https://github.com/glasgowm148/kodi-manager). Its ZIP is present in the MCP
 wheel/source distribution and can be exported as a separate ZIP. `--export-manager DIRECTORY` checks the
-pinned SHA-256, refuses to overwrite a different existing file and never connects to the Shield.
+pinned SHA-256, refuses to overwrite a different existing file and never connects to the TV.
 
 ## Setup
 
@@ -20,7 +20,7 @@ the computer work below; the user only needs TV actions the agent cannot perform
 1. **Agent:** check for an existing supported Manager before proposing installation/replacement. Back
    up a previous customized installation if an upgrade is requested. Export with the installed server's
    `--export-manager` command, or download/verify the release ZIP and checksum.
-2. **Agent:** transfer the ZIP to Kodi-accessible storage, using the configured Shield's authorized ADB
+2. **Agent:** transfer the ZIP to Kodi-accessible storage, using the configured TV's authorized ADB
    or mounted share. Tell the user its exact location/name on the TV.
 3. **TV:** use **Add-ons → Install from zip file** and select the transferred ZIP. Enable Unknown
    sources in Kodi's add-on settings if required. Do this while the TV is free. Use Kodi's native

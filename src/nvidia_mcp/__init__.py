@@ -1,8 +1,10 @@
-"""NVIDIA Shield TV MCP server, and a small library API for the same device code."""
+"""Android TV / Fire OS Kodi MCP server and library (legacy Shield API retained)."""
 
-__version__ = "0.4.8"
+__version__ = "0.4.9"
 
 from .config import Config, ShieldError  # noqa: E402
 from .device import Shield  # noqa: E402
 
-__all__ = ["Config", "Shield", "ShieldError", "__version__"]
+AndroidTV = Shield
+
+__all__ = ["AndroidTV", "Config", "Shield", "ShieldError", "__version__"]

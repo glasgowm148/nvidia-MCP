@@ -8,12 +8,12 @@ from .android_tools import signer_command
 from .config import ShieldError
 
 REMEDIES = {
-    "authorization_required": "Select Allow on the Shield debugging prompt, then reconnect.",
+    "authorization_required": "Select Allow on the TV debugging prompt (or re-pair Wireless debugging), then reconnect.",
     "authentication_denied": "Check this service's credentials; Kodi HTTP and Manager use separate credentials.",
-    "offline": "Reconnect the configured Shield; do not restart anything while someone is viewing.",
-    "unreachable": "Check the configured IP/port and that this service is enabled on the Shield.",
+    "offline": "Reconnect the configured TV; do not restart anything while someone is viewing.",
+    "unreachable": "Check the configured IP/port and that this service is enabled on the TV.",
     "missing_dependency": "The agent should install/configure the required computer tool.",
-    "permission_denied": "Check executable permissions on the computer or access to the selected Shield file.",
+    "permission_denied": "Check executable permissions on the computer or access to the selected Android file.",
     "timeout": "Service did not answer in time. Retry a read later; do not repeat writes automatically.",
     "write_disabled": "Kodi Manager Write Mode is off; the user can turn it on in its settings on the TV.",
     "unsupported": "The installed Kodi Manager is older than this tool needs; core tools still work.",

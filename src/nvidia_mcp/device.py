@@ -1,4 +1,4 @@
-"""Stable library API for other tools that drive the same Shield (see docs/library.md).
+"""Stable library API for other tools that drive the same Android TV / Fire OS device (see docs/library.md).
 
 ``Shield`` wraps the MCP server's own transport and operations: the viewing guard, the
 quit-then-force-stop rule and the checksum-verified push are the same code the tools run, not
@@ -39,7 +39,7 @@ def remote_path(path):
 
 
 class Shield:
-    """One configured Shield. Thread-safe for the guarded operations; use as a context manager
+    """One configured Android TV / Fire OS device. Thread-safe for the guarded operations; use as a context manager
     (or call ``close``) so a Kodi ``adb forward`` is removed."""
 
     def __init__(self, config: Config, *, kodi_route: str | None = None, transport=None):
@@ -49,7 +49,7 @@ class Shield:
 
     @classmethod
     def from_env(cls, **kwargs):
-        """Build from the same environment variables as the MCP server (SHIELD_HOST, ...)."""
+        """Build from the same environment variables as the MCP server (ANDROID_TV_HOST or SHIELD_HOST, ...)."""
         return cls(Config.from_env(), **kwargs)
 
     def close(self):

@@ -64,6 +64,7 @@ KODI = "org.xbmc.kodi"
 LAUNCHERS = frozenset(
     {
         "com.google.android.tvlauncher",
+        "com.amazon.tv.launcher",
         "com.google.android.apps.tv.launcherx",
         "com.android.tv.launcher",
         "com.spocky.projengmenu",
@@ -278,8 +279,14 @@ def foreground_state(transport):
     lines = [
         line
         for line in text.splitlines()
-        if "mResumedActivity" in line or "topResumedActivity" in line
+        if re.match(r"\s*(?:mResumedActivity|topResumedActivity|ResumedActivity)\s*[:=]", line)
     ]
+    # Older Android / Fire OS dumps may expose only the focused activity. Never use a
+    # stale focus entry to override a modern resumed entry, including an explicit null.
+    if not lines:
+        lines = [
+            line for line in text.splitlines() if re.match(r"\s*mFocusedActivity\s*[:=]", line)
+        ]
     found = {(m[1], m[2]) for line in lines if (m := PACKAGE_ACTIVITY.search(line))}
     packages = {package for package, _ in found}
     if len(packages) == 1:
@@ -311,15 +318,20 @@ def media_sessions(transport):
             "Android media playback state is unknown; no disruptive action performed",
             "playback_unknown",
         )
-    sessions, package, active = [], None, False
+    sessions, package, active, state_seen = [], None, False, False
     for line in text.splitlines():
         line = line.strip()
         if match := re.match(r"package=([A-Za-z][A-Za-z0-9_]*(?:\.[A-Za-z][A-Za-z0-9_]*)+)$", line):
-            package, active = match[1], False
+            if active and not state_seen:
+                raise ShieldError("Android media playback state is unreadable", "playback_unknown")
+            package, active, state_seen = match[1], False, False
         elif line.startswith("active="):
             active = line == "active=true"
         elif package and active and (match := re.match(r"state=PlaybackState \{state=(\d+)", line)):
             sessions.append((package, int(match[1])))
+            state_seen = True
+    if active and not state_seen:
+        raise ShieldError("Android media playback state is unreadable", "playback_unknown")
     return sessions
 
 
@@ -430,10 +442,39 @@ class Operations:
         return "idle"
 
     def pids(self, package=KODI):
-        """The one process probe: IDs of every process of ``package`` (empty when it is not
-        running); ``|| true`` keeps a stopped app from being an ADB error."""
-        out = self.t.shell("sh", "-c", "pidof " + shlex.quote(package) + " || true")
-        return {pid for pid in str(out).split() if pid.isdigit()}
+        """Exact app process probe, with a bounded toolbox/toybox ps fallback."""
+        out = self.t.shell(
+            "sh",
+            "-c",
+            "if command -v pidof >/dev/null 2>&1; then pidof "
+            + shlex.quote(package)
+            + ' || [ "$?" -eq 1 ]; else echo __NO_PIDOF__; fi',
+        ).strip()
+        if out != "__NO_PIDOF__":
+            if out and not re.fullmatch(r"\d+(?:\s+\d+)*", out):
+                raise ShieldError("Android process state is unreadable", "process_unknown")
+            return set(out.split())
+        # Android 5/6 toolbox lacks pidof and ps -A. Plain ps includes app processes on
+        # those builds; verify its schema before accepting an empty result as stopped.
+        sdk = self.t.shell("getprop", "ro.build.version.sdk").strip()
+        if not sdk.isdigit():
+            raise ShieldError("Android process state is unreadable", "process_unknown")
+        # Modern toybox's plain ps lists only this shell's processes; request all.
+        argv = ("ps",) if int(sdk) <= 23 else ("ps", "-A", "-o", "PID,NAME")
+        lines = self.t.shell(*argv, limit=500_000).splitlines()
+        columns = lines[0].split() if lines else []
+        if "PID" not in columns or not columns or columns[-1] != "NAME":
+            raise ShieldError("Android process state is unreadable", "process_unknown")
+        pids, index = set(), columns.index("PID")
+        for line in lines[1:]:
+            row = line.split()
+            if not row:
+                continue
+            if len(row) < len(columns) or not row[index].isdigit():
+                raise ShieldError("Android process state is unreadable", "process_unknown")
+            if row[-1] == package or row[-1].startswith(package + ":"):
+                pids.add(row[index])
+        return pids
 
     def running(self, package=KODI):
         return bool(self.pids(package))

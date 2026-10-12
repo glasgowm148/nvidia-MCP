@@ -6,10 +6,12 @@ Follow [TV preparation](setup.md), then let an agent with computer access perfor
 | Symptom | Likely cause and next step |
 | --- | --- |
 | “Can I paste this into any AI chat?” | Your client must support local stdio MCP servers. A browser chat alone cannot start this process. The server is free; your chosen AI client/model may have its own charges. |
-| MCP server exits at startup | Verify Python 3.11+, installation into the intended virtual environment and `SHIELD_HOST` in the client's environment. The server does not load `.env` automatically. Use absolute executable paths; GUI apps often have a different PATH from your terminal. |
+| MCP server exits at startup | Verify Python 3.11+, installation into the intended virtual environment and `ANDROID_TV_HOST` (or legacy `SHIELD_HOST`) in the client's environment. The server does not load `.env` automatically. Use absolute executable paths; GUI apps often have a different PATH from your terminal. |
 | ADB missing or permission denied | Install official Platform Tools, keep its companion files together, and set `ADB_PATH` to the executable. APK SDK tools are optional and unnecessary for ordinary Kodi diagnostics. |
-| ADB says connected, but tools report unauthorized | Keep the Shield awake and select **Allow** on its debugging prompt. Verify targeted `adb -s IP:PORT get-state` returns `device`; “connected” alone does not prove authorization. |
-| ADB is offline/unreachable after reboot | Check Network debugging and the Shield's current IP. Reconnect only that configured device. A DHCP reservation can keep its address stable; backups are normally tied to its hardware serial. |
+| Android TV needs a pairing code | Follow [device pairing](android-tv.md#configure-and-pair); use `--pair-adb PAIRING_PORT` with the secret via private stdin, then connect the separate connection port. Enabling USB debugging alone does not open network ADB. |
+| Firestick does not accept Android ADB/APKs | Check [Amazon’s OS table](https://developer.amazon.com/docs/fire-tv/fire-os-overview.html). Android-based Fire OS is in scope; Vega OS is unsupported. |
+| ADB says connected, but tools report unauthorized | Keep the TV awake and select **Allow** on its debugging prompt. Verify targeted `adb -s IP:PORT get-state` returns `device`; “connected” alone does not prove authorization. |
+| ADB is offline/unreachable after reboot | Check the TV’s debugging mode, current IP and connection port. Paired Wireless debugging ports can change. Reconnect only that configured device. A DHCP reservation can keep its address stable; backups are normally tied to its hardware serial. |
 | ADB works; Kodi HTTP fails | Keep Kodi open and verify HTTP control, port, username/password. ADB and Kodi HTTP are independent. Check LAN permissions, VPN/firewall rules and guest-network isolation. Use `KODI_HTTP_ROUTE=forward` when an authorized ADB route works but direct HTTP is blocked. |
 | Authentication denied | Kodi HTTP uses its username/password; Manager uses a separate bearer token from its active profile. `auto` does not hide auth errors by switching routes. |
 | Manager tools say not configured | Core diagnostics work without the companion. For Manager APIs, install its service ZIP through Kodi and configure `KODI_MANAGER_TOKEN`; exporting its ZIP does not install it. See [companion](companion.md). |
@@ -30,6 +32,6 @@ private backups. Update an installed Manager separately through Kodi's native ZI
 bundled companion is a verified artifact, not an automatic replacement.
 
 If it still fails, [open an issue](https://github.com/glasgowm148/nvidia-MCP/issues/new/choose) with
-server version, client, OS/Python, Shield/Android/Kodi versions, HTTP route, error category and brief
+server version, client, OS/Python, TV model/OS/Android/Kodi versions, HTTP route, error category and brief
 steps. Share only inspected, redacted snippets. Never include passwords, tokens, filled client
 configuration, settings exports, backups, screenshots or raw logs.

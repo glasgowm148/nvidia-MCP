@@ -9,13 +9,13 @@ Ask for missing information or an unavoidable TV/OS/client interaction, then con
 
 - Identify the OS/architecture, the MCP client to configure and its existing installation/configuration.
   Use the current client if known; ask which client only if it cannot be determined.
-- Obtain the Shield's private LAN IP and Kodi HTTP port from the user. Request Kodi credentials through
+- Obtain the device model/OS, ADB mode/connection port and private LAN IP and Kodi HTTP port from the user. Request Kodi credentials through
   the client's private/secret mechanism where available. Do not log, echo or commit credentials.
 - Check existing Python, Git and ADB installations before downloading replacements. Use Python **3.11+**
   and a dedicated virtual environment; preserve the user's system Python and other projects.
 - Reuse an existing suitable nvidia-MCP checkout. Inspect its state before updating; preserve local
   changes. Otherwise clone this repo to an appropriate user-owned workspace.
-  For a released install, prefer tag **v0.4.8** (or a newer reviewed release) rather than an
+  For a released install, prefer tag **v0.4.9** (or a newer reviewed release) rather than an
   unreviewed moving `main`. Downloading GitHub's Source code ZIP alone does not register an MCP server.
 
 Use the [official Python downloads](https://www.python.org/downloads/),
@@ -53,19 +53,26 @@ Use the resolved ADB executable, targeting only the IP/port supplied by the user
 
 ```text
 ADB_EXECUTABLE version
-ADB_EXECUTABLE connect SHIELD_IP:5555
-ADB_EXECUTABLE -s SHIELD_IP:5555 get-state
+ADB_EXECUTABLE connect TV_IP:CONNECTION_PORT
+ADB_EXECUTABLE -s TV_IP:CONNECTION_PORT get-state
 ```
 
 These are argument patterns, not literal commands. Pass the actual path/arguments through your command
-tool with proper quoting; do not scan the LAN. The default network-debugging port is `5555`; if the
-Shield displays another port, use it and set `SHIELD_ADB_PORT` accordingly.
+tool with proper quoting; do not scan the LAN. Fire OS/Shield network debugging normally uses `5555`; use the supplied connection port and
+set `ANDROID_TV_ADB_PORT`. Confirm Android-based Fire OS rather than Vega OS.
+
+For code-based Android Wireless debugging, obtain the separate pairing port from the open TV
+pairing dialog. Run the installed `nvidia-mcp --pair-adb PAIRING_PORT` with `ANDROID_TV_HOST`
+in the subprocess environment, sending the six-digit code plus newline via private stdin. A
+local terminal can use the hidden prompt. Never put the code in arguments, logs, saved config or
+an MCP tool call. Then `adb connect` the connection port; do not use the pairing port for normal
+commands. See [Android TV / Fire TV setup](android-tv.md).
 
 If `get-state` already returns `device`, reuse that authorization without asking again. When a new
 authorization is needed, tell the user to select **Allow** on the TV, wait for their reply and verify
 `get-state` returns `device`. `adb connect` saying connected is not proof of authorization. If the
 state is `unauthorized`, approval is still pending; `offline` needs a targeted disconnect/reconnect.
-If the prompt is absent, ask the user to keep the Shield awake and check Network debugging before
+If the prompt is absent, ask the user to keep the TV awake and check its debugging mode/connection port before
 suggesting revoking authorizations (which also affects other computers). See
 [Google's ADB reference](https://developer.android.com/tools/adb).
 
@@ -75,8 +82,8 @@ Construct environment values using the user's actual connection details:
 
 | Variable | Value |
 |---|---|
-| `SHIELD_HOST` | Private Shield IP, no URL prefix or port |
-| `SHIELD_ADB_PORT` | ADB port, normally `5555` |
+| `ANDROID_TV_HOST` | Private TV IP, no URL prefix or port (`SHIELD_HOST` remains compatible) |
+| `ANDROID_TV_ADB_PORT` | ADB connection port; legacy `SHIELD_ADB_PORT` also works |
 | `ADB_PATH` | Absolute ADB executable path, including `adb.exe` on Windows |
 | `KODI_PORT` | HTTP port from Kodi, normally `8080` |
 | `KODI_USERNAME`, `KODI_PASSWORD` | Private Kodi HTTP credentials |
@@ -112,7 +119,8 @@ other servers and unrelated settings. Do not overwrite the entire client configu
     "nvidia-MCP": {
       "command": "/absolute/path/nvidia-MCP/.venv/bin/nvidia-mcp",
       "env": {
-        "SHIELD_HOST": "192.168.1.50",
+        "ANDROID_TV_HOST": "192.168.1.50",
+        "ANDROID_TV_ADB_PORT": "5555",
         "ADB_PATH": "/absolute/path/platform-tools/adb",
         "KODI_PORT": "8080",
         "KODI_USERNAME": "kodi",
@@ -152,4 +160,5 @@ reuse an existing supported installation instead of automatically replacing it.
 
 APK tooling is optional and is not part of ordinary onboarding. When the person requests an APK
 install/upgrade, follow [the agent APK workflow](apk-upgrades.md) and configure official SDK Build
-Tools yourself. Native Android TV-code pairing remains future work; current controls still use ADB.
+Tools yourself. ADB Wireless debugging code pairing is supported by the setup CLI. The separate Android TV
+Remote protocol is not implemented; all remote controls here use ADB.

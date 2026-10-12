@@ -31,7 +31,7 @@ def private_host(host: str) -> str:
         address = ipaddress.ip_address(host)
     except ValueError:
         raise ShieldError(
-            "SHIELD_HOST must be a private LAN IP address, not a URL or hostname"
+            "ANDROID_TV_HOST (or SHIELD_HOST) must be a private LAN IP, not a URL or hostname"
         ) from None
     if (
         not (address.is_private or address.is_loopback)
@@ -50,6 +50,14 @@ def port(value: str) -> int:
     if not 1 <= number <= 65535:
         raise ShieldError("Port must be between 1 and 65535")
     return number
+
+
+def device_env(name, legacy, default="", convert=str):
+    """Accept the portable name and the original name without selecting two targets."""
+    current, old = os.environ.get(name), os.environ.get(legacy)
+    if current is not None and old is not None and convert(current) != convert(old):
+        raise ShieldError(f"{name} and {legacy} conflict; configure only one device")
+    return convert(current if current is not None else old if old is not None else default)
 
 
 def packages(value: str) -> tuple[str, ...]:
@@ -135,7 +143,7 @@ class Config:
 
     @classmethod
     def from_env(cls):
-        host = private_host(os.environ.get("SHIELD_HOST", ""))
+        host = device_env("ANDROID_TV_HOST", "SHIELD_HOST", convert=private_host)
         route = os.environ.get("KODI_HTTP_ROUTE", "direct")
         if route not in ("direct", "forward", "auto"):
             raise ShieldError("KODI_HTTP_ROUTE must be direct, forward or auto")
@@ -144,12 +152,12 @@ class Config:
             r"/(?:sdcard|storage/emulated/0)/[A-Za-z0-9_./-]+", root
         ) or ".." in root.split("/"):
             raise ShieldError(
-                "KODI_REMOTE_ROOT must be an absolute path inside Shield shared storage"
+                "KODI_REMOTE_ROOT must be an absolute path inside Android shared storage"
             )
         mount = os.environ.get("KODI_MOUNT")
         return cls(
             host=host,
-            adb_port=port(os.environ.get("SHIELD_ADB_PORT", "5555")),
+            adb_port=device_env("ANDROID_TV_ADB_PORT", "SHIELD_ADB_PORT", "5555", port),
             adb_path=os.environ.get("ADB_PATH", "adb"),
             kodi_port=port(os.environ.get("KODI_PORT", "8080")),
             username=os.environ.get("KODI_USERNAME", ""),

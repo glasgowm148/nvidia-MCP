@@ -1,5 +1,21 @@
 # Verification
 
+## 0.4.9 Android TV / Fire OS support (2026-10-12)
+
+Locally, 532 Python tests plus 5 subtests passed. New synthetic cases cover Amazon’s home
+launcher, legacy/modern foreground precedence, paused/background media, unreadable active
+media, SDK-appropriate process fallback, alias conflicts and pairing secrets via stdin. Pairing
+failure/timeout output cannot expose the code; CLI setup does not initialize MCP/write mode.
+Ruff, real stdio discovery and a clean-wheel install/export passed. Archive inspection verifies
+the pinned companion and checksum; public Manager 0.7.14 bytes match the bundled ZIP.
+
+Manager’s separate checks passed: 728 Python tests (one environment skip), 98 Node UI tests,
+Python 3.8 static types, fresh-wheel backup/restore/undo and deterministic add-on ZIP builds.
+
+No physical Firestick, Google TV box or code-pairing session was tested. Firmware storage/APK
+restrictions and small-device performance remain unverified. Vega OS is unsupported. Existing
+live evidence below applies to the reference Shield and the stated older source versions.
+
 ## 0.4.8 public onboarding audit (2026-10-12)
 
 Locally, 498 Python tests plus 5 subtests passed, including JSON-RPC add-on field validation,
