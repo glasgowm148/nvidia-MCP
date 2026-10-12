@@ -1,5 +1,11 @@
 # Verification
 
+## 0.5.2 final audit follow-up (2026-10-12)
+
+Private PIN tests verify calling-thread input and Ctrl-C cleanup without saving credentials. The full MCP suite passes 604 tests plus 5 subtests with the optional SDK installed.
+
+Manager 0.7.19 bounds parent traversal, recognizes Windows short-path/case aliases and confines nonstandard profiles against the canonical master path. Local Manager validation: 773 Python tests passed (one environment skip), 98 UI tests, Python 3.8 types and deterministic ZIP/wheel recovery checks. The companion/export and platform tool contracts remain unchanged; this package pins the exact released Manager ZIP. GitHub runner jobs stalled during this audit despite local validation of the exact CI command; inspect this tag's actual checks before claiming the remote matrix passed.
+
 ## 0.5.1 Apple TV follow-up audit (2026-10-12)
 
 New regressions use the installed pyatv 0.16 MRP state manager and facade: an uninitialized or

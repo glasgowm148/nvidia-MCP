@@ -272,7 +272,7 @@ class AppleBridge:
         if protocol not in ("Companion", "AirPlay"):
             raise ShieldError("Choose Companion or AirPlay for pairing", "pairing_invalid")
 
-        async def pairing():
+        async def begin():
             pyatv, _names, _states, protocols = self.sdk()
             target = await self.target()
             if not self.c.apple_credentials:
@@ -302,14 +302,27 @@ class AppleBridge:
                         "This Apple TV cannot show the required private pairing PIN", "unsupported"
                     )
                 await handler.begin()
-                try:
-                    pin = await asyncio.to_thread(read_pin)
-                except (EOFError, KeyboardInterrupt):
-                    raise ShieldError("Apple TV pairing cancelled", "pairing_cancelled") from None
-                if not re.fullmatch(r"[0-9]{4}", pin):
-                    raise ShieldError(
-                        "Enter the four-digit Apple TV PIN privately", "pairing_invalid"
-                    )
+                return handler, existing
+            except BaseException:
+                await handler.close()
+                raise
+
+        handler, existing = self._run(begin)
+        try:
+            # getpass must own the calling terminal thread: cancelling an
+            # executor future cannot interrupt its blocked stdin or restore echo.
+            try:
+                pin = read_pin()
+            except (EOFError, KeyboardInterrupt):
+                raise ShieldError("Apple TV pairing cancelled", "pairing_cancelled") from None
+            except Exception:
+                raise ShieldError(
+                    "Private PIN input failed; pair again in a terminal", "pairing_invalid"
+                ) from None
+            if not isinstance(pin, str) or not re.fullmatch(r"[0-9]{4}", pin):
+                raise ShieldError("Enter the four-digit Apple TV PIN privately", "pairing_invalid")
+
+            async def finish():
                 handler.pin(int(pin))
                 await handler.finish()
                 if not handler.has_paired or not handler.service.credentials:
@@ -317,10 +330,10 @@ class AppleBridge:
                 existing["services"][protocol] = handler.service.credentials
                 self.save_credentials(existing)
                 return {"paired": protocol, "credential_file": str(self.c.apple_credentials)}
-            finally:
-                await handler.close()
 
-        return self._run(pairing, timeout=180)
+            return self._run(finish)
+        finally:
+            self._run(handler.close, timeout=5)
 
     def save_credentials(self, value):
         path = self.c.apple_credentials

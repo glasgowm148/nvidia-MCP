@@ -78,7 +78,7 @@ nvidia-mcp --doctor
 ```
 
 The CLI reads four-digit PINs with hidden terminal input or private stdin; it merges both secrets
-into an atomically saved 0600 file and prints no secret. PINs never go in command arguments. Pairing
+into an atomically saved 0600 file and prints no secret. PINs never go in command arguments. Input runs on the calling terminal thread so Ctrl-C/EOF closes pairing without leaving a blocked executor reader. Pairing
 does not enable write mode. Both protocols are required for the paired playback/power guard.
 `shield_apps` lists installed bundle IDs; confirm Kodi's ID instead of guessing `org.xbmc.kodi`.
 Start with `kodi_status`, `shield_connection` and `kodi_manager_inspect(area='layout')`.

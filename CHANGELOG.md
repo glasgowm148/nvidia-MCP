@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.2 — 2026-10-12 (prerelease)
+
+- Read private pairing PINs on the calling terminal thread so Ctrl-C/EOF can restore terminal input and close pairing; avoid executor workers stuck on stdin during shutdown.
+
+- Bundle Manager 0.7.19 with bounded portable path traversal and Windows short-path alias handling. Retain the Apple TV playback/launch/ownership/shutdown fixes from 0.5.1.
+- Verify the exact public ZIP and platform tool counts in the released wheel. Physical Apple TV validation remains pending; existing Shield configuration is unchanged.
+
 ## 0.5.1 — 2026-10-12 (prerelease)
 
 - Preserve unknown MRP playback state and metadata-less paused players instead of accepting pyatv's synthetic idle. Use a bounded read-only adapter for pinned pyatv 0.16; missing internals block changes.

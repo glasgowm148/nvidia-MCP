@@ -542,3 +542,39 @@ def test_old_manager_file_contract_explains_upgrade(apple):
     transport.manager = old
     with pytest.raises(ShieldError, match="0.7.17"):
         ops.read_file("userdata/guisettings.xml")
+
+
+def test_pairing_private_input_uses_caller_thread(paired_bridge):
+    bridge, _target, _calls = paired_bridge
+    caller = threading.get_ident()
+
+    def pin():
+        assert threading.get_ident() == caller
+        return "7751"
+
+    assert bridge.pair("Companion", pin)["paired"] == "Companion"
+
+
+def test_private_pin_keyboard_interrupt_closes_pairing_without_saving(paired_bridge):
+    bridge, _target, calls = paired_bridge
+
+    def interrupted():
+        raise KeyboardInterrupt()
+
+    with pytest.raises(ShieldError, match="pairing cancelled"):
+        bridge.pair("Companion", interrupted)
+    assert not bridge.c.apple_credentials.exists()
+    assert ("closed",) in calls
+
+
+def test_private_input_errors_never_echo_input(paired_bridge):
+    bridge, _target, calls = paired_bridge
+
+    def broken():
+        raise OSError("synthetic-secret-private-input")
+
+    with pytest.raises(ShieldError) as error:
+        bridge.pair("Companion", broken)
+    assert "synthetic-secret" not in str(error.value)
+    assert not bridge.c.apple_credentials.exists()
+    assert ("closed",) in calls
