@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.4.10 — 2026-10-12 (prerelease)
+
+- Refresh hardware identity on each operation; reject placeholder serials and refuse to downgrade
+  hardware-bound backup ownership to an IP address when identity is unavailable. Read file backups
+  and their metadata with size limits before restore.
+- Bind APK previews to a verified hardware serial, checking it through backup, transfer, install,
+  split-session commit and cleanup. A replacement TV at the same address cannot inherit a preview
+  or receive its cleanup commands. Devices without a stable serial retain read-only diagnostics.
+- Write recovery phases atomically. A final metadata write failure still consumes transferred
+  previews and attempts cleanup on the matching TV; report the recovery bundle and uncertain app
+  state without exposing private storage paths. Preserve specific failure codes.
+- Reject malformed active-media flags and unreadable resumed-app entries rather than treating
+  them as proof the TV is idle. Bundle public Kodi Manager 0.7.15 with its request/restore fixes.
+
 ## 0.4.9 — 2026-10-12 (prerelease)
 
 - Extend device scope to Android TV / Google TV and Android-based Fire OS. Keep existing

@@ -1,5 +1,23 @@
 # Verification
 
+## 0.4.10 deeper reliability audit (2026-10-12)
+
+Locally, 551 Python tests plus 5 subtests passed. New synthetic regressions cover hardware-ID
+loss/change and placeholder serials, bounded file-backup reads, APK plans on a replacement TV,
+device changes during split-session staging/commit/cleanup, recovery metadata disk failures,
+atomic phase preservation, malformed resumed-app entries and active-media flags. The existing
+MCP progress/concurrent-tool scenario still completes with the stricter APK identity contract.
+Ruff and generated tool documentation checks passed.
+
+Manager 0.7.15 passed 740 Python tests (one environment skip), 98 Node UI tests and Python 3.8
+static typing. New cases exercise truncated/dripping request bodies, body-free action handlers,
+damaged/undeclared checkpoint folders, corrupt restore manifests, malformed HTTP responses and
+bearer-token echoes. Fresh-wheel backup/restore/undo and identical add-on ZIP rebuilds passed.
+
+MCP's clean-wheel stdio/export and release archives are checked separately, including the exact
+Manager 0.7.15 companion and its checksum. No live TV mutations or physical Firestick/Google TV
+tests were performed; older live evidence below retains its stated version/device scope.
+
 ## 0.4.9 Android TV / Fire OS support (2026-10-12)
 
 Locally, 532 Python tests plus 5 subtests passed. New synthetic cases cover Amazon’s home

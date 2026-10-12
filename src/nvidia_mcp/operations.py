@@ -287,6 +287,13 @@ def foreground_state(transport):
         lines = [
             line for line in text.splitlines() if re.match(r"\s*mFocusedActivity\s*[:=]", line)
         ]
+    if any(
+        not PACKAGE_ACTIVITY.search(line) and not re.search(r"[:=]\s*null\s*$", line)
+        for line in lines
+    ):
+        raise ShieldError(
+            "Foreground TV app is unreadable; no disruptive action performed", "foreground_unknown"
+        )
     found = {(m[1], m[2]) for line in lines if (m := PACKAGE_ACTIVITY.search(line))}
     packages = {package for package, _ in found}
     if len(packages) == 1:
@@ -326,6 +333,8 @@ def media_sessions(transport):
                 raise ShieldError("Android media playback state is unreadable", "playback_unknown")
             package, active, state_seen = match[1], False, False
         elif line.startswith("active="):
+            if line not in ("active=true", "active=false"):
+                raise ShieldError("Android media playback state is unreadable", "playback_unknown")
             active = line == "active=true"
         elif package and active and (match := re.match(r"state=PlaybackState \{state=(\d+)", line)):
             sessions.append((package, int(match[1])))

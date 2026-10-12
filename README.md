@@ -19,7 +19,7 @@
 **Local MCP tools for Kodi on NVIDIA Shield, Android TV, Google TV and Android-based Fire TV.** Give your assistant the tools to inspect your setup, diagnose playback problems, adjust settings and apply reversible repairs from your computer. Works over your home network on macOS, Windows and Linux, with an MCP client that supports stdio. No cloud account is required for the server.
 
 > [!NOTE]
-> **Alpha / prerelease (0.4.9).** Start with read-only access. See [tested compatibility](docs/compatibility.md)
+> **Alpha / prerelease (0.4.10).** Start with read-only access. See [tested compatibility](docs/compatibility.md)
 > and [verification evidence](docs/verification.md) before using repair or upgrade tools.
 
 ## What you can do
@@ -31,7 +31,7 @@
 | Investigate playback | Read redacted logs and relevant profile settings | ADB or mounted storage |
 | Explore widget sources | Preview one page of an installed add-on's folders | Kodi HTTP; browsing opt-in |
 | Repair settings and files | Preview exact changes, check versions/checksums, back up and restore | File access; write mode |
-| Upgrade an Android app | Inspect local APKs or split sets, preview installation, save recovery files | ADB + SDK Build Tools; write mode |
+| Upgrade an Android app | Inspect local APKs or split sets, preview installation, save recovery files | ADB + stable hardware serial + SDK Build Tools; write mode |
 | Configure Bingie | Inspect hubs, preview layout changes and apply a reviewed plan | Optional Kodi Manager |
 
 The bundled repair playbook covers profiles, audio, autoplay, source priorities, skin widgets and stale stream URLs. It helps distinguish **installed**, **enabled**, **configured** and **actually used**. It is available as the `nvidia://playbook` resource and `audit_kodi` prompt.
@@ -106,7 +106,7 @@ See [device support and evidence](docs/android-tv.md). Core diagnostics and file
 
 *Optional companion dashboard, captured from the public UI with synthetic demo data. The MCP server itself is a stdio service.*
 
-The MCP distribution includes a pinned **Kodi Manager 0.7.14** ZIP (built from the source commit pinned in the bundled manifest, checksum-verified). Your agent can export it with `nvidia-mcp --export-manager ./companion`, verify it and transfer it to the TV. Install through Kodi's native **Install from zip file**, then let the agent configure the connection. Follow the [companion setup guide](docs/companion.md).
+The MCP distribution includes a pinned **Kodi Manager 0.7.15** ZIP (built from the source commit pinned in the bundled manifest, checksum-verified). Your agent can export it with `nvidia-mcp --export-manager ./companion`, verify it and transfer it to the TV. Install through Kodi's native **Install from zip file**, then let the agent configure the connection. Follow the [companion setup guide](docs/companion.md).
 
 Kodi Manager 0.4+ is supported; the widget-cache tools need 0.6+. Older installations should be upgraded; back up customized installations before replacing them. Layout writes require reviewed **Bingie 2.0.2 / Skin Shortcuts 2.0.3 source hashes**; unknown variants remain view-only. Installing the Python library alone does not install the TV service.
 
@@ -151,7 +151,7 @@ tools. *No TV changes* tools write only private local state or run opt-in, idle-
 | `kodi_status` | Kodi status | read-only | Inspect Kodi version, skin, current profile/window and active players; no playback changes. |
 | `shield_apk_apply` | Install previewed APK | write mode | Install an exact unexpired APK preview, replacing the installed app. Stopped target/idle TV, backup and readback required; reports progress. The install can take minutes after the last TV check, and an app opened meanwhile is closed by Android. Never uninstalls/downgrades/retries. |
 | `shield_apk_backups` | APK recovery bundles | read-only | List private APK recovery bundles for this TV, with phases and Kodi data snapshot checksums. |
-| `shield_apk_preview` | Preview APK upgrade | no TV changes | Stage 1–20 local APKs, verify SDK/ABI/signers and save the installed originals (pulls up to 1 GB from the TV over the network; refused while any media is playing or paused). New apps need signers configured in NVIDIA_MCP_TRUSTED_SIGNERS; trusted_signers can only narrow that set. No TV changes. |
+| `shield_apk_preview` | Preview APK upgrade | no TV changes | Stage 1–20 local APKs, verify hardware serial/SDK/ABI/signers and save the installed originals (pulls up to 1 GB from the TV over the network; refused while any media is playing or paused). A stable hardware serial is required. New apps need signers configured in NVIDIA_MCP_TRUSTED_SIGNERS; trusted_signers can only narrow that set. No TV changes. |
 | `shield_apk_status` | APK recovery bundle status | read-only | Report one recovery bundle's phase, saved files and the version now installed on the TV. |
 | `shield_apps` | Installed Android apps | read-only | List installed Android package names (no app/account data). |
 | `shield_connect` | Connect ADB | no TV changes | Connect ADB to the configured TV only. A new or revoked authorization shows Android's debugging prompt on the TV over whatever is playing; someone at the TV must accept it. |

@@ -43,6 +43,8 @@ SCRIPT = textwrap.dedent(
         def __init__(self, config):
             self.c = config
         def shell(self, *args, **kwargs):
+            if args[:2] == ("getprop", "ro.serialno"):
+                return "synthetic_tv_001"
             if args[:2] == ("getprop", "ro.product.cpu.abilist"):
                 return "arm64-v8a"
             if args[:2] == ("getprop", "ro.build.version.sdk"):

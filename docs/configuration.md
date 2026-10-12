@@ -151,3 +151,8 @@ userdata snapshot as well as original APK recovery files. See [the APK workflow]
 
 Use a trusted LAN. Manager's bearer-authenticated HTTP service should not be exposed to the internet.
 Backups and account/log diagnostics are private and can contain credentials.
+
+Hardware identity is read again for each backup operation. A snapshot with a recorded `device_id`
+requires that exact current `ro.serialno`; an unavailable or placeholder serial never falls back
+to the same IP address. Older snapshots without `device_id`, and file snapshots created without
+ADB identity, still use their recorded host/port. APK previews always require a verified serial.

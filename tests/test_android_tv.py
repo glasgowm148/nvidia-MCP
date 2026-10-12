@@ -110,6 +110,25 @@ def test_active_media_with_unrecognized_state_blocks(ops):
     assert error.value.kind == "playback_unknown"
 
 
+def test_one_valid_foreground_entry_cannot_hide_unparseable_entry(ops):
+    activity(
+        ops,
+        "mResumedActivity: com.amazon.tv.launcher/.Home\ntopResumedActivity: vendor-specific activity format",
+    )
+    with pytest.raises(ShieldError) as error:
+        ops.remote("home")
+    assert error.value.kind == "foreground_unknown"
+
+
+@pytest.mark.parametrize("flag", ["yes", "", "true, flags=3"])
+def test_unknown_media_active_flag_is_not_treated_as_inactive(ops, flag):
+    activity(ops, "mResumedActivity: com.amazon.tv.launcher/.Home")
+    ops.t.media = f"package=com.amazon.avod\nactive={flag}\nstate=PlaybackState {{state=3}}\n"
+    with pytest.raises(ShieldError) as error:
+        ops.remote("home")
+    assert error.value.kind == "playback_unknown"
+
+
 def process_dump(ops, sdk, dump):
     def shell(*args, **kwargs):
         ops.t.calls.append(("shell", args))

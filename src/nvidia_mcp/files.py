@@ -13,6 +13,26 @@ from .transport import push_atomic
 
 MAX_FILE = 600_000
 SERIALNO = re.compile(r"[A-Za-z0-9._-]{4,64}")
+UNREAD_ID = object()
+
+
+def hardware_identity(value):
+    if (
+        not isinstance(value, str)
+        or not SERIALNO.fullmatch(value)
+        or value.lower() in {"unknown", "null", "none"}
+        or set(value) == {"0"}
+    ):
+        return None
+    return value
+
+
+def read_manifest(path):
+    with path.open("rb") as handle:
+        data = handle.read(64_001)
+    if len(data) > 64_000:
+        raise ValueError("Backup metadata exceeds the limit")
+    return json.loads(data)
 
 
 def digest(data):
@@ -40,7 +60,6 @@ class Files:
         self.t = transport
         self.c = transport.c
         self.backups = self.c.state / "backups"
-        self._device_id = False  # Not asked yet; None once ADB could not say.
 
     def device_id(self):
         """The Shield's hardware serial (``ro.serialno``), or None when ADB cannot report it.
@@ -48,29 +67,30 @@ class Files:
         Private backups are tied to it, so a new DHCP address (and an updated SHIELD_HOST) does
         not orphan earlier snapshots. ``host:port`` stays the fallback for older manifests.
         """
-        if self._device_id is False:
-            try:
-                value = str(self.t.shell("getprop", "ro.serialno")).strip()
-            except ShieldError:
-                value = ""
-            self._device_id = value if SERIALNO.fullmatch(value) else None
-        return self._device_id
+        # Recheck each operation: an address can be reassigned or ADB can reconnect.
+        try:
+            value = str(self.t.shell("getprop", "ro.serialno")).strip()
+        except ShieldError:
+            value = ""
+        return hardware_identity(value)
 
     def owner(self):
         """Ownership fields for a new local backup manifest."""
         owner = {"device": self.c.serial}
-        if self.device_id():
-            owner["device_id"] = self.device_id()
+        current = self.device_id()
+        if current:
+            owner["device_id"] = current
         return owner
 
-    def owns(self, manifest):
+    def owns(self, manifest, current=UNREAD_ID):
         """True when a backup manifest belongs to the configured Shield."""
         if not isinstance(manifest, dict):
             return False
-        saved = manifest.get("device_id")
-        current = self.device_id() if saved else None
-        if saved and current:
-            return saved == current
+        if "device_id" in manifest:
+            saved = hardware_identity(manifest["device_id"])
+            current = self.device_id() if current is UNREAD_ID else current
+            # A recorded hardware ID must never downgrade to address-only ownership.
+            return bool(saved and current and saved == current)
         return manifest.get("device") == self.c.serial
 
     def location(self, path, must_exist=False):
@@ -187,10 +207,11 @@ class Files:
         manifests = sorted(
             self.backups.glob("*.json"), key=lambda p: p.stat().st_mtime, reverse=True
         )[:limit]
+        current = self.device_id()
         for p in manifests:
             try:
-                d = json.loads(p.read_text())
-                if self.owns(d):
+                d = read_manifest(p)
+                if self.owns(d, current):
                     rows.append({"backup_id": p.stem, "path": d["path"], "sha256": d["sha256"]})
             except (OSError, ValueError, KeyError, TypeError, AttributeError):
                 continue  # A corrupt manifest must not hide every other snapshot.
@@ -200,17 +221,21 @@ class Files:
         if not re.fullmatch(r"[0-9a-f]{32}", backup_id):
             raise ShieldError("Invalid backup ID")
         try:
-            info = json.loads((self.backups / (backup_id + ".json")).read_text())
+            info = read_manifest(self.backups / (backup_id + ".json"))
             path, expected = info["path"], info["sha256"]
-            data = (self.backups / (backup_id + ".bin")).read_bytes()
+            if not self.owns(info):
+                raise ShieldError(
+                    "Backup belongs to a different device or its hardware identity is unavailable",
+                    "device_mismatch",
+                )
+            with (self.backups / (backup_id + ".bin")).open("rb") as handle:
+                data = handle.read(MAX_FILE + 1)
         except (OSError, ValueError, KeyError, TypeError):
             # Never echo local state paths; list_backups shows what can be restored.
             raise ShieldError(
                 "Backup is missing or incomplete in local private storage; see kodi_backups",
                 "not_found",
             ) from None
-        if not self.owns(info):
-            raise ShieldError("Backup belongs to a different Shield")
         if len(data) > MAX_FILE or digest(data) != expected:
             raise ShieldError("Backup checksum failed")
         return relative(path), data

@@ -31,6 +31,9 @@ embedded in an unrelated project's APK.
    pulls the installed APKs (Kodi's are a few hundred MB, up to 1 GB in total) over the Shield's
    network link, so the preview is refused while any app's media is playing or paused and checks
    again before each APK; run it when nobody is watching.
+   APK previews require a stable `ro.serialno` hardware identity. Placeholder or unreadable serials
+   block this workflow; read-only diagnostics remain available. Address-only identity is insufficient
+   for installation, even when the IP address, SDK and installed APK hashes match.
 2. Review package, installed/candidate versionCode, signer fingerprints and APK count. Updates must
    increase versionCode and preserve the complete signer set. New installs need signer
    fingerprints the **user** configured in `NVIDIA_MCP_TRUSTED_SIGNERS` (comma-separated SHA-256,
@@ -44,7 +47,7 @@ embedded in an unrelated project's APK.
 4. Enable MCP write mode only for the authorized change, then call `shield_apk_apply(preview_id)`.
    Preview and apply report progress per stage (save originals, Kodi data tar, push, install, verify)
    to MCP clients that request it.
-   Previews expire after ten minutes; they are immutable and tied to this server/configured Shield.
+   Previews expire after ten minutes; they are immutable and tied to this server and hardware serial.
    Re-preview after expiry, a changed app/device, or server restart.
 5. Before copying anything to the TV, apply verifies the preview, originals and current installation.
    For an existing Kodi installation it also takes a validated, private archive of `addons` and
@@ -73,8 +76,15 @@ and `kodi-data.tar` for an existing Kodi upgrade. Backups contain credentials; n
 
 Apply failures identify the recovery bundle and retain it. A failed transfer/install/readback does
 not cause retries or uninstall. Once a transfer starts, the preview is consumed even if installation
-fails. Temporary APKs are removed where the device remains reachable. Status distinguishes preparation,
+fails. Temporary APKs and split sessions are cleaned up only where hardware identity still matches.
+If identity changes or becomes unreadable, reconnect the original TV before reviewing its remaining
+temporary files; cleanup commands are not sent to a replacement device. Status distinguishes preparation,
 installation and verification; inspect the actual installed state before deciding recovery steps.
+
+If private storage cannot save the latest recovery phase, the tool reports `local_storage_error`
+and the bundle ID. The previous manifest remains intact but can be stale, even after a successful
+install. Inspect current app state and retained recovery files before retrying; the phase alone
+does not establish whether installation finished.
 
 APK recovery is deliberately a reviewed manual action in this release. Check all backup hashes and
 the target device. Android may reject a production-app downgrade even with the original signed APK;

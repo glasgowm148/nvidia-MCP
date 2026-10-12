@@ -30,8 +30,16 @@ def private_dir(path):
 
 
 def save_json(path, value):
-    path.write_text(json.dumps(value, indent=2), encoding="utf-8")
-    path.chmod(0o600)
+    temporary = path.with_name("." + path.name + "." + uuid.uuid4().hex)
+    try:
+        with temporary.open("x", encoding="utf-8") as handle:
+            json.dump(value, handle, indent=2)
+            handle.flush()
+            os.fsync(handle.fileno())
+        temporary.chmod(0o600)
+        os.replace(temporary, path)
+    finally:
+        temporary.unlink(missing_ok=True)
 
 
 class ApkOperations:
@@ -102,6 +110,13 @@ class ApkOperations:
             report(0, 4, "Inspecting candidate APKs")
             base, items = inspect_set(paths, self.c)
             device = self.device()
+            identity = self.ops.files.owner()
+            if not identity.get("device_id"):
+                raise ShieldError(
+                    "APK installation requires a stable Android hardware serial; "
+                    "diagnostics remain available but address-only identity is insufficient",
+                    "device_identity_unknown",
+                )
             self.compatible(items, device)
             package = base["package"]
             original = self.installed(package)
@@ -159,6 +174,7 @@ class ApkOperations:
                     )
                 if self.installed(package) != original:
                     raise ShieldError("Installed app changed during preview")
+                self.verify_identity(identity)
                 plan = {
                     "created": time.monotonic(),
                     "directory": directory,
@@ -168,6 +184,7 @@ class ApkOperations:
                     "original_items": copy.deepcopy(old_items),
                     "installed": original,
                     "device": device,
+                    "identity": identity,
                     "package": package,
                     "version_code": base["version_code"],
                 }
@@ -218,6 +235,13 @@ class ApkOperations:
 
     def guard(self, package):
         return self.ops.guard_tv("apk", package=package)
+
+    def verify_identity(self, identity):
+        if not self.ops.files.owns(identity):
+            raise ShieldError(
+                "Android device identity changed or is unavailable; reconnect and preview again",
+                "device_mismatch",
+            )
 
     def kodi_snapshot(self, folder):
         self.ops.stopped()
@@ -335,6 +359,7 @@ class ApkOperations:
             plan = self.plans.get(preview_id)
             if not plan or time.monotonic() - plan["created"] > TTL:
                 raise ShieldError("APK preview is missing or expired; preview again")
+            self.verify_identity(plan["identity"])
             self.guard(plan["package"])
             base, items = inspect_set(plan["paths"], self.c)
             if (
@@ -354,7 +379,7 @@ class ApkOperations:
             backup = private_dir(private_dir(self.c.state) / "apk_backups" / backup_id)
             manifest = {
                 "backup_id": backup_id,
-                **self.ops.files.owner(),
+                **plan["identity"],
                 "package": plan["package"],
                 "created": time.time(),
                 "original_version_code": plan["installed"]["version_code"]
@@ -383,10 +408,12 @@ class ApkOperations:
                 manifest["status"] = "prepared"
                 save_json(backup / "manifest.json", manifest)
                 self.guard(plan["package"])
+                self.verify_identity(plan["identity"])
                 if self.installed(plan["package"]) != plan["installed"]:
                     raise ShieldError("Installed app changed during backup; preview again")
                 report(2, 6, "Pushing APKs to the Shield")
                 for index, source in enumerate(plan["paths"]):
+                    self.verify_identity(plan["identity"])
                     remote = f"/data/local/tmp/nvidia-mcp-{preview_id}-{index}.apk"
                     remotes.append(remote)
                     attempted = True
@@ -395,12 +422,14 @@ class ApkOperations:
                     if not actual or actual[0].lower() != plan["items"][index]["sha256"]:
                         raise ShieldError("Transferred APK checksum failed")
                 self.guard(plan["package"])
+                self.verify_identity(plan["identity"])
                 if self.installed(plan["package"]) != plan["installed"]:
                     raise ShieldError("Installed app changed before installation")
                 manifest["status"] = "installing"
                 save_json(backup / "manifest.json", manifest)
                 report(3, 6, "Installing")
-                output = self.install_remote(remotes, items, plan["package"])
+                output = self.install_remote(remotes, items, plan["package"], plan["identity"])
+                self.verify_identity(plan["identity"])
                 if not re.search(r"^Success\s*$", output, re.M):
                     raise ShieldError(
                         "Android rejected the install; inspect backup/status, no automatic uninstall or retry"
@@ -432,25 +461,39 @@ class ApkOperations:
                     "failed_after_transfer" if attempted else "failed_before_transfer"
                 )
                 reason = (
-                    str(exc)
+                    exc.message
                     if isinstance(exc, ShieldError)
                     else "Check private storage and bounded device diagnostics"
                 )
                 raise ShieldError(
-                    f"APK change failed: {reason}. Recovery bundle {backup_id}. Inspect current app state before recovery; no automatic retry or uninstall."
+                    f"APK change failed: {reason}. Recovery bundle {backup_id}. Inspect current app state before recovery; no automatic retry or uninstall.",
+                    exc.kind if isinstance(exc, ShieldError) else "unknown",
                 ) from None
             finally:
-                save_json(backup / "manifest.json", manifest)
+                metadata_failed = False
+                try:
+                    save_json(backup / "manifest.json", manifest)
+                except OSError:
+                    metadata_failed = True
                 for remote in remotes:
                     try:
+                        self.verify_identity(plan["identity"])
                         self.t.shell("rm", "-f", remote)
                     except ShieldError:
                         pass
                 if attempted:
                     self.plans.pop(preview_id, None)
                     shutil.rmtree(plan["directory"], ignore_errors=True)
+                if metadata_failed:
+                    raise ShieldError(
+                        f"Recovery bundle {backup_id}: could not save its latest status. "
+                        "The app may have changed; inspect current app state and private recovery "
+                        "files before any retry. Temporary files were cleaned up where device identity matched.",
+                        "local_storage_error",
+                    ) from None
 
-    def install_remote(self, remotes, items, package):
+    def install_remote(self, remotes, items, package, identity):
+        self.verify_identity(identity)
         if len(remotes) == 1:
             return self.t.shell("pm", "install", "-r", remotes[0], timeout=300, limit=16000)
         result = self.t.shell(
@@ -468,6 +511,7 @@ class ApkOperations:
         session = match[1]
         try:
             for index, (remote, item) in enumerate(zip(remotes, items, strict=True)):
+                self.verify_identity(identity)
                 result = self.t.shell(
                     "pm",
                     "install-write",
@@ -482,9 +526,11 @@ class ApkOperations:
                 if not re.search(r"^Success", result, re.M):
                     raise ShieldError("Android could not stage an APK split")
             self.guard(package)
+            self.verify_identity(identity)
             return self.t.shell("pm", "install-commit", session, timeout=300, limit=16000)
         finally:
             try:
+                self.verify_identity(identity)
                 self.t.shell("pm", "install-abandon", session, limit=16000)
             except ShieldError:
                 pass
@@ -552,13 +598,14 @@ class ApkOperations:
         rows = []
         root = self.c.state / "apk_backups"
         if root.exists():
+            current = self.ops.files.device_id()
             manifests = sorted(
                 root.glob("*/manifest.json"), key=lambda path: path.stat().st_mtime, reverse=True
             )[:50]
             for path in manifests:
                 try:
                     value = json.loads(path.read_text())
-                    if self.ops.files.owns(value):
+                    if self.ops.files.owns(value, current):
                         rows.append(
                             {
                                 key: value[key]

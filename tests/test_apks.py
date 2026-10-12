@@ -8,10 +8,10 @@ from pathlib import Path
 import pytest
 from conftest import media_session
 
-from nvidia_mcp import android_tools
+from nvidia_mcp import android_tools, apks
 from nvidia_mcp.apks import SNAPSHOT_EXCLUDES, ApkOperations
 from nvidia_mcp.config import ShieldError
-from nvidia_mcp.files import digest
+from nvidia_mcp.files import Files, digest
 
 SIGNER = "a" * 64
 
@@ -62,12 +62,15 @@ def apk_env(ops, monkeypatch, tmp_path):
             self.media = ""
             self.players = []
             self.downloads = []
+            self.serialno = "synthetic_device_001"
 
         def rpc(self, *args):
             return self.players
 
         def shell(self, *args, **kwargs):
             self.calls.append(args)
+            if args == ("getprop", "ro.serialno"):
+                return self.serialno
             if args[:2] == ("getprop", "ro.product.cpu.abilist"):
                 return "armeabi-v7a,arm64-v8a"
             if args[:2] == ("getprop", "ro.build.version.sdk"):
@@ -150,6 +153,7 @@ def apk_env(ops, monkeypatch, tmp_path):
 
     device = Device()
     ops.t = device
+    ops.files = Files(device)
     ops.apks = ApkOperations(ops)
     ops.apks.c = replace(ops.c, mount=None)
 
@@ -169,6 +173,102 @@ def apk_env(ops, monkeypatch, tmp_path):
         return str(path)
 
     return ops, device, candidate
+
+
+def test_apk_preview_cannot_apply_to_replacement_device(apk_env):
+    ops, device, candidate = apk_env
+    plan = ops.apks.preview([candidate()])
+    device.serialno = "synthetic_device_002"  # Same IP, SDK, ABIs and installed APK.
+    with pytest.raises(ShieldError) as caught:
+        ops.apks.apply(plan["preview_id"])
+    assert caught.value.kind == "device_mismatch"
+    assert not any(call[0] == "push" or call[:2] == ("pm", "install") for call in device.calls)
+
+
+def test_apk_without_stable_identity_is_refused_before_staging(apk_env):
+    ops, device, candidate = apk_env
+    device.serialno = "unknown"
+    with pytest.raises(ShieldError) as caught:
+        ops.apks.preview([candidate()])
+    assert caught.value.kind == "device_identity_unknown"
+    assert not device.downloads
+    assert not ops.apks.plans
+
+
+def test_device_change_after_upload_cannot_install_or_cleanup_on_new_device(apk_env):
+    ops, device, candidate = apk_env
+    plan = ops.apks.preview([candidate()])
+    original = device.adb
+
+    def adb(*args, **kwargs):
+        result = original(*args, **kwargs)
+        if args[0] == "push":
+            device.serialno = "synthetic_device_002"
+        return result
+
+    device.adb = adb
+    with pytest.raises(ShieldError) as caught:
+        ops.apks.apply(plan["preview_id"])
+    assert caught.value.kind == "device_mismatch"
+    assert not any(call[:2] in (("pm", "install"), ("rm", "-f")) for call in device.calls)
+
+
+@pytest.mark.parametrize("phase", ["install-create", "install-write", "install-commit"])
+def test_device_change_during_split_session_blocks_later_actions(apk_env, phase):
+    ops, device, candidate = apk_env
+    plan = ops.apks.preview([candidate(), candidate(split="config.arm64", abi="arm64-v8a")])
+    original = device.shell
+    changed = False
+
+    def shell(*args, **kwargs):
+        nonlocal changed
+        if changed and args[0] in ("pm", "rm"):
+            pytest.fail("Mutation attempted on the replacement TV")
+        result = original(*args, **kwargs)
+        if args[:2] == ("pm", phase):
+            device.serialno = "synthetic_device_002"
+            changed = True
+        return result
+
+    device.shell = shell
+    with pytest.raises(ShieldError) as caught:
+        ops.apks.apply(plan["preview_id"])
+    assert caught.value.kind == "device_mismatch"
+    assert changed
+
+
+def test_failed_recovery_metadata_write_still_cleans_up_and_reports_bundle(apk_env, monkeypatch):
+    ops, device, candidate = apk_env
+    plan = ops.apks.preview([candidate()])
+    original = apks.save_json
+
+    def save(path, value):
+        if value["status"] == "verified":
+            raise OSError("private credential path must not appear")
+        return original(path, value)
+
+    monkeypatch.setattr(apks, "save_json", save)
+    with pytest.raises(ShieldError) as caught:
+        ops.apks.apply(plan["preview_id"])
+    assert caught.value.kind == "local_storage_error"
+    assert "private credential" not in str(caught.value)
+    assert "Recovery bundle" in str(caught.value)
+    assert any(call[:2] == ("rm", "-f") for call in device.calls)
+    assert plan["preview_id"] not in ops.apks.plans
+
+
+def test_metadata_commit_failure_preserves_previous_recovery_state(tmp_path, monkeypatch):
+    path = tmp_path / "manifest.json"
+    apks.save_json(path, {"status": "prepared"})
+
+    def failed_replace(*args):
+        raise OSError("synthetic disk failure")
+
+    monkeypatch.setattr(apks.os, "replace", failed_replace)
+    with pytest.raises(OSError):
+        apks.save_json(path, {"status": "installing"})
+    assert json.loads(path.read_text()) == {"status": "prepared"}
+    assert list(tmp_path.iterdir()) == [path]
 
 
 def test_verified_upgrade_stages_exact_bytes_and_preserves_original(apk_env):
