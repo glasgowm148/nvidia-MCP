@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.6 — 2026-10-12 (prerelease)
+
+- Fix the opt-in Android profile handoff's automatic reopen race. Arming no longer starts a ten-second countdown while Kodi is quitting. The child waits for `Application stopped`, obtains a versioned `READY` acknowledgment, and schedules one reopen two seconds later before ending the old process.
+- Helper APK 1.1 / versionCode 2, client DEX and shell script must be rebuilt and deployed together with the existing private token/signing identity. An outdated APK refuses before Kodi quits. Readiness expires after two minutes and is consumed once; cancel clears it and any pending launch. Unexpected process death before the saved shutdown checkpoint still requires manual recovery.
+- The actual Java readiness policy is tested for short/slow shutdowns, expiration, duplicate readiness, permission revocation and cancellation. A private build with unchanged signing key/token passed automatic Adults → Kids → Adults switches on the reference Shield / Kodi 22 RC1 (29.1 / 23.5 seconds), returning to Home and verifying both profiles' channel counts.
+
 ## 0.5.5 — 2026-10-12 (prerelease)
 
 - Bound HTTP exchanges to 60 seconds with a socket deadline, including dripping headers and success/error bodies. Disable keepalive reuse so a cancelled timer cannot affect another request; retain the 20-second read/3-second connect timeouts and byte bounds. Never retry mutations automatically.

@@ -38,7 +38,7 @@ def main():
         # Tool failure output may contain private paths; keep it out of routine logs.
         subprocess.run([str(value) for value in command], check=True, capture_output=True)
 
-    def compile_java(path, destination):
+    def compile_java(paths, destination):
         run(
             java / "javac",
             "--release",
@@ -47,7 +47,7 @@ def main():
             args.android_jar,
             "-d",
             destination,
-            path,
+            *paths,
         )
         run(
             java / "java",
@@ -63,7 +63,7 @@ def main():
             *sorted(destination.rglob("*.class")),
         )
 
-    compile_java(source / "src/org/kodimanager/profileswitch/ArmReceiver.java", classes)
+    compile_java(sorted((source / "src").rglob("*.java")), classes)
     run(
         tools / "aapt2",
         "link",
@@ -114,7 +114,7 @@ def main():
         root / "aligned.apk",
     )
     run(java / "java", "-jar", signer, "verify", root / "kodi-profile-switch.apk")
-    compile_java(source / "kodi/profile_restart/KodiProfileLauncher.java", client)
+    compile_java([source / "kodi/profile_restart/KodiProfileLauncher.java"], client)
     print("Private APK signature verified; client classes.dex built. TV unchanged.")
 
 

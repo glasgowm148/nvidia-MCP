@@ -26,7 +26,7 @@ done
 [ "$pid" -gt 1 ] || exit 1
 umask 077
 CLASSPATH="$dex" /system/bin/app_process /system/bin KodiProfileLauncher arm "$token" > "$status.launch.log" 2>&1 || exit 1
-/system/bin/toybox grep -q '^alarm_armed$' "$status.launch.log" || exit 1
+/system/bin/toybox grep -q '^handoff_armed$' "$status.launch.log" || exit 1
 printf '{"phase":"waiting_saved","pid":%s,"index":%s}\n' "$pid" "$index" > "$status"
 i=0
 while [ "$i" -lt 400 ]; do
@@ -67,9 +67,15 @@ while [ "$i" -lt 400 ]; do
             IFS= read -r proc_stat < /proc/self/stat || exit 1
             proc_fields=${proc_stat##*) }; set -- $proc_fields
             [ "$2" = "$pid" ] || exit 1
+            CLASSPATH="$dex" /system/bin/app_process /system/bin KodiProfileLauncher ready "$token" > "$status.ready.log" 2>&1 || exit 1
+            /system/bin/toybox grep -q '^launch_scheduled$' "$status.ready.log" || exit 1
+            # Recheck the parent after the acknowledged handoff too.
+            IFS= read -r proc_stat < /proc/self/stat || exit 1
+            proc_fields=${proc_stat##*) }; set -- $proc_fields
+            [ "$2" = "$pid" ] || exit 1
             printf '{"phase":"profile_saved","pid":%s,"index":%s,"termination":"saved_settings_and_services_stopped"}\n' "$pid" "$index" > "$status"
             completed=1
-            kill -KILL "$pid" || exit 1
+            kill -KILL "$pid" || { completed=0; exit 1; }
             exit 0;;
         esac
     fi

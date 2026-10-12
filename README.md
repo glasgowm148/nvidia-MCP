@@ -19,7 +19,7 @@
 **Local MCP tools for Kodi on NVIDIA Shield, Android TV, Google TV and Android-based Fire TV, with experimental Apple TV support.** Give your assistant the tools to inspect your setup, diagnose playback problems, adjust settings and apply reversible repairs from your computer. Works over your home network on macOS, Windows and Linux, with an MCP client that supports stdio. No cloud account is required for the server.
 
 > [!NOTE]
-> **Alpha / prerelease (0.5.5).** Start with read-only access. See [tested compatibility](docs/compatibility.md)
+> **Alpha / prerelease (0.5.6).** Start with read-only access. See [tested compatibility](docs/compatibility.md)
 > and [verification evidence](docs/verification.md) before using repair or upgrade tools.
 
 ## What you can do
@@ -36,7 +36,7 @@
 
 The bundled repair playbook covers profiles, audio, autoplay, source priorities, skin widgets and stale stream URLs. It helps distinguish **installed**, **enabled**, **configured** and **actually used**. It is available as the `nvidia://playbook` resource and `audit_kodi` prompt.
 
-**New in 0.5.5:** The deeper audit adds HTTP socket deadlines, distinguishes partial/malformed replies from offline services, and bundles profile-bound request/backup fixes. Apple TV reuses the Kodi/Manager skin, settings, widget, backup and undo workflows. Optional private Companion/AirPlay pairing adds launch, installed-app listing, Home and power. Android-only tools are omitted on tvOS. Hardware validation is pending; see the [Apple TV setup and parity table](docs/apple-tv.md). Shield configuration stays the default.
+**New in 0.5.6:** The opt-in Android profile handoff schedules its reopen after Kodi finishes stopping, fixing the old ten-second alarm race during slow shutdown. It requires the matching private helper APK 1.1, client DEX and script; MCP does not install these automatically. The previous HTTP deadline and profile-bound backup fixes remain included. Apple TV reuses the Kodi/Manager skin, settings, widget, backup and undo workflows. Optional private Companion/AirPlay pairing adds launch, installed-app listing, Home and power. Android-only tools are omitted on tvOS. Apple hardware validation is pending; see the [Apple TV setup and parity table](docs/apple-tv.md). Shield configuration stays the default.
 
 ## Quick start
 

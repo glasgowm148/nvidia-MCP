@@ -12,7 +12,7 @@
 | Official Kodi APKs | Local SDK inspection of 21.3/22 beta 2 arm64, signer/version/SDK/ABI and corruption refusal | Metadata/signature checks are not runtime testing |
 | APK install/recovery | Synthetic transfer/session/backup/readback, changing hardware identity and recovery-storage failure tests | Stable hardware serial required; live Shield upgrade and recovery unverified; no automatic/guaranteed downgrade |
 | Optional Manager | Pinned public 0.7.23 ZIP/export (supports 0.4+; widget cache 0.6+), checksum-verified from its release; live authenticated health/status via the new forwarding route against household Manager 0.7.12 | Public 0.7.23 ZIP not installed on the Shield; household patches are separate |
-| Optional profile handoff | Source compiled; private variant tested on one Shield with Kodi 22 beta 2 and 22.0 RC1, two profiles; the current contrib `relaunch.sh` deployed and switched profiles on RC1 (2026-10-11) | Source-only, opt-in; gated to 22.0-BETA2/RC1; native crash workaround, not a general Kodi fix |
+| Optional profile handoff | Helper 1.1 with the matching client/script compiled and privately deployed on the reference Shield / Kodi 22 RC1; automatic Adults → Kids → Adults in 29.1 / 23.5 seconds, Home and channel counts verified (2026-10-12); actual Java readiness-policy tests | Source-only, opt-in; gated to 22.0-BETA2/RC1; no automatic reopen if Kodi dies before the saved shutdown checkpoint |
 | Library API | `nvidia_mcp.Shield` (docs/library.md), replay tests plus live read-only Kodi/Manager forwarding on the reference Shield (2026-10-12) | Other hosts/firmware still rely on CI and synthetic checks |
 | Layout writes | Reviewed Bingie 2.0.2 / Skin Shortcuts 2.0.3 source hashes | Other/forked/modified versions stay view-only |
 

@@ -86,7 +86,7 @@ def restart(target):
                     denied = False
                 if denied:
                     raise RuntimeError(
-                        "Account switch launcher is unavailable or its relaunch permission is disabled"
+                        "Account switch launcher is unavailable, outdated, or its relaunch permission is disabled"
                     )
                 raise RuntimeError("Profile relaunch helper stopped before shutdown")
             try:

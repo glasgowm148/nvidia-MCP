@@ -14,7 +14,7 @@ import java.util.concurrent.TimeUnit;
 /** Ask the offline handoff app to reopen Kodi; no shell identity or remote API. */
 public final class KodiProfileLauncher {
     public static void main(String[] args) throws Exception {
-        if (args.length != 2 || !("arm".equals(args[0]) || "cancel".equals(args[0]))) System.exit(2);
+        if (args.length != 2 || !("arm".equals(args[0]) || "cancel".equals(args[0]) || "ready".equals(args[0]))) System.exit(2);
         android.os.Looper.prepareMainLooper();
         Class<?> activityThread = Class.forName("android.app.ActivityThread");
         Method create = activityThread.getDeclaredMethod("systemMain"); create.setAccessible(true);
@@ -28,13 +28,17 @@ public final class KodiProfileLauncher {
         HandlerThread callbacks = new HandlerThread("KodiHandoffReply"); callbacks.start();
         final CountDownLatch done = new CountDownLatch(1);
         final int[] result = {0};
+        final String[] protocol = {null};
         own.sendOrderedBroadcast(request, null, new BroadcastReceiver() {
             @Override public void onReceive(Context context, Intent intent) {
-                result[0] = getResultCode(); done.countDown();
+                result[0] = getResultCode(); protocol[0] = getResultData(); done.countDown();
             }
         }, new Handler(callbacks.getLooper()), 0, null, null);
         boolean received = done.await(4, TimeUnit.SECONDS); callbacks.quitSafely();
-        if (!received || result[0] != -1) { System.out.println("relaunch_helper_unavailable"); System.exit(2); }
-        System.out.println("arm".equals(args[0]) ? "alarm_armed" : "alarm_cancelled");
+        if (!received || result[0] != -1 || !"shutdown-ready-v2".equals(protocol[0])) {
+            System.out.println("relaunch_helper_unavailable"); System.exit(2);
+        }
+        System.out.println("arm".equals(args[0]) ? "handoff_armed" :
+            "ready".equals(args[0]) ? "launch_scheduled" : "alarm_cancelled");
     }
 }

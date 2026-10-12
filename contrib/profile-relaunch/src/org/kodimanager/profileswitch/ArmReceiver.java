@@ -7,6 +7,7 @@ import android.content.BroadcastReceiver;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.os.SystemClock;
 import android.provider.Settings;
 import java.io.InputStream;
@@ -32,14 +33,27 @@ public final class ArmReceiver extends BroadcastReceiver {
             PendingIntent next = PendingIntent.getActivity(context, 45644, launch,
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
             AlarmManager alarms = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
-            if ("org.kodimanager.profileswitch.CANCEL".equals(request.getAction())) {
-                alarms.cancel(next); next.cancel(); setResultCode(Activity.RESULT_OK); return;
+            String action = request.getAction();
+            String prefix = "org.kodimanager.profileswitch.";
+            if (action == null || !action.startsWith(prefix)) return;
+            SharedPreferences state = context.getSharedPreferences("handoff", Context.MODE_PRIVATE);
+            Handoff.Decision decision = Handoff.decide(action.substring(prefix.length()),
+                SystemClock.elapsedRealtime(), state.getLong("armed_until", 0),
+                Settings.canDrawOverlays(context));
+            if (!decision.accepted) return;
+            if (!state.edit().putLong("armed_until", decision.armedUntil).commit()) return;
+            if (decision.launchDelay == 0) {
+                // ARM proves permission and clears any older launch. It cannot
+                // reopen Kodi while native shutdown is still running.
+                alarms.cancel(next);
+                if ("CANCEL".equals(action.substring(prefix.length()))) next.cancel();
+            } else {
+                // READY is sent only at Application stopped. Android owns this
+                // one-shot launch after the child ends Kodi's old process.
+                alarms.setAlarmClock(new AlarmManager.AlarmClockInfo(
+                    System.currentTimeMillis() + decision.launchDelay, next), next);
             }
-            if (!"org.kodimanager.profileswitch.ARM".equals(request.getAction())
-                    || !Settings.canDrawOverlays(context)) return;
-            // A single user-requested restart, owned by Android, survives Kodi's exit.
-            alarms.setAlarmClock(new AlarmManager.AlarmClockInfo(
-                System.currentTimeMillis() + 10000L, next), next);
+            setResultData("shutdown-ready-v2");
             setResultCode(Activity.RESULT_OK);
         } catch (Exception ignored) {
             // Sender must observe success before asking Kodi to quit.
