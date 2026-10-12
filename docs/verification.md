@@ -1,5 +1,18 @@
 # Verification
 
+## 0.5.1 Apple TV follow-up audit (2026-10-12)
+
+New regressions use the installed pyatv 0.16 MRP state manager and facade: an uninitialized or
+metadata-less paused player reports public `Idle`, and this backend now preserves `unknown`/`paused`.
+Synthetic tests cover launch authentication/device failures, response ownership despite returning
+profile state, cached partial pairing and shutdown during pending work.
+
+Manager 0.7.18 verifies VFS existence/stat/read lengths, refuses unsafe virtual writes/missing-directory snapshots,
+confines nonstandard profiles and keeps live identity/access untouched during self-restore.
+Locally, 601 MCP Python tests plus 5 subtests passed with the optional SDK installed. Manager passed
+769 Python tests (one environment skip) and 98 UI tests; Python 3.8 types, wheel recovery/stdio/export
+and deterministic release checks remain required. No hardware or live TV mutations were performed.
+
 ## 0.5.0 experimental Apple TV support (2026-10-12)
 
 Synthetic tests cover private Companion/AirPlay pairing, explicit-host-only discovery, partial

@@ -57,7 +57,7 @@ def readiness(ops):
                 if ops.c.manager_token
                 else {
                     "state": "not_configured",
-                    "next_step": "Install/configure Kodi Manager 0.7.16+ for skin/settings/file management",
+                    "next_step": "Install/configure Kodi Manager 0.7.17+ for skin/settings/file management",
                 },
                 "capabilities": apple_capabilities(ops.c),
                 "note": "Readiness is separate from idle playback and active Kodi; unknown state blocks changes.",

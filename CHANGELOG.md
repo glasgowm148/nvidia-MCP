@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.5.1 — 2026-10-12 (prerelease)
+
+- Preserve unknown MRP playback state and metadata-less paused players instead of accepting pyatv's synthetic idle. Use a bounded read-only adapter for pinned pyatv 0.16; missing internals block changes.
+- Explicit launch opt-ins no longer bypass Manager authentication, malformed state or changed device identity. Recheck both paired protocols even with a cached connection.
+- Bind file requests/responses to captured Manager identity/profile; require Manager 0.7.17+ for those reads and explain older-server refusal.
+- Close the paired event loop without racing new work; cancel/await pending tasks and reject operations on a closed transport.
+- Bundle audited Manager 0.7.18, clarify stricter guard/recovery limits, and add real-SDK and concurrent-shutdown regressions. Physical Apple TV validation remains pending; no household TV changes.
+
 ## 0.5.0 — 2026-10-12 (prerelease)
 
 - Add explicit experimental Apple TV backend with optional public pyatv 0.16 dependency.

@@ -21,7 +21,7 @@ signing its IPA and renewing its provisioning are outside this server; follow
 
 Legacy shared tools keep their `shield_*` names. Android-only tools are omitted in Apple TV mode.
 `apple_tv_power` is Apple-only and appears with write mode. Core Kodi reads work without pairing
-or Manager; skin management, file reads and guarded changes need Manager **0.7.16+**. Layout
+or Manager; skin management, file reads and guarded changes need Manager **0.7.17+**. Layout
 writes still require reviewed Bingie 2.0.2 / Skin Shortcuts 2.0.3 source hashes. Installing this
 release does not make an unknown or modified skin writable, and does not install a skin for you.
 
@@ -69,7 +69,7 @@ Remove Android/Shield host values from this entry. Conflicting host values and a
 route are rejected. No ADB/SDK Build Tools installation is needed. Existing Shield entries should
 keep their current environment and backend.
 
-Run both pairing actions using that private environment, outside MCP:
+Run both pairing actions sequentially using that private environment, outside MCP:
 
 ```sh
 nvidia-mcp --pair-apple-tv Companion
@@ -95,9 +95,17 @@ or omit `addon_id` for checkpoints. `kodi_configuration_backup` and
 Before changes, the guard establishes a new paired connection because SDK playback/power getters
 are push caches, checks reported system media (paused media counts as busy), confirms Kodi's
 native UIApplication state is active, then checks Kodi players. Unknown/unavailable state blocks
-changes. Another app's playback is never overridden on Apple TV. Starting inactive Kodi needs
+changes. SDK idle without a received playback state is treated as unknown; metadata-less paused
+players remain busy. The pinned pyatv 0.16 MRP adapter waits up to three seconds for an explicit
+state, and its missing/changed internals fail closed. A fresh Home/idle connection may therefore
+refuse writes until the device reports a stopped state. Inspect after normal playback has been
+stopped; do not bypass the guard.
+
+Another app's playback is never overridden on Apple TV. Starting inactive Kodi needs
 both `interrupt_other_app=true` and the human-set `NVIDIA_MCP_ALLOW_INTERRUPT=1`; media must still
-be idle. Stop/restart use Kodi's graceful quit only. HTTP disappearance is not proof the process
+be confirmed stopped/idle. An explicit app switch never bypasses Manager authentication, malformed
+state or a changed Manager identity. Only offline timeout/unreachability can use the launch opt-in.
+Stop/restart use Kodi's graceful quit only. HTTP disappearance is not proof the process
 terminated; a launch request is not readiness. Hung exits need manual TV recovery.
 
 Kodi stores tvOS userdata XML in its virtual filesystem/NSUserDefaults. Manager writes each XML
@@ -112,7 +120,7 @@ Never uninstall Kodi to obtain a clean slate without an independent backup.
 The persistent Manager ID binds local snapshots to that Manager instance, not a hardware serial.
 Deleting its userdata, reinstalling Kodi or cloning its preferences affects identity; reconnect
 and inspect rather than bypassing ownership checks. Active-profile/add-on text reads use simple
-ASCII relative paths, reject traversal/symlinks and are limited to 600 KB per file. Virtual XML
+ASCII relative paths, reject traversal/symlinks and are limited to 600 KB per file. Manager 0.7.17+ checks requested device/profile ownership and returns it with each file; mismatched/older responses are refused. Kodi profile paths outside the canonical `userdata/profiles/` tree are currently unsupported by this MCP backend. Virtual XML
 backup/write readback is limited to 2 MB per file. Large configuration files need separate recovery.
 
 ## Protocols and verification limits

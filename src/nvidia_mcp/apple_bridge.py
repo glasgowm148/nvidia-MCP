@@ -25,21 +25,25 @@ class AppleBridge:
         self.lock = threading.Lock()
         self.connection_lock = None
         self.action_lock = None
+        self.closing = False
+        self.closed = False
 
     def _run(self, function, timeout=30):
         with self.lock:
+            if self.closing or self.closed:
+                raise ShieldError("Apple TV transport is closed", "cancelled")
             if self.loop is None:
                 self.loop = asyncio.new_event_loop()
                 self.thread = threading.Thread(target=self.loop.run_forever, daemon=True)
                 self.thread.start()
 
-        async def serialized():
-            if self.action_lock is None:
-                self.action_lock = asyncio.Lock()
-            async with self.action_lock:
-                return await function()
+            async def serialized():
+                if self.action_lock is None:
+                    self.action_lock = asyncio.Lock()
+                async with self.action_lock:
+                    return await function()
 
-        future = asyncio.run_coroutine_threadsafe(serialized(), self.loop)
+            future = asyncio.run_coroutine_threadsafe(serialized(), self.loop)
         try:
             return future.result(timeout)
         except ShieldError:
@@ -130,14 +134,14 @@ class AppleBridge:
         value = self.credentials()
         if self.identity is not None and value["identifier"] != self.identity:
             raise ShieldError("Apple TV credentials changed; restart the server", "device_mismatch")
-        if self.device is not None:
-            return self.device
-        pyatv, _names, _states, protocols = self.sdk()
         if set(value["services"]) != {"Companion", "AirPlay"}:
             raise ShieldError(
                 "Pair both Companion and AirPlay for controls and playback guards",
                 "pairing_required",
             )
+        if self.device is not None:
+            return self.device
+        pyatv, _names, _states, protocols = self.sdk()
         target = await self.target()
         if value["identifier"] not in target.all_identifiers:
             raise ShieldError(
@@ -165,8 +169,13 @@ class AppleBridge:
             # protocol initialization before a guard; never reuse an old idle cache.
             await self.disconnect()
             device = await self.connected()
-            playing = await device.metadata.playing()
-            state = playing.device_state.name.lower()
+            # pyatv 0.16 collapses missing state and metadata-less paused players
+            # to Idle. Use the pinned MRP adapter to retain that distinction.
+            state = self.confirmed_playback(device.metadata)
+            deadline = asyncio.get_running_loop().time() + 3
+            while state == "unknown" and asyncio.get_running_loop().time() < deadline:
+                await asyncio.sleep(0.1)
+                state = self.confirmed_playback(device.metadata)
             power = device.power.power_state.name.lower()
             return {
                 "identifier": self.identity,
@@ -177,6 +186,21 @@ class AppleBridge:
             }
 
         return self._run(read)
+
+    def confirmed_playback(self, metadata):
+        """Read-only adapter for pinned pyatv 0.16 MRP; missing internals fail closed."""
+        _sdk, _names, _states, protocols = self.sdk()
+        if getattr(metadata, "main_protocol", None) != getattr(protocols, "MRP", None):
+            return "unknown"
+        try:
+            raw = metadata.get(protocols.MRP).psm.playing._playback_state
+        except (AttributeError, KeyError, TypeError):
+            return "unknown"
+        # MRP PlaybackState enum: Playing=1, Paused=2, Stopped=3,
+        # Interrupted=4, Seeking=5. None is uninitialized, never confirmed idle.
+        return {1: "playing", 2: "paused", 3: "stopped", 4: "loading", 5: "seeking"}.get(
+            raw, "unknown"
+        )
 
     def apps(self):
         async def read():
@@ -313,17 +337,36 @@ class AppleBridge:
             temporary.unlink(missing_ok=True)
 
     def close(self):
-        if self.loop:
-            try:
-                self._run(self.disconnect, timeout=5)
-            finally:
-                self.loop.call_soon_threadsafe(self.loop.stop)
-                self.thread.join(timeout=5)
-                if not self.thread.is_alive():
-                    self.loop.close()
+        with self.lock:
+            if self.closing or self.closed:
+                return
+            self.closing = True
+            loop, thread = self.loop, self.thread
+        try:
+            if loop is not None:
+
+                async def shutdown():
+                    tasks = [
+                        task for task in asyncio.all_tasks() if task is not asyncio.current_task()
+                    ]
+                    for task in tasks:
+                        task.cancel()
+                    await asyncio.gather(*tasks, return_exceptions=True)
+                    await self.disconnect()
+
+                future = asyncio.run_coroutine_threadsafe(shutdown(), loop)
+                try:
+                    future.result(5)
+                except Exception:
+                    future.cancel()
+                loop.call_soon_threadsafe(loop.stop)
+                thread.join(timeout=5)
+                if not thread.is_alive():
+                    loop.close()
+        finally:
+            with self.lock:
                 self.loop = self.thread = None
-                self.connection_lock = None
-                self.action_lock = None
+                self.closed, self.closing = True, False
 
     async def disconnect(self):
         device, self.device = self.device, None

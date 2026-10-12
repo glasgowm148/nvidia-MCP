@@ -55,10 +55,25 @@ class AppleFiles(Files):
     def read(self, path):
         path = relative(path)
         before = self.state_reader()
-        value = self.t.manager("/api/portable/file?" + urlencode({"path": path}))
+        value = self.t.manager(
+            "/api/portable/file?"
+            + urlencode(
+                {
+                    "path": path,
+                    "device_id": before["device_id"],
+                    "profile_root": before["profile_root"],
+                }
+            )
+        )
+        if isinstance(value, dict) and not {"device_id", "profile_root"} <= value.keys():
+            raise ShieldError(
+                "File reads require Kodi Manager 0.7.17+ ownership metadata", "unsupported"
+            )
         try:
             if (
                 value["path"] != path
+                or value["device_id"] != before["device_id"]
+                or value["profile_root"] != before["profile_root"]
                 or not isinstance(value["base64"], str)
                 or len(value["base64"]) > 800_000
             ):
@@ -66,6 +81,7 @@ class AppleFiles(Files):
             data = base64.b64decode(value["base64"], validate=True)
             if (
                 len(data) > MAX_FILE
+                or type(value["bytes"]) is not int
                 or value["bytes"] != len(data)
                 or value["sha256"] != digest(data)
             ):
@@ -284,7 +300,9 @@ class AppleOperations(Operations):
                     self.require_interrupt_opt_in("interrupt_other_app")
                 try:
                     active = self.state().get("active") is True
-                except ShieldError:
+                except ShieldError as exc:
+                    if exc.kind not in ("unreachable", "timeout"):
+                        raise
                     active = False
                 if not active and not interrupt_other_app:
                     raise ShieldError(

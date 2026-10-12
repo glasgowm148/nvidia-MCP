@@ -1,6 +1,7 @@
 import asyncio
 import base64
 import json
+import threading
 from dataclasses import replace
 from types import SimpleNamespace
 from urllib.parse import parse_qs, urlsplit
@@ -59,6 +60,8 @@ def apple(tmp_path):
                     "base64": base64.b64encode(data).decode(),
                     "bytes": len(data),
                     "sha256": digest(data),
+                    "device_id": self.state["device_id"],
+                    "profile_root": self.state["profile_root"],
                 }
             if path == "/api/kodi/logs":
                 return {"lines": ["safe log"]}
@@ -251,11 +254,9 @@ def paired_bridge(tmp_path, monkeypatch):
         calls.append(("scan", kwargs))
         return [target]
 
-    async def playing():
-        return SimpleNamespace(device_state=SimpleNamespace(name="Idle"))
-
+    mrp = SimpleNamespace(psm=SimpleNamespace(playing=SimpleNamespace(_playback_state=3)))
     device = SimpleNamespace(
-        metadata=SimpleNamespace(playing=playing),
+        metadata=SimpleNamespace(main_protocol="MRP", get=lambda protocol: mrp),
         power=SimpleNamespace(power_state=SimpleNamespace(name="On")),
         device_info=SimpleNamespace(model_str="Apple TV", version="test"),
         close=lambda: set(),
@@ -285,7 +286,7 @@ def paired_bridge(tmp_path, monkeypatch):
         return Handler()
 
     sdk = SimpleNamespace(scan=scan, connect=connect, pair=pair)
-    protocols = SimpleNamespace(Companion="Companion", AirPlay="AirPlay")
+    protocols = SimpleNamespace(Companion="Companion", AirPlay="AirPlay", MRP="MRP")
     monkeypatch.setattr(bridge, "sdk", lambda: (sdk, None, None, protocols))
     yield bridge, target, calls
     bridge.close()
@@ -298,7 +299,7 @@ def test_private_pairing_merges_protocols_and_uses_only_explicit_host(paired_bri
     bridge.pair("AirPlay", lambda: "7751")
     assert set(bridge.credentials()["services"]) == {"Companion", "AirPlay"}
     assert all(call[1]["hosts"] == ["192.168.1.8"] for call in calls if call[0] == "scan")
-    assert bridge.snapshot()["playback"] == "idle"
+    assert bridge.snapshot()["playback"] == "stopped"
     target.all_identifiers = {"replacement-tv"}
     bridge.device = None
     with pytest.raises(ShieldError, match="different Apple TV"):
@@ -324,8 +325,8 @@ def test_idle_snapshot_reconnects_instead_of_reusing_a_cache(paired_bridge):
     bridge, _target, calls = paired_bridge
     bridge.pair("Companion", lambda: "7751")
     bridge.pair("AirPlay", lambda: "7751")
-    assert bridge.snapshot()["playback"] == "idle"
-    assert bridge.snapshot()["playback"] == "idle"
+    assert bridge.snapshot()["playback"] == "stopped"
+    assert bridge.snapshot()["playback"] == "stopped"
     assert sum(call[0] == "connect" for call in calls) == 2
 
 
@@ -403,3 +404,141 @@ def test_installed_sdk_contract_without_network():
         and protocols.Companion is not None
         and protocols.AirPlay is not None
     )
+
+
+@pytest.mark.parametrize(
+    "kind", ["authentication_denied", "device_mismatch", "invalid_response", "unsupported"]
+)
+def test_start_opt_in_never_bypasses_manager_failure(apple, kind):
+    ops, transport = apple
+    ops.c = replace(ops.c, allow_interrupt=True)
+
+    def failure():
+        raise ShieldError("synthetic Manager failure", kind)
+
+    ops.state = failure
+    with pytest.raises(ShieldError) as error:
+        ops.lifecycle("start", interrupt_other_app=True)
+    assert error.value.kind == kind
+    assert not any(call[0] == "launch" for call in transport.calls)
+
+
+@pytest.mark.parametrize("kind", ["unreachable", "timeout"])
+def test_start_offline_still_requires_both_opt_ins(apple, kind):
+    ops, transport = apple
+    ops.c = replace(ops.c, allow_interrupt=True)
+
+    def offline():
+        raise ShieldError("Kodi not answering", kind)
+
+    ops.state = offline
+    assert ops.lifecycle("start", interrupt_other_app=True)["state"] == "launch_requested"
+
+
+@pytest.mark.parametrize("owner", ["device_id", "profile_root"])
+def test_file_response_owner_must_match_request_even_if_state_returns_to_original(apple, owner):
+    ops, transport = apple
+    original = transport.manager
+
+    def mismatched(path, *args):
+        value = original(path, *args)
+        if path.startswith("/api/portable/file?"):
+            value[owner] = "b" * 32 if owner == "device_id" else "userdata/profiles/Kids"
+        return value
+
+    transport.manager = mismatched
+    with pytest.raises(ShieldError, match="validation"):
+        ops.read_file("userdata/guisettings.xml")
+
+
+def test_real_sdk_missing_or_paused_without_metadata_never_means_idle(tmp_path):
+    pytest.importorskip("pyatv")
+    from pyatv.const import DeviceState, Protocol
+    from pyatv.core.facade import FacadeMetadata
+    from pyatv.protocols.mrp import MrpMetadata
+    from pyatv.protocols.mrp import protobuf as pb
+    from pyatv.protocols.mrp.player_state import PlayerStateManager
+
+    protocol = SimpleNamespace(listen_to=lambda *args: None)
+    psm = PlayerStateManager(protocol)
+    metadata = MrpMetadata(protocol, psm, "synthetic-tv", None)
+    facade = FacadeMetadata()
+    facade.register(metadata, Protocol.MRP)
+    bridge = AppleBridge(Config(host="127.0.0.1", platform="apple_tv", state=tmp_path))
+    assert asyncio.run(facade.playing()).device_state == DeviceState.Idle
+    assert bridge.confirmed_playback(facade) == "unknown"
+    path = pb.PlayerPath()
+    path.client.bundleIdentifier = "com.example.player"
+    path.player.identifier = "synthetic-player"
+    player = psm.get_player(path)
+    psm._active_client = player.parent
+    player.parent.active_player = player
+    message = pb.SetStateMessage()
+    message.playbackState = pb.PlaybackState.Paused
+    player.handle_set_state(message)
+    assert asyncio.run(facade.playing()).device_state == DeviceState.Idle
+    assert bridge.confirmed_playback(facade) == "paused"
+    message.playbackState = pb.PlaybackState.Stopped
+    player.handle_set_state(message)
+    assert bridge.confirmed_playback(facade) == "stopped"
+    assert bridge.confirmed_playback(SimpleNamespace()) == "unknown"
+    bridge.close()
+
+
+def test_closing_bridge_cancels_pending_work_and_rejects_new_work(tmp_path):
+    bridge = AppleBridge(Config(host="127.0.0.1", platform="apple_tv", state=tmp_path))
+    entered, cancelled = threading.Event(), threading.Event()
+    failures = []
+
+    async def pending():
+        entered.set()
+        try:
+            await asyncio.Future()
+        finally:
+            cancelled.set()
+
+    def worker():
+        try:
+            bridge._run(pending)
+        except ShieldError as exc:
+            failures.append(exc)
+
+    thread = threading.Thread(target=worker)
+    thread.start()
+    assert entered.wait(3)
+    loop = bridge.loop
+    bridge.close()
+    thread.join(3)
+    assert not thread.is_alive() and cancelled.is_set() and loop.is_closed()
+    assert len(failures) == 1
+    with pytest.raises(ShieldError, match="closed"):
+        bridge._run(pending)
+    bridge.close()
+
+
+def test_cached_connection_still_refuses_removed_pairing_protocol(paired_bridge):
+    bridge, _target, _calls = paired_bridge
+    bridge.pair("Companion", lambda: "7751")
+    bridge.pair("AirPlay", lambda: "7751")
+    bridge.snapshot()
+    value = bridge.credentials()
+    del value["services"]["AirPlay"]
+    bridge.save_credentials(value)
+    with pytest.raises(ShieldError, match="Pair both"):
+        bridge._run(bridge.connected)
+
+
+def test_old_manager_file_contract_explains_upgrade(apple):
+    ops, transport = apple
+    original = transport.manager
+
+    def old(path, *args):
+        value = original(path, *args)
+        if path.startswith("/api/portable/file?"):
+            value.pop("device_id")
+            value.pop("profile_root")
+        return value
+
+    transport.manager = old
+    with pytest.raises(ShieldError, match="0.7.17"):
+        ops.read_file("userdata/guisettings.xml")
