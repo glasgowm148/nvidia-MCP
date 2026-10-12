@@ -1,5 +1,20 @@
 # Verification
 
+## 0.5.5 deeper request/recovery audit (2026-10-12)
+
+Regressions reproduce delayed request bodies after token/write/profile changes and service
+retirement, profile changes during reads, and backup-root changes during pruning/rollback.
+Six snapshot/restore variants verify root isolation and cleanup for later requests.
+Canonical tvOS layout paths use translated VFS keys and alias-shared locks. Failed readback
+preserves distinct native XML edits/deletions; HTTP generation scopes pin configured roots.
+Transport tests cover success/error body drips, missing Manager data, partial response failures
+and malformed versus absent headers. A real synthetic loopback peer drips unfinished headers;
+the socket deadline closes the request. Apple launch opt-ins refuse `response_timeout`.
+Public wheel checks verify the exact released Manager ZIP, unchanged platform tool counts
+and isolated stdio/export behavior. Local checks passed 800 Manager tests (one environment
+skip), 98 UI tests and 618 MCP tests plus 5 subtests with the optional SDK installed.
+No live TV changes; physical Apple TV validation pending.
+
 ## 0.5.4 backup audit (2026-10-12)
 
 Manager 0.7.22 regressions reproduce failed self-restore rollback after a concurrent access

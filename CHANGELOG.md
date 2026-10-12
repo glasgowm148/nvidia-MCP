@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.5 — 2026-10-12 (prerelease)
+
+- Bound HTTP exchanges to 60 seconds with a socket deadline, including dripping headers and success/error bodies. Disable keepalive reuse so a cancelled timer cannot affect another request; retain the 20-second read/3-second connect timeouts and byte bounds. Never retry mutations automatically.
+- Classify answered-but-stalled responses as `response_timeout`; partial or malformed replies stay distinct from offline services. Apple TV launch/restart cannot use these failures as offline permission. Preserve the known no-reply disconnect case.
+- Refuse successful Manager envelopes missing `data`, normalize deeply invalid JSON and avoid oversized error-body copies.
+- Bundle Manager 0.7.23 with delayed access/profile rechecks, retired-generation refusal and operation-scoped backup roots. Add real loopback header-deadline and synthetic stream/profile regressions. No live TV changes; physical Apple TV validation remains pending.
+
 ## 0.5.4 — 2026-10-12 (prerelease)
 
 - Bundle Manager 0.7.22: failed self-restore rollback preserves live access/identity, and aliased tvOS backup paths keep XML in virtual storage.

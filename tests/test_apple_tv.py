@@ -479,7 +479,14 @@ def test_installed_sdk_contract_without_network():
 
 
 @pytest.mark.parametrize(
-    "kind", ["authentication_denied", "device_mismatch", "invalid_response", "unsupported"]
+    "kind",
+    [
+        "authentication_denied",
+        "device_mismatch",
+        "invalid_response",
+        "unsupported",
+        "response_timeout",
+    ],
 )
 def test_start_opt_in_never_bypasses_manager_failure(apple, kind):
     ops, transport = apple

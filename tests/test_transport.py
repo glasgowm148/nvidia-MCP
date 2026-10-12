@@ -232,6 +232,144 @@ def manager_transport(status, body):
     return transport
 
 
+@pytest.mark.parametrize("manager,status", [(False, 200), (True, 500)])
+def test_dripping_http_body_has_total_deadline_and_closes_stream(monkeypatch, manager, status):
+    from types import SimpleNamespace
+
+    from nvidia_mcp import transport as module
+
+    clock, closed = [0.0], []
+    monkeypatch.setattr(module, "time", SimpleNamespace(monotonic=lambda: clock[0]), raising=False)
+    raw = (
+        b'{"result":"pong"}'
+        if not manager
+        else b'{"ok":false,"error":{"code":"server_error","message":"synthetic error"}}'
+    )
+
+    class Drip(httpx.SyncByteStream):
+        def __iter__(self):
+            for byte in raw:
+                clock[0] += 0.4
+                yield bytes([byte])
+
+        def close(self):
+            closed.append(True)
+
+    transport = Transport(Config(host="127.0.0.1", manager_token="synthetic"))
+    transport.response_deadline = 1.0
+    transport.http.close()
+    transport.http = httpx.Client(
+        transport=httpx.MockTransport(lambda req: httpx.Response(status, stream=Drip()))
+    )
+    try:
+        with pytest.raises(ShieldError) as error:
+            transport.request("http://127.0.0.1/jsonrpc", manager=manager)
+        assert error.value.kind == "response_timeout" and closed
+        assert clock[0] < 2.0
+    finally:
+        transport.close()
+
+
+def test_manager_success_without_data_is_invalid_response():
+    transport = manager_transport(200, {"ok": True})
+    try:
+        with pytest.raises(ShieldError) as error:
+            transport.manager("/api/health")
+        assert error.value.kind == "invalid_response"
+    finally:
+        transport.close()
+
+
+@pytest.mark.parametrize(
+    "failure,kind",
+    [
+        (httpx.ReadTimeout, "response_timeout"),
+        (httpx.ReadError, "invalid_response"),
+        (httpx.RemoteProtocolError, "invalid_response"),
+    ],
+)
+def test_partial_response_failure_never_masquerades_as_offline(failure, kind):
+    class Partial(httpx.SyncByteStream):
+        def __iter__(self):
+            yield b"{"
+            raise failure("synthetic-private-server-detail")
+
+    transport = Transport(Config(host="127.0.0.1", manager_token="synthetic"))
+    transport.http.close()
+    transport.http = httpx.Client(
+        transport=httpx.MockTransport(lambda req: httpx.Response(200, stream=Partial()))
+    )
+    try:
+        with pytest.raises(ShieldError) as error:
+            transport.manager("/api/portable/state")
+        assert error.value.kind == kind and "synthetic-private" not in str(error.value)
+    finally:
+        transport.close()
+
+
+@pytest.mark.parametrize(
+    "message,kind",
+    [
+        ("illegal HTTP status line", "invalid_response"),
+        ("Server disconnected without sending a response.", "unreachable"),
+    ],
+)
+def test_header_protocol_failure_is_distinct_from_no_reply(message, kind):
+    def bad_headers(request):
+        raise httpx.RemoteProtocolError(message)
+
+    transport = Transport(Config(host="127.0.0.1"))
+    transport.http.close()
+    transport.http = httpx.Client(transport=httpx.MockTransport(bad_headers))
+    try:
+        with pytest.raises(ShieldError) as error:
+            transport.rpc("JSONRPC.Version")
+        assert error.value.kind == kind
+    finally:
+        transport.close()
+
+
+def test_native_http_deadline_interrupts_dripping_headers():
+    import socket
+    import threading
+    import time
+
+    stop, sent = threading.Event(), threading.Event()
+    listener = socket.socket()
+    listener.bind(("127.0.0.1", 0))
+    listener.listen(1)
+    listener.settimeout(3)
+
+    def peer():
+        try:
+            conn, _ = listener.accept()
+            with conn:
+                conn.settimeout(3)
+                conn.recv(4096)
+                conn.sendall(b"HTTP/1.1 200 OK\r\nX-Drip: ")
+                sent.set()
+                while not stop.wait(0.03):
+                    conn.sendall(b"x")
+        except OSError:
+            pass
+
+    thread = threading.Thread(target=peer, daemon=True)
+    thread.start()
+    transport = Transport(Config(host="127.0.0.1"))
+    transport.response_deadline = 0.5
+    started = time.monotonic()
+    try:
+        with pytest.raises(ShieldError) as error:
+            transport.request("http://127.0.0.1:%d/jsonrpc" % listener.getsockname()[1])
+        assert sent.is_set() and error.value.kind == "response_timeout"
+        assert time.monotonic() - started < 3
+    finally:
+        stop.set()
+        transport.close()
+        listener.close()
+        thread.join(timeout=3)
+
+
 def envelope(code, message):
     return {"ok": False, "code": code, "error": {"code": code, "message": message, "details": {}}}
 

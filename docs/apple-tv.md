@@ -105,7 +105,8 @@ stopped; do not bypass the guard.
 Another app's playback is never overridden on Apple TV. Starting inactive Kodi needs
 both `interrupt_other_app=true` and the human-set `NVIDIA_MCP_ALLOW_INTERRUPT=1`; media must still
 be confirmed stopped/idle. An explicit app switch never bypasses Manager authentication, malformed
-state or a changed Manager identity. Only offline timeout/unreachability can use the launch opt-in.
+state or a changed Manager identity. Only offline timeout/unreachability can use the launch opt-in. From 0.5.5, partial, malformed
+or stalled responses from a connected service never qualify as offline permission.
 Stop/restart use Kodi's graceful quit only. HTTP disappearance is not proof the process
 terminated; a launch request is not readiness. Hung exits need manual TV recovery.
 

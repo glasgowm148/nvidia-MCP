@@ -3,9 +3,11 @@
 import json
 import re
 import shlex
+import socket
 import subprocess
 import tempfile
 import threading
+import time
 import uuid
 from pathlib import Path
 
@@ -18,6 +20,8 @@ KODI_ROUTES = ("direct", "forward", "auto")
 
 
 class Transport:
+    response_deadline = 60.0
+
     def __init__(self, config: Config, kodi_route=None):
         """``kodi_route`` overrides config.http_route for Kodi and Manager: ``direct`` (LAN HTTP to the
         configured host), ``forward`` (through an ``adb forward``
@@ -34,7 +38,10 @@ class Transport:
         self._manager_url = None
         self._route_lock = threading.Lock()
         self.http = httpx.Client(
-            timeout=httpx.Timeout(20, connect=3), follow_redirects=False, trust_env=False
+            timeout=httpx.Timeout(20, connect=3),
+            follow_redirects=False,
+            trust_env=False,
+            limits=httpx.Limits(max_keepalive_connections=0),
         )
 
     def close(self):
@@ -102,13 +109,53 @@ class Transport:
         return (self.c.password, self.c.manager_token)
 
     def request(self, url, method="POST", body=None, manager=False):
+        deadline, response_started = time.monotonic() + self.response_deadline, False
+        expired, connection = threading.Event(), [None]
+
+        def abort():
+            expired.set()
+            if connection[0] is not None:
+                try:
+                    connection[0].shutdown(socket.SHUT_RDWR)
+                except OSError:
+                    pass
+
+        def trace(event, info):
+            # httpcore's public trace extension exposes the connected stream.
+            # No keepalive reuse: a late timer cannot interrupt another request.
+            if event in ("connection.connect_tcp.complete", "connection.start_tls.complete"):
+                connection[0] = info["return_value"].get_extra_info("socket")
+                if expired.is_set():
+                    abort()
+
+        def timeout_kind():
+            return (
+                "response_timeout" if response_started or connection[0] is not None else "timeout"
+            )
+
+        def check_time():
+            if expired.is_set() or time.monotonic() >= deadline:
+                raise ShieldError(
+                    "Device HTTP response deadline exceeded; inspect state before retrying changes",
+                    timeout_kind(),
+                )
+
         headers = {"Authorization": "Bearer " + self.c.manager_token} if manager else {}
         auth = None if manager else (self.c.username, self.c.password)
+        timer = threading.Timer(self.response_deadline, abort)
+        timer.daemon = True
+        timer.start()
         try:
-            with self.http.stream(method, url, json=body, headers=headers, auth=auth) as response:
+            with self.http.stream(
+                method, url, json=body, headers=headers, auth=auth, extensions={"trace": trace}
+            ) as response:
+                response_started = True
+                check_time()
                 if manager and response.status_code != 200:
                     raise manager_error(
-                        response.status_code, read_bounded(response, 64_000), self.known_secrets
+                        response.status_code,
+                        read_bounded(response, 64_000, check_time),
+                        self.known_secrets,
                     )
                 if response.status_code in (401, 403):
                     raise ShieldError(
@@ -121,23 +168,33 @@ class Transport:
                     )
                 data = bytearray()
                 for chunk in response.iter_bytes():
-                    data.extend(chunk)
-                    if len(data) > 4_000_000:
+                    check_time()
+                    if len(data) + len(chunk) > 4_000_000:
                         raise ShieldError("Device response exceeds 4 MB; narrow the request")
+                    data.extend(chunk)
+                check_time()
                 return json.loads(data)
         except httpx.TimeoutException:
             raise ShieldError(
-                "Cannot reach device HTTP service: request timed out", "timeout"
+                "Device HTTP request timed out; inspect state before retrying changes",
+                timeout_kind(),
             ) from None
-        except httpx.HTTPError:
+        except httpx.HTTPError as exc:
+            check_time()
+            malformed = (
+                isinstance(exc, httpx.RemoteProtocolError)
+                and str(exc) != "Server disconnected without sending a response."
+            )
             raise ShieldError(
-                "Cannot reach device HTTP service: check IP, port and Kodi HTTP control",
-                "unreachable",
+                "Device HTTP connection failed; inspect state before retrying changes",
+                "invalid_response" if response_started or malformed else "unreachable",
             ) from None
-        except ValueError:
+        except (ValueError, RecursionError):
             raise ShieldError(
                 "Device HTTP service returned invalid JSON", "invalid_response"
             ) from None
+        finally:
+            timer.cancel()
 
     def rpc(self, method, params=None):
         result = self.request(
@@ -176,6 +233,8 @@ class Transport:
             raise ShieldError("Invalid Kodi Manager response", "invalid_response")
         if result.get("ok") is not True:
             raise manager_error(200, json.dumps(result).encode(), self.known_secrets)
+        if "data" not in result:
+            raise ShieldError("Invalid Kodi Manager response: data is missing", "invalid_response")
         return result["data"]
 
     def pair(self, pairing_port, code):
@@ -382,12 +441,16 @@ MANAGER_ERRORS = {
 }
 
 
-def read_bounded(response, limit):
+def read_bounded(response, limit, check=None):
     data = bytearray()
     for chunk in response.iter_bytes():
-        data.extend(chunk)
-        if len(data) > limit:
+        if check is not None:
+            check()
+        data.extend(chunk[: limit - len(data)])
+        if len(data) >= limit:
             break
+    if check is not None:
+        check()
     return bytes(data[:limit])
 
 

@@ -162,3 +162,12 @@ Hardware identity is read again for each backup operation. A snapshot with a rec
 requires that exact current `ro.serialno`; an unavailable or placeholder serial never falls back
 to the same IP address. Older snapshots without `device_id`, and file snapshots created without
 ADB identity, still use their recorded host/port. APK previews always require a verified serial.
+
+## HTTP response failures
+
+From 0.5.5, HTTP exchanges have a 60-second socket deadline, including response headers and
+body streaming. Socket reads still time out after 20 seconds and connections after 3 seconds.
+Connections are not reused, so a deadline cannot shut down a later request.
+`response_timeout` means the service answered or connected but stalled; partial/malformed
+responses use `invalid_response`. These do not authorize Apple TV's offline launch opt-in.
+A timeout does not prove a change failed: inspect state before retrying.
