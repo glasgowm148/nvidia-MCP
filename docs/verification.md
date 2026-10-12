@@ -1,5 +1,21 @@
 # Verification
 
+## 0.4.8 public onboarding audit (2026-10-12)
+
+Locally, 498 Python tests plus 5 subtests passed, including JSON-RPC add-on field validation,
+concurrent Kodi/Manager forwarding, auth/protocol failures that must not trigger fallback, server
+cleanup, real stdio tool discovery and missing/mismatched packaged companion rejection. Ruff,
+fresh-wheel installation/export and wheel/source archive checks passed for the release.
+
+Live read-only checks used the 0.4.8 source on the reference Shield (Android 11, Kodi 22.0 RC1),
+with writes and plugin browsing off. Authorization, viewing-state inspection, version and active
+profile resolution worked. `kodi_addons` returned 104 add-ons and 100 with `enabled_only=True`.
+Kodi HTTP and the installed household Manager 0.7.12 both reported ready through separate ADB
+forwards; both forwards were removed on close. Tokens/profile data stayed private.
+
+The public Manager 0.7.13 bundle is checked separately; it was not installed on the TV for this
+audit. New mutations, APK installs, other devices and client-specific setup remain unverified live.
+
 ## 0.4.6 replay fixtures (offline)
 
 The day's `adb` output from the reference Shield (Android 11, Kodi 22.0 RC1, Projectivy as the

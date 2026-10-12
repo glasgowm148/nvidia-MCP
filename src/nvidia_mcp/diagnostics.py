@@ -13,6 +13,7 @@ REMEDIES = {
     "offline": "Reconnect the configured Shield; do not restart anything while someone is viewing.",
     "unreachable": "Check the configured IP/port and that this service is enabled on the Shield.",
     "missing_dependency": "The agent should install/configure the required computer tool.",
+    "permission_denied": "Check executable permissions on the computer or access to the selected Shield file.",
     "timeout": "Service did not answer in time. Retry a read later; do not repeat writes automatically.",
     "write_disabled": "Kodi Manager Write Mode is off; the user can turn it on in its settings on the TV.",
     "unsupported": "The installed Kodi Manager is older than this tool needs; core tools still work.",
@@ -55,6 +56,7 @@ def readiness(ops):
         "capabilities": {
             "writes_enabled": ops.c.allow_writes,
             "plugin_browse_enabled": ops.c.allow_plugin_browse,
+            "http_route": getattr(ops.t, "kodi_route", ops.c.http_route),
         },
         "note": "Ready means this service answered now. It does not prove the TV is idle or an account is authenticated.",
     }

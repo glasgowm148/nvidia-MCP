@@ -15,6 +15,8 @@ Ask for missing information or an unavoidable TV/OS/client interaction, then con
   and a dedicated virtual environment; preserve the user's system Python and other projects.
 - Reuse an existing suitable nvidia-MCP checkout. Inspect its state before updating; preserve local
   changes. Otherwise clone this repo to an appropriate user-owned workspace.
+  For a released install, prefer tag **v0.4.8** (or a newer reviewed release) rather than an
+  unreviewed moving `main`. Downloading GitHub's Source code ZIP alone does not register an MCP server.
 
 Use the [official Python downloads](https://www.python.org/downloads/),
 [Git downloads](https://git-scm.com/downloads) and
@@ -84,11 +86,16 @@ Construct environment values using the user's actual connection details:
 Inject this environment into a subprocess running the **absolute MCP executable** with `--doctor`.
 Use your tool's environment support or a local process API; avoid embedding passwords in shell
 commands, command-line arguments or visible output. The server does **not** load `.env` automatically.
-Inspect the redacted result; doctor checks Kodi HTTP, while step 3 checks ADB separately.
+Inspect the redacted result; doctor checks ADB, Kodi HTTP and optional Manager independently.
+The explicit step 3 check handles the TV authorization prompt before doctor runs.
 
 If HTTP fails, check whether Kodi is open, the port/auth details are correct, and the computer can reach
 the same LAN. Ask for a specific TV correction only if needed. Do not restart/stop playback to get a
 successful connectivity check. Report partial connectivity honestly.
+If authorized ADB works but the host application cannot reach the LAN, inspect OS Local Network
+permissions, VPN/firewall rules and guest-network isolation. An explicit `KODI_HTTP_ROUTE=forward`
+uses that ADB connection for both HTTP services; `auto` falls back only on connection failures.
+Keep Kodi credentials and the optional Manager token configured. Verify again and record the route.
 
 ## 5. Register the MCP server automatically
 

@@ -18,17 +18,20 @@ KODI_ROUTES = ("direct", "forward", "auto")
 
 
 class Transport:
-    def __init__(self, config: Config, kodi_route="direct"):
-        """``kodi_route`` picks how Kodi JSON-RPC is reached: ``direct`` (LAN HTTP to the
-        configured host; the MCP server always uses this), ``forward`` (through an ``adb forward``
+    def __init__(self, config: Config, kodi_route=None):
+        """``kodi_route`` overrides config.http_route for Kodi and Manager: ``direct`` (LAN HTTP to the
+        configured host), ``forward`` (through an ``adb forward``
         to 127.0.0.1, for processes the OS blocks from the LAN, such as macOS Local Network
         permission) or ``auto`` (direct when Kodi answers there, otherwise forward)."""
+        kodi_route = config.http_route if kodi_route is None else kodi_route
         if kodi_route not in KODI_ROUTES:
             raise ValueError("kodi_route must be one of " + ", ".join(KODI_ROUTES))
         self.c = config
         self.kodi_route = kodi_route
         self.forward_port = None
+        self.manager_forward_port = None
         self._kodi_url = None
+        self._manager_url = None
         self._route_lock = threading.Lock()
         self.http = httpx.Client(
             timeout=httpx.Timeout(20, connect=3), follow_redirects=False, trust_env=False
@@ -42,44 +45,57 @@ class Transport:
 
     def kodi_url(self):
         """Base URL for Kodi JSON-RPC under the chosen route; sets up the forward on first use."""
-        if self.kodi_route == "direct":
-            return self.c.url()
-        with self._route_lock:
-            if self._kodi_url is None:
-                if self.kodi_route == "auto" and self.answers(self.c.url()):
-                    self._kodi_url = self.c.url()
-                else:
-                    self._kodi_url = self.forward_kodi()
-            return self._kodi_url
+        return self.service_url()
 
-    def answers(self, base):
+    def service_url(self, manager=False):
+        if self.kodi_route == "direct":
+            return self.c.url(manager)
+        with self._route_lock:
+            attr = "_manager_url" if manager else "_kodi_url"
+            base = getattr(self, attr)
+            if base is None:
+                if self.kodi_route == "auto" and self.answers(self.c.url(manager), manager):
+                    base = self.c.url(manager)
+                else:
+                    base = self.forward_kodi(manager)
+                setattr(self, attr, base)
+            return base
+
+    def answers(self, base, manager=False):
         """True when something at ``base`` answers HTTP (an auth refusal counts as an answer)."""
         try:
-            self.request(
-                base + "/jsonrpc", body={"jsonrpc": "2.0", "id": 1, "method": "JSONRPC.Ping"}
-            )
+            if manager:
+                self.request(base + "/api/health", "GET", manager=True)
+            else:
+                self.request(
+                    base + "/jsonrpc", body={"jsonrpc": "2.0", "id": 1, "method": "JSONRPC.Ping"}
+                )
         except ShieldError as exc:
             return exc.kind not in ("unreachable", "timeout")
         return True
 
-    def forward_kodi(self):
+    def forward_kodi(self, manager=False):
         """``adb forward tcp:0 tcp:<kodi port>``: the adb server, not this process, opens the
         LAN connection. Returns the local base URL."""
-        out = self.adb("forward", "tcp:0", f"tcp:{self.c.kodi_port}", timeout=15)
+        remote_port = self.c.manager_port if manager else self.c.kodi_port
+        out = self.adb("forward", "tcp:0", f"tcp:{remote_port}", timeout=15)
         port = out.decode("ascii", "replace").strip()
         if not port.isdigit() or not 0 < int(port) < 65536:
             raise ShieldError("adb forward did not report a local port", "device_error")
-        self.forward_port = int(port)
-        return f"http://127.0.0.1:{self.forward_port}"
+        setattr(self, "manager_forward_port" if manager else "forward_port", int(port))
+        return f"http://127.0.0.1:{port}"
 
     def remove_forward(self):
-        if self.forward_port is None:
-            return
-        port, self.forward_port, self._kodi_url = self.forward_port, None, None
-        try:
-            self.adb("forward", "--remove", f"tcp:{port}", timeout=15)
-        except ShieldError:
-            pass  # The adb server may already be gone; the forward goes with it.
+        with self._route_lock:
+            ports = (self.forward_port, self.manager_forward_port)
+            self.forward_port = self.manager_forward_port = None
+            self._kodi_url = self._manager_url = None
+            for port in ports:
+                if port is not None:
+                    try:
+                        self.adb("forward", "--remove", f"tcp:{port}", timeout=15)
+                    except ShieldError:
+                        pass  # The adb server may already be gone; the forward goes with it.
 
     @property
     def known_secrets(self):
@@ -155,7 +171,7 @@ class Transport:
                 "KODI_MANAGER_TOKEN; core ADB/Kodi tools work without it",
                 "not_configured",
             )
-        result = self.request(self.c.url(True) + path, method, body, manager=True)
+        result = self.request(self.service_url(True) + path, method, body, manager=True)
         if not isinstance(result, dict):
             raise ShieldError("Invalid Kodi Manager response", "invalid_response")
         if result.get("ok") is not True:
@@ -187,6 +203,16 @@ class Transport:
         except FileNotFoundError:
             raise ShieldError(
                 "ADB not found: install official Android Platform Tools and set ADB_PATH",
+                "missing_dependency",
+            ) from None
+        except PermissionError:
+            raise ShieldError(
+                "ADB could not start: check ADB_PATH points to the executable and allow it in OS permissions",
+                "permission_denied",
+            ) from None
+        except OSError:
+            raise ShieldError(
+                "ADB could not start: use official Platform Tools for this computer's OS and architecture",
                 "missing_dependency",
             ) from None
 

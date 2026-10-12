@@ -42,7 +42,7 @@ class Shield:
     """One configured Shield. Thread-safe for the guarded operations; use as a context manager
     (or call ``close``) so a Kodi ``adb forward`` is removed."""
 
-    def __init__(self, config: Config, *, kodi_route: str = "direct", transport=None):
+    def __init__(self, config: Config, *, kodi_route: str | None = None, transport=None):
         self.config = config
         self.transport = transport if transport is not None else Transport(config, kodi_route)
         self.operations = Operations(self.transport)

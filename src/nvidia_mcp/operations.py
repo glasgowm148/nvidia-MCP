@@ -798,7 +798,8 @@ class Operations:
 
     def addons(self, enabled_only=False):
         params = {
-            "properties": ["name", "version", "enabled", "type"],
+            # type is returned automatically, not a valid Addon.Fields property.
+            "properties": ["name", "version", "enabled"],
             "limits": {"start": 0, "end": 500},
         }
         if enabled_only:

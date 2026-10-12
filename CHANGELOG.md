@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.4.8 — 2026-10-12 (prerelease)
+
+- Fix `kodi_addons`: `type` is returned automatically by Kodi, but is not a valid requested
+  property. Listing add-ons previously failed with `Invalid params` on Kodi 22.
+- `KODI_HTTP_ROUTE=forward` or `auto` now makes authorized ADB forwarding available to MCP, for
+  host applications whose direct LAN HTTP is blocked. Kodi and Manager select their routes
+  independently; auth/protocol errors never trigger fallback. Default remains direct.
+- Close transports in a `finally` block, including CLI/server failures, to remove owned forwards.
+- Report blocked or incompatible ADB executables as actionable readiness failures rather than
+  crashing the connection check; Kodi HTTP is still probed independently.
+- Bundle the exact public Kodi Manager 0.7.13 release, including provider-route fixes, improved log
+  health and dashboard request/sign-in fixes. Household patches remain excluded.
+- Keep future companion versions in packages: the ZIP ignore exception follows the companion
+  filename pattern, and wheel/sdist inspection verifies one manifest plus its exact ZIP and hash.
+  Release checksums now include the separately downloadable companion ZIP too.
+- Explain client requirements, separate credentials, profile changes, manual updates, optional APK
+  tooling, connection failures and capabilities unavailable on other skins/platforms.
+
 ## 0.4.7 — 2026-10-11 (prerelease)
 
 - `kodi_lifecycle stop`/`restart` and `Shield.quit_kodi` follow the Kodi processes that were running when `Application.Quit` was sent. On the household Shield Kodi exited cleanly after a quit and Android started a new, empty `org.xbmc.kodi` process 2 s later; the package-wide `pidof` mistook it for the old Kodi and reported `exit_hung`. Once the quitting Kodi has gone, such a process is force-stopped while Kodi is not the app in front (`respawned_process_stopped` in the result); a Kodi that is on screen again is left running (`restarted`), as is one whose foreground app cannot be read (`respawned`). The single `pidof` probe now returns process IDs.

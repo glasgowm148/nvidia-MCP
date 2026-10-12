@@ -356,6 +356,7 @@ def create_server(config: Config):
                 "manager": bool(config.manager_token),
                 "trusted_signers_configured": len(config.trusted_signers),
                 "transport": "stdio",
+                "http_route": config.http_route,
                 "single_device": True,
             }
         )
@@ -383,6 +384,7 @@ def main():
         help="Export the bundled optional Kodi Manager ZIP without connecting to the TV",
     )
     args = parser.parse_args()
+    ops = None
     try:
         if args.export_manager:
             from .companion import export_manager
@@ -393,7 +395,6 @@ def main():
         if args.doctor:
             result = readiness(ops)
             print(json.dumps(result, indent=2))
-            ops.t.close()
             return (
                 0
                 if result["adb"]["state"] == result["kodi_http"]["state"] == "ready"
@@ -401,11 +402,13 @@ def main():
                 else 1
             )
         mcp.run(transport="stdio")
-        ops.t.close()
         return 0
     except ShieldError as exc:
         print(str(exc), file=sys.stderr)
         return 1
+    finally:
+        if ops is not None:
+            ops.t.close()
 
 
 if __name__ == "__main__":

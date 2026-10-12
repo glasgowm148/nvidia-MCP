@@ -27,8 +27,19 @@ jobs:
       - run: pytest -q
       - run: python -m build
       - run: python scripts/test_wheel.py
-      - run: python scripts/check_release.py dist/*.whl dist/*.tar.gz --write-checksums dist/SHA256SUMS
+      - run: python scripts/check_release.py dist/*.whl dist/*.tar.gz src/nvidia_mcp/companion/*.zip --write-checksums dist/SHA256SUMS
         shell: bash
+      - name: Release notes for this version
+        shell: bash
+        run: |
+          python - "${GITHUB_REF_NAME#v}" > release-notes.md <<'PY'
+          import re, sys, pathlib
+          text = pathlib.Path("CHANGELOG.md").read_text(encoding="utf-8")
+          match = re.search(r"^## %s\b.*?$(.*?)(?=^## |\Z)" % re.escape(sys.argv[1]), text, re.M | re.S)
+          if not match or not match.group(1).strip():
+              sys.exit("CHANGELOG.md has no section for " + sys.argv[1])
+          print(match.group(1).strip())
+          PY
       - name: Create GitHub prerelease
         env:
           GH_TOKEN: ${{ github.token }}
@@ -36,7 +47,7 @@ jobs:
         run: |
           gh release create "${GITHUB_REF_NAME}" dist/*.whl dist/*.tar.gz dist/SHA256SUMS \
             src/nvidia_mcp/companion/*.zip \
-            --prerelease --title "nvidia-MCP ${GITHUB_REF_NAME#v}" --notes-file CHANGELOG.md
+            --prerelease --title "nvidia-MCP ${GITHUB_REF_NAME#v}" --notes-file release-notes.md
       # Optional PyPI publishing. Prefer trusted publishing (no stored secrets): configure the
       # project on PyPI, add `id-token: write` to this job's permissions, then uncomment:
       # - uses: pypa/gh-action-pypi-publish@release/v1

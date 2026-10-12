@@ -1,8 +1,192 @@
+import json
+from concurrent.futures import ThreadPoolExecutor
+
 import httpx
 import pytest
 
 from nvidia_mcp.config import Config, ShieldError
 from nvidia_mcp.transport import Transport
+
+
+@pytest.mark.parametrize("enabled_only", [False, True])
+def test_addons_listing_with_kodi_field_validation(tmp_path, enabled_only):
+    from nvidia_mcp.operations import Operations
+
+    transport = Transport(Config(host="127.0.0.1", state=tmp_path))
+
+    def kodi(request):
+        body = json.loads(request.content)
+        assert body["method"] == "Addons.GetAddons"
+        params = body["params"]
+        # Addon.Fields excludes type; Kodi always includes it in Addon.Details.
+        allowed = {
+            "name",
+            "version",
+            "summary",
+            "description",
+            "path",
+            "author",
+            "thumbnail",
+            "disclaimer",
+            "fanart",
+            "dependencies",
+            "broken",
+            "extrainfo",
+            "rating",
+            "enabled",
+            "installed",
+        }
+        if not set(params.get("properties", [])).issubset(allowed):
+            return httpx.Response(
+                200, json={"error": {"code": -32602, "message": "Invalid params."}}
+            )
+        assert params.get("enabled") is (True if enabled_only else None)
+        return httpx.Response(
+            200,
+            json={
+                "result": {
+                    "addons": [
+                        {
+                            "addonid": "plugin.video.example",
+                            "name": "Example",
+                            "version": "1.0.0",
+                            "type": "xbmc.python.pluginsource",
+                            "enabled": True,
+                        }
+                    ]
+                }
+            },
+        )
+
+    transport.http.close()
+    transport.http = httpx.Client(transport=httpx.MockTransport(kodi))
+    try:
+        result = Operations(transport).addons(enabled_only)
+        assert result["addons"][0]["type"] == "xbmc.python.pluginsource"
+    finally:
+        transport.close()
+
+
+def forwarded_transport(tmp_path, route="forward"):
+    transport = Transport(
+        Config(host="192.168.0.20", state=tmp_path, manager_token="synthetic", http_route=route)
+    )
+    calls = []
+
+    def adb(*args, **kwargs):
+        calls.append(args)
+        return b"41235" if args[-1] == "tcp:8765" else b"41234"
+
+    transport.adb = adb
+    transport.http.close()
+    return transport, calls
+
+
+def test_forward_route_reaches_both_services_once_and_cleans_up(tmp_path):
+    transport, calls = forwarded_transport(tmp_path)
+
+    def handler(request):
+        assert request.url.host == "127.0.0.1"
+        if request.url.port == 41235:
+            assert request.headers["Authorization"] == "Bearer synthetic"
+            return httpx.Response(200, json={"ok": True, "data": {"service": "manager"}})
+        assert request.url.port == 41234
+        return httpx.Response(200, json={"result": "pong"})
+
+    transport.http = httpx.Client(transport=httpx.MockTransport(handler))
+    try:
+        with ThreadPoolExecutor(max_workers=4) as pool:
+            results = list(
+                pool.map(
+                    lambda _: (transport.rpc("JSONRPC.Ping"), transport.manager("/api/health")),
+                    range(8),
+                )
+            )
+        assert all(result == ("pong", {"service": "manager"}) for result in results)
+        assert calls == [("forward", "tcp:0", "tcp:8080"), ("forward", "tcp:0", "tcp:8765")]
+    finally:
+        transport.close()
+    assert calls[-2:] == [
+        ("forward", "--remove", "tcp:41234"),
+        ("forward", "--remove", "tcp:41235"),
+    ]
+    assert transport.forward_port is transport.manager_forward_port is None
+
+
+@pytest.mark.parametrize("manager", [False, True])
+@pytest.mark.parametrize("status", [401, 403, 500, 200])
+def test_auto_does_not_hide_auth_or_protocol_failures(tmp_path, manager, status):
+    transport, calls = forwarded_transport(tmp_path, "auto")
+    transport.http = httpx.Client(
+        transport=httpx.MockTransport(lambda _: httpx.Response(status, text="invalid"))
+    )
+    try:
+        with pytest.raises(ShieldError):
+            transport.manager("/api/health") if manager else transport.rpc("JSONRPC.Ping")
+        assert calls == []
+    finally:
+        transport.close()
+
+
+def test_auto_routes_each_service_independently(tmp_path):
+    transport, calls = forwarded_transport(tmp_path, "auto")
+
+    def handler(request):
+        if request.url.port == 8080:
+            raise httpx.ConnectError("LAN unavailable", request=request)
+        if request.url.path == "/api/health":
+            assert request.url.host == "192.168.0.20"
+            return httpx.Response(200, json={"ok": True, "data": {}})
+        return httpx.Response(200, json={"result": "pong"})
+
+    transport.http = httpx.Client(transport=httpx.MockTransport(handler))
+    try:
+        assert transport.rpc("JSONRPC.Ping") == "pong"
+        assert transport.manager("/api/health") == {}
+        assert calls == [("forward", "tcp:0", "tcp:8080")]
+    finally:
+        transport.close()
+
+
+def test_http_route_configuration_and_server_use(monkeypatch, tmp_path):
+    from nvidia_mcp.server import create_server
+
+    monkeypatch.setenv("SHIELD_HOST", "127.0.0.1")
+    monkeypatch.setenv("NVIDIA_MCP_STATE_DIR", str(tmp_path))
+    monkeypatch.setenv("KODI_HTTP_ROUTE", "forward")
+    config = Config.from_env()
+    _, ops = create_server(config)
+    try:
+        assert ops.t.kodi_route == "forward"
+    finally:
+        ops.t.close()
+    monkeypatch.setenv("KODI_HTTP_ROUTE", "invalid")
+    with pytest.raises(ShieldError, match="KODI_HTTP_ROUTE"):
+        Config.from_env()
+
+
+def test_server_failure_closes_its_transport(monkeypatch):
+    from types import SimpleNamespace
+
+    from nvidia_mcp import server
+
+    closed = []
+
+    def fail(**kwargs):
+        raise ShieldError("Synthetic failure")
+
+    monkeypatch.setattr("sys.argv", ["nvidia-mcp"])
+    monkeypatch.setattr(server.Config, "from_env", lambda: Config(host="127.0.0.1"))
+    monkeypatch.setattr(
+        server,
+        "create_server",
+        lambda _: (
+            SimpleNamespace(run=fail),
+            SimpleNamespace(t=SimpleNamespace(close=lambda: closed.append(True))),
+        ),
+    )
+    assert server.main() == 1
+    assert closed == [True]
 
 
 def test_http_auth_and_no_redirects():

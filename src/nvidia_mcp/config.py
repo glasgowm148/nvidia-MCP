@@ -131,10 +131,14 @@ class Config:
     aapt2_path: str = "aapt2"
     apksigner_path: str = "apksigner"
     java_path: str = "java"
+    http_route: str = "direct"
 
     @classmethod
     def from_env(cls):
         host = private_host(os.environ.get("SHIELD_HOST", ""))
+        route = os.environ.get("KODI_HTTP_ROUTE", "direct")
+        if route not in ("direct", "forward", "auto"):
+            raise ShieldError("KODI_HTTP_ROUTE must be direct, forward or auto")
         root = os.environ.get("KODI_REMOTE_ROOT", cls.remote_root)
         if not re.fullmatch(
             r"/(?:sdcard|storage/emulated/0)/[A-Za-z0-9_./-]+", root
@@ -171,6 +175,7 @@ class Config:
             aapt2_path=os.environ.get("AAPT2_PATH", "aapt2"),
             apksigner_path=os.environ.get("APKSIGNER_PATH", "apksigner"),
             java_path=os.environ.get("JAVA_PATH", "java"),
+            http_route=route,
         )
 
     @property

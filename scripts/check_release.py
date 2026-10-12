@@ -3,6 +3,7 @@
 import argparse
 import hashlib
 import io
+import json
 import stat
 import tarfile
 from pathlib import Path, PurePosixPath
@@ -12,6 +13,31 @@ PRIVATE_PARTS = {".private", ".venv", "__pycache__", "backups", "device_fixes"}
 PRIVATE_SUFFIXES = {".apk", ".jar", ".key", ".pem", ".keystore", ".log", ".db", ".sqlite"}
 MAX_MEMBER = 10_000_000
 MAX_TOTAL = 100_000_000
+
+
+def check_companion(members):
+    """A wheel/sdist must carry exactly the public ZIP named and hashed by its manifest."""
+    manifests = [name for name in members if name.endswith("/nvidia_mcp/companion/manifest.json")]
+    if len(manifests) != 1:
+        raise ValueError("Package must contain one companion manifest")
+    manifest = json.loads(members[manifests[0]])
+    filename = manifest["filename"]
+    if (
+        filename != f"service.kodi.addonadmin-{manifest['version']}.zip"
+        or Path(filename).name != filename
+    ):
+        raise ValueError("Invalid companion filename/version")
+    prefix = manifests[0].rsplit("/", 1)[0] + "/"
+    zips = {name for name in members if name.startswith(prefix) and name.endswith(".zip")}
+    expected = prefix + filename
+    if zips != {expected}:
+        raise ValueError("Package must contain exactly its pinned companion ZIP")
+    if hashlib.sha256(members[expected]).hexdigest() != manifest["sha256"]:
+        raise ValueError("Packaged companion checksum mismatch")
+
+
+def is_companion(name):
+    return "/nvidia_mcp/companion/" in "/" + name and name.endswith((".zip", "/manifest.json"))
 
 
 def check_name(name):
@@ -47,9 +73,19 @@ def inspect_zip(data, depth=0):
 def inspect_archive(path):
     if path.suffix in (".whl", ".zip"):
         inspect_zip(path.read_bytes())
+        if path.suffix == ".whl":
+            with ZipFile(path) as archive:
+                check_companion(
+                    {
+                        "/" + name: archive.read(name)
+                        for name in archive.namelist()
+                        if is_companion(name)
+                    }
+                )
     elif path.name.endswith(".tar.gz"):
         with tarfile.open(path, "r:gz") as archive:
             total = 0
+            companion = {}
             for item in archive:
                 check_name(item.name)
                 total += item.size
@@ -59,6 +95,9 @@ def inspect_archive(path):
                     raise ValueError("Archive contains a link or special file")
                 if item.isfile() and item.name.endswith(".zip"):
                     inspect_zip(archive.extractfile(item).read())
+                if item.isfile() and is_companion(item.name):
+                    companion["/" + item.name] = archive.extractfile(item).read()
+            check_companion(companion)
     else:
         raise ValueError("Expected a wheel, ZIP or source tar.gz")
 

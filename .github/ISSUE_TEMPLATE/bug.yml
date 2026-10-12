@@ -8,7 +8,7 @@ body:
     id: versions
     attributes:
       label: Versions and device
-      description: MCP/optional Manager, computer OS/Python, Shield model/Android, Kodi, skin and affected add-on versions. ADB/Kodi HTTP/Manager readiness categories and MCP client. Is this a customized installation?
+      description: MCP/optional Manager, client, computer OS/Python, Shield model/Android, Kodi, skin and affected add-on versions. HTTP route and ADB/Kodi HTTP/Manager readiness categories. Is this a customized installation?
     validations:
       required: true
   - type: textarea

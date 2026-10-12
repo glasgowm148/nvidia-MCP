@@ -7,7 +7,7 @@ inside Kodi** and supplies the live profile, settings, pipeline and skin APIs. C
 offline repairs do not require it. Kodi Manager also has a Python client/parser library for applications
 that want these APIs without MCP.
 
-The bundled version is **0.7.10** (MCP tools support Kodi Manager 0.4+; widget-cache tools need 0.6+), from the
+The bundled version is **0.7.13** (MCP tools support Kodi Manager 0.4+; widget-cache tools need 0.6+), from the
 [Kodi Manager repository](https://github.com/glasgowm148/kodi-manager). Its ZIP is present in the MCP
 wheel/source distribution and can be exported as a separate ZIP. `--export-manager DIRECTORY` checks the
 pinned SHA-256, refuses to overwrite a different existing file and never connects to the Shield.
@@ -25,10 +25,12 @@ the computer work below; the user only needs TV actions the agent cannot perform
 3. **TV:** use **Add-ons → Install from zip file** and select the transferred ZIP. Enable Unknown
    sources in Kodi's add-on settings if required. Do this while the TV is free. Use Kodi's native
    installer; copying an unpacked add-on behind Kodi's database is not the installation procedure.
-4. **TV:** in **My add-ons → Services → Kodi Manager → Configure**, enable LAN access and set host
-   `0.0.0.0`, port `8765`. Write mode starts off. The agent can perform TV navigation only when its tools
+4. **TV:** in **My add-ons → Services → Kodi Manager → Configure**, enable **Allow LAN access** for
+   direct HTTP/browser access; port defaults to `8765`. No host edit is needed. With
+   `KODI_HTTP_ROUTE=forward`, Manager can remain loopback-only for MCP access. Write mode starts off.
+   The agent can perform TV navigation only when its tools
    permit it and the user has authorized that interaction.
-5. **Agent:** restart the service/Kodi when viewing is finished and interruption is authorized. Privately
+5. **Agent:** settings apply immediately; a restart is unnecessary for LAN/write-mode changes. Privately
    read `auth_token` from the active profile's `addon_data/service.kodi.addonadmin/settings.xml` using
    available file access. Capture/parse it in a local process without printing it in tool output, then
    write it to private client configuration. It differs from Kodi HTTP credentials; MCP's redacted
@@ -37,6 +39,10 @@ the computer work below; the user only needs TV actions the agent cannot perform
    configuration, reload the connection and verify layout/pipeline reads. No user JSON editing is needed.
 7. For requested changes, enable both the Manager service's write mode and `NVIDIA_MCP_ALLOW_WRITES=1`.
    Inspect a layout preview before applying its immutable preview ID. Plugin browsing has its own opt-in.
+
+Manager's token and write mode belong to the active Kodi profile. After switching profiles on the TV,
+read that profile's token privately, update the client configuration and reload if necessary. A valid
+Kodi HTTP password does not authenticate Manager. Never attach the token to a bug report.
 
 Do not expose this bearer-authenticated HTTP service outside a trusted LAN. Filled client configs,
 account data and backups stay private. Kodi Manager 0.4+ installations are supported (widget-cache tools need 0.6+); a

@@ -19,7 +19,7 @@
 **Local MCP tools for NVIDIA Shield TV and Kodi.** Give your assistant the tools to inspect your setup, diagnose playback problems, adjust settings and apply reversible repairs from your computer. Works over your home network on macOS, Windows and Linux, with an MCP client that supports stdio. No cloud account is required for the server.
 
 > [!NOTE]
-> **Alpha / prerelease.** Start with read-only access. See [tested compatibility](docs/compatibility.md)
+> **Alpha / prerelease (0.4.8).** Start with read-only access. See [tested compatibility](docs/compatibility.md)
 > and [verification evidence](docs/verification.md) before using repair or upgrade tools.
 
 ## What you can do
@@ -75,6 +75,11 @@ When the agent connects, select **Allow** on the Shield's debugging prompt. Opti
 
 Then try: **“Read the Shield repair playbook and audit Kodi without interrupting anything.”**
 
+Use a computer-side MCP client that supports **local stdio servers** and an agent with computer
+access for installation. A normal browser chat cannot launch this server by itself. No Python or
+MCP server is installed on the TV. See [first-run troubleshooting](docs/troubleshooting.md) for
+client, authorization, network and missing-tool problems.
+
 ## How it connects
 
 ```mermaid
@@ -93,7 +98,7 @@ flowchart LR
 
 *Optional companion dashboard, captured from the public UI with synthetic demo data. The MCP server itself is a stdio service.*
 
-The MCP distribution includes a pinned **Kodi Manager 0.7.10** ZIP (built from the source commit pinned in the bundled manifest, checksum-verified). Your agent can export it with `nvidia-mcp --export-manager ./companion`, verify it and transfer it to the Shield. Install through Kodi's native **Install from zip file**, then let the agent configure the connection. Follow the [companion setup guide](docs/companion.md).
+The MCP distribution includes a pinned **Kodi Manager 0.7.13** ZIP (built from the source commit pinned in the bundled manifest, checksum-verified). Your agent can export it with `nvidia-mcp --export-manager ./companion`, verify it and transfer it to the Shield. Install through Kodi's native **Install from zip file**, then let the agent configure the connection. Follow the [companion setup guide](docs/companion.md).
 
 Kodi Manager 0.4+ is supported; the widget-cache tools need 0.6+. Older installations should be upgraded; back up customized installations before replacing them. Layout writes require reviewed **Bingie 2.0.2 / Skin Shortcuts 2.0.3 source hashes**; unknown variants remain view-only. Installing the Python library alone does not install the TV service.
 

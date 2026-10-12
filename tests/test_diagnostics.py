@@ -50,6 +50,26 @@ def test_http_failure_classification():
     t.close()
 
 
+@pytest.mark.parametrize(
+    "failure,kind", [(PermissionError, "permission_denied"), (OSError, "missing_dependency")]
+)
+def test_adb_launch_failure_keeps_kodi_readiness_independent(monkeypatch, ops, failure, kind):
+    def fail(*args, **kwargs):
+        raise failure("private-executable-path")
+
+    monkeypatch.setattr("subprocess.Popen", fail)
+    transport = Transport(ops.c)
+    ops.t.adb = transport.adb
+    ops.t.rpc = lambda *args: {"name": "Kodi", "version": {"major": 22}}
+    try:
+        result = readiness(ops)
+        assert result["adb"]["state"] == kind
+        assert result["kodi_http"]["state"] == "ready"
+        assert "private-executable-path" not in str(result)
+    finally:
+        transport.close()
+
+
 def test_health_excludes_historical_thermal_readings_and_unknown_is_not_zero():
     # Historical temperatures can be stale; only feed the current HAL section to the parser.
     parsed = health(

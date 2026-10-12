@@ -34,14 +34,15 @@ in any release.
 
 ## Reference
 
-`Shield(config: Config, *, kodi_route: str = "direct", transport=None)`
+`Shield(config: Config, *, kodi_route: str | None = None, transport=None)`
 
 - `kodi_route`: `"direct"` sends Kodi JSON-RPC over the LAN to `config.host`; `"forward"` asks
   the adb server for `adb forward tcp:0 tcp:<kodi_port>` and talks to `127.0.0.1` instead
   (macOS Local Network permission blocks direct LAN HTTP from some processes, but not from the
   adb server); `"auto"` uses direct when Kodi answers there and otherwise forward, decided once.
-  The forward is removed by `close()` / leaving the `with` block. The MCP server always uses
-  direct.
+  The route also applies independently to the optional Manager HTTP service. Forwards are removed
+  by `close()` / leaving the `with` block. Omit the argument to use `config.http_route` (default
+  `"direct"`; `Config.from_env()` reads `KODI_HTTP_ROUTE`). MCP uses the same configuration.
 - Use it as a context manager or call `close()`.
 
 | Method | Returns | Notes |

@@ -15,6 +15,7 @@ filled configuration or print account credentials into diagnostic output.
 | `APKSIGNER_PATH` | `apksigner` | Optional SDK signature verifier or `lib/apksigner.jar` |
 | `JAVA_PATH` | `java` | Java executable used with the signature verifier JAR |
 | `KODI_PORT` | `8080` | Kodi HTTP port |
+| `KODI_HTTP_ROUTE` | `direct` | `direct`: LAN HTTP; `forward`: authorized ADB forwarding to localhost; `auto`: try direct, forward only on connection failure. Applies independently to Kodi HTTP and Manager |
 | `KODI_USERNAME`, `KODI_PASSWORD` | empty | Kodi HTTP credentials, separate from ADB authorization |
 | `KODI_MOUNT` | unset | Absolute mounted `.kodi` path; otherwise ADB files |
 | `KODI_REMOTE_ROOT` | `/sdcard/Android/data/org.xbmc.kodi/files/.kodi` | Shared-storage root for ADB |
@@ -34,6 +35,15 @@ filled configuration or print account credentials into diagnostic output.
 
 ADB authorization, Kodi HTTP credentials and the Manager bearer token are separate. Use
 `shield_connection` and `--doctor` as described in [agent setup](agent-setup.md) to check readiness.
+
+`forward` is useful when the host application's LAN connection is blocked, including macOS Local
+Network permissions, or Manager is intentionally listening only on the TV's loopback interface.
+It requires the configured Shield to be connected and authorized in ADB; it does not connect or
+authorize a new device automatically. Authentication and write guards still apply. `auto` keeps
+authentication, invalid-response and service failures visible instead of trying another route.
+Forwards are created once per service per process and removed when that process exits normally.
+Force-killing the process can leave a forward in the local ADB server; the agent can remove that
+specific local port. Forwarding serves the MCP/library connection, not a browser on another device.
 
 ## Enable changes deliberately
 
