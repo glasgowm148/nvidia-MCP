@@ -7,10 +7,12 @@ inside Kodi** and supplies the live profile, settings, pipeline and skin APIs. C
 offline repairs do not require it. Kodi Manager also has a Python client/parser library for applications
 that want these APIs without MCP.
 
-The bundled version is **0.7.15** (MCP tools support Kodi Manager 0.4+; widget-cache tools need 0.6+), from the
+The bundled version is **0.7.16** (MCP tools support Kodi Manager 0.4+; widget-cache tools need 0.6+), from the
 [Kodi Manager repository](https://github.com/glasgowm148/kodi-manager). Its ZIP is present in the MCP
 wheel/source distribution and can be exported as a separate ZIP. `--export-manager DIRECTORY` checks the
 pinned SHA-256, refuses to overwrite a different existing file and never connects to the TV.
+
+Apple TV requires **0.7.16+**. Its initial ZIP installation uses a Kodi-readable network source and Kodi's UI; the token is entered privately from Kodi settings, not extracted through ADB. Follow the [Apple TV guide](apple-tv.md). The setup below describes Android file transfer; forwarding is Android-only.
 
 ## Setup
 

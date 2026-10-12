@@ -1,4 +1,4 @@
-"""Stable library API for other tools that drive the same Android TV / Fire OS device (see docs/library.md).
+"""Stable library API for other tools that drive the same explicitly configured TV (see docs/library.md).
 
 ``Shield`` wraps the MCP server's own transport and operations: the viewing guard, the
 quit-then-force-stop rule and the checksum-verified push are the same code the tools run, not
@@ -39,11 +39,21 @@ def remote_path(path):
 
 
 class Shield:
-    """One configured Android TV / Fire OS device. Thread-safe for the guarded operations; use as a context manager
+    """One configured TV (Android by default, Apple TV opt-in). Thread-safe for the guarded operations; use as a context manager
     (or call ``close``) so a Kodi ``adb forward`` is removed."""
 
     def __init__(self, config: Config, *, kodi_route: str | None = None, transport=None):
         self.config = config
+        if config.platform not in ("android", "apple_tv"):
+            raise ShieldError("Unknown device platform")
+        if config.platform == "apple_tv":
+            from .apple_tv import AppleOperations, AppleTransport
+
+            if kodi_route not in (None, "direct"):
+                raise ShieldError("Apple TV does not support ADB forwarding", "unsupported")
+            self.transport = transport if transport is not None else AppleTransport(config)
+            self.operations = AppleOperations(self.transport)
+            return
         self.transport = transport if transport is not None else Transport(config, kodi_route)
         self.operations = Operations(self.transport)
 
@@ -86,7 +96,7 @@ class Shield:
         return self.operations.viewing_state()
 
     def kodi_alive(self) -> bool:
-        """True when a Kodi process is running (``pidof``)."""
+        """Android: process running (pidof). Apple TV: Kodi HTTP answers; not process proof."""
         return self.operations.kodi_running()
 
     # Lifecycle (needs Config.allow_writes) ---------------------------------------------------
@@ -95,11 +105,12 @@ class Shield:
         """Quit Kodi exactly as ``kodi_lifecycle stop`` does: refuse unless nobody is watching,
         send ``Application.Quit``, wait up to ``wait`` seconds, and force-stop only a hung exit
         whose kodi.log proves settings were saved while the guard still passes. Otherwise raises
-        ShieldError with kind ``exit_hung`` and leaves Kodi alone."""
+        ShieldError with kind ``exit_hung`` and leaves Kodi alone. Apple TV never force-stops;
+        it reports graceful HTTP disappearance without claiming process termination."""
         ops = self.operations
         with ops.lock:
             ops.writes()
-            if not ops.kodi_running():
+            if self.config.platform == "android" and not ops.kodi_running():
                 return {"requested": "stop", "stopped_by": None, "note": "Kodi was not running."}
             previous = ops.quit_wait
             ops.quit_wait = wait
@@ -108,10 +119,10 @@ class Shield:
             finally:
                 ops.quit_wait = previous
 
-    def start_kodi(self, wait: float = 0) -> dict:
+    def start_kodi(self, wait: float = 0, *, interrupt_other_app: bool = False) -> dict:
         """Start Kodi under the TV guard, as ``kodi_lifecycle start``. With ``wait`` > 0, also
         wait up to that many seconds for Kodi's JSON-RPC to answer (``ready``)."""
-        result = self.operations.lifecycle("start")
+        result = self.operations.lifecycle("start", interrupt_other_app=interrupt_other_app)
         if wait > 0:
             deadline = time.monotonic() + wait
             result["ready"] = False

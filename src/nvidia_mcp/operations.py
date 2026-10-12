@@ -1315,14 +1315,19 @@ class Operations:
                 {"setting": setting, "previous": old, "current": new, "backup_id": backup}
             )
 
-    def manager_read(self, area):
+    def manager_read(self, area, addon_id=None):
         endpoints = {
             "layout": "/api/widgets/layout",
             "sources": "/api/widgets/sources",
             "health": "/api/health",
             "pipeline": "/api/pipeline",
             "fixes": "/api/fixes",
+            "backups": "/api/stack/backups",
         }
+        if addon_id is not None:
+            if area != "backups" or not re.fullmatch(r"[A-Za-z0-9._-]+", addon_id):
+                raise ShieldError("An add-on ID is supported only for backup listing")
+            return self.safe(self.t.manager(f"/api/addons/{addon_id}/backups"))
         return self.safe(self.t.manager(endpoints[area]))
 
     def widget_cache(self):
@@ -1552,4 +1557,32 @@ class Operations:
             result = self.t.manager("/api/widgets/layout/apply", "POST", saved[1])
             del self.plans[preview_id]
             self.audit("apply_layout", saved[1]["section_id"], result.get("backup_id"))
+            return self.safe(result)
+
+    def configuration_backup(self, addon_id=None):
+        self.writes()
+        with self.lock:
+            self.guard_tv("layout", assume_running=True)
+            endpoint = "/api/stack/backup"
+            if addon_id is not None:
+                if not re.fullmatch(r"[A-Za-z0-9._-]+", addon_id):
+                    raise ShieldError("Invalid add-on ID")
+                endpoint = f"/api/addons/{addon_id}/backup"
+            result = self.t.manager(endpoint, "POST", {})
+            self.audit("configuration_backup", addon_id or "checkpoint", result.get("backup_id"))
+            return self.safe(result)
+
+    def configuration_restore(self, backup_id, addon_id=None):
+        self.writes()
+        if not re.fullmatch(r"[A-Za-z0-9_-]{1,100}", backup_id):
+            raise ShieldError("Invalid configuration backup ID")
+        with self.lock:
+            self.guard_tv("layout", assume_running=True)
+            endpoint = "/api/stack/restore"
+            if addon_id is not None:
+                if not re.fullmatch(r"[A-Za-z0-9._-]+", addon_id):
+                    raise ShieldError("Invalid add-on ID")
+                endpoint = f"/api/addons/{addon_id}/restore"
+            result = self.t.manager(endpoint, "POST", {"backup_id": backup_id})
+            self.audit("configuration_restore", addon_id or "checkpoint", backup_id)
             return self.safe(result)

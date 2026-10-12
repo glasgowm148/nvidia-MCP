@@ -26,6 +26,8 @@ WRITE_TOOLS = {
     "kodi_layout_apply",
     "kodi_layout_rebuild",
     "kodi_manager_widget_cache_refresh",
+    "kodi_configuration_backup",
+    "kodi_configuration_restore",
 }
 
 

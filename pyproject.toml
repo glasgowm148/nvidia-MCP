@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "nvidia-shield-mcp"
 dynamic = ["version"]
-description = "Local MCP tools for Kodi on NVIDIA Shield, Android TV, Google TV and Fire OS"
+description = "Local MCP tools for Kodi on NVIDIA Shield, Android TV, Google TV, Fire OS and experimental Apple TV"
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.11"
@@ -13,6 +13,7 @@ dependencies = ["mcp>=1.28,<3", "httpx>=0.28,<1", "defusedxml>=0.7,<1"]
 classifiers = ["Development Status :: 3 - Alpha", "Programming Language :: Python :: 3", "Operating System :: OS Independent"]
 
 [project.optional-dependencies]
+apple-tv = ["pyatv>=0.16,<0.17"]
 dev = ["pytest>=8,<10", "ruff>=0.12,<1", "build>=1.2,<2"]
 
 [project.scripts]

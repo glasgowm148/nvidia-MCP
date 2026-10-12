@@ -1,5 +1,28 @@
 # Verification
 
+## 0.5.0 experimental Apple TV support (2026-10-12)
+
+Synthetic tests cover private Companion/AirPlay pairing, explicit-host-only discovery, partial
+pairing refusal, cancellation/secret-safe SDK failures, fresh paired-state connections, device/profile
+changes, file checksum and size validation, immutable layout previews, backup/restore routes,
+launch preflight, interruption opt-ins and absence of Android-only tools. Installed pyatv 0.16 API
+checks run without network access; CI installs the optional dependency in a dedicated job.
+
+Android retains 23 read-only tools and has 36 with writes; Apple TV has 17/27. New shared backup
+write tools are included in the foreground/playback guard matrix. Existing Shield replay, APK,
+stdio, progress/concurrency and privacy suites remain required. Ruff, generated tool docs,
+clean-wheel stdio/export and archive/checksum checks cover both releases.
+
+Manager 0.7.16 adds virtual XML write/readback/rollback, backup/restore/undo, identity preservation,
+widget auto-routing, pipeline discovery, active-profile confinement, authenticated bounded file
+reads and native-active action/background-work refusal. Its full Python suite, 98 Node tests,
+Python 3.8 types, fresh-wheel recovery and deterministic ZIP checks pass.
+
+**No physical Apple TV or live TV mutations were tested.** Native UIKit access, actual Companion/
+AirPlay reporting, signing renewal, background suspension, tvOS purging and real skin/helper
+performance require device validation. Unknown native focus blocks writes. The household Shield
+configuration and installed Manager were not replaced. Older live evidence below retains its scope.
+
 ## 0.4.10 deeper reliability audit (2026-10-12)
 
 Locally, 551 Python tests plus 5 subtests passed. New synthetic regressions cover hardware-ID

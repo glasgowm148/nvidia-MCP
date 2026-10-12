@@ -1,5 +1,13 @@
 # Library API
 
+For Apple TV, use `AppleTV(Config(host="PRIVATE_IP", platform="apple_tv", ...))` or
+`AppleTV.from_env()` with an Apple TV environment. The same `operations` object supplies
+Kodi/Manager skin/settings/widget/backup contracts. `kodi_alive()` means HTTP responsiveness,
+not process proof; `quit_kodi()` uses graceful quit only. `start_kodi(interrupt_other_app=True)`
+also needs `allow_interrupt=True` to switch from another idle app. Android shell/push/telemetry
+helpers are unavailable. Active-profile text is read through `tv.operations.files.read(path)`;
+local snapshots cannot be restored offline. See [Apple TV setup and limits](apple-tv.md).
+
 Other tools on the same computer (for example a household deploy script) can drive an Android TV / Fire OS device
 with nvidia-MCP's own device code instead of copying it. `nvidia_mcp.AndroidTV` (also exported as the original `Shield`) wraps the transport
 and operations the MCP tools use: the viewing guard, the quit-then-force-stop rule and the

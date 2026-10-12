@@ -1,4 +1,4 @@
-"""Explicit, single-device configuration. No network scanning or saved credentials."""
+"""Explicit, single-device configuration. No LAN discovery; secrets stay private."""
 
 import ipaddress
 import os
@@ -31,7 +31,7 @@ def private_host(host: str) -> str:
         address = ipaddress.ip_address(host)
     except ValueError:
         raise ShieldError(
-            "ANDROID_TV_HOST (or SHIELD_HOST) must be a private LAN IP, not a URL or hostname"
+            "Device host must be a private LAN IP (ANDROID_TV_HOST, SHIELD_HOST or APPLE_TV_HOST), not a URL or hostname"
         ) from None
     if (
         not (address.is_private or address.is_loopback)
@@ -140,13 +140,33 @@ class Config:
     apksigner_path: str = "apksigner"
     java_path: str = "java"
     http_route: str = "direct"
+    platform: str = "android"
+    apple_credentials: Path | None = field(default=None, repr=False)
+    apple_kodi_app_id: str = ""
 
     @classmethod
     def from_env(cls):
-        host = device_env("ANDROID_TV_HOST", "SHIELD_HOST", convert=private_host)
+        platform = os.environ.get("NVIDIA_MCP_PLATFORM", "android")
+        if platform not in ("android", "apple_tv"):
+            raise ShieldError("NVIDIA_MCP_PLATFORM must be android or apple_tv")
+        if platform == "apple_tv":
+            host = private_host(os.environ.get("APPLE_TV_HOST", ""))
+            if any(
+                os.environ.get(name) not in (None, host)
+                for name in ("ANDROID_TV_HOST", "SHIELD_HOST")
+            ):
+                raise ShieldError(
+                    "Apple TV and Android host settings conflict; configure one target"
+                )
+        else:
+            host = device_env("ANDROID_TV_HOST", "SHIELD_HOST", convert=private_host)
         route = os.environ.get("KODI_HTTP_ROUTE", "direct")
         if route not in ("direct", "forward", "auto"):
             raise ShieldError("KODI_HTTP_ROUTE must be direct, forward or auto")
+        if platform == "apple_tv" and route != "direct":
+            raise ShieldError(
+                "Apple TV uses direct Kodi/Manager HTTP; ADB forwarding is unavailable"
+            )
         root = os.environ.get("KODI_REMOTE_ROOT", cls.remote_root)
         if not re.fullmatch(
             r"/(?:sdcard|storage/emulated/0)/[A-Za-z0-9_./-]+", root
@@ -157,6 +177,11 @@ class Config:
         mount = os.environ.get("KODI_MOUNT")
         return cls(
             host=host,
+            platform=platform,
+            apple_credentials=Path(os.environ["APPLE_TV_CREDENTIALS_FILE"]).expanduser().resolve()
+            if os.environ.get("APPLE_TV_CREDENTIALS_FILE")
+            else None,
+            apple_kodi_app_id=os.environ.get("APPLE_TV_KODI_APP_ID", ""),
             adb_port=device_env("ANDROID_TV_ADB_PORT", "SHIELD_ADB_PORT", "5555", port),
             adb_path=os.environ.get("ADB_PATH", "adb"),
             kodi_port=port(os.environ.get("KODI_PORT", "8080")),

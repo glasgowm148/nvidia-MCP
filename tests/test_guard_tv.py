@@ -359,6 +359,8 @@ def guarded_writes(ops, tmp_path):
         "kodi_manager_widget_cache_refresh": ops.widget_cache_refresh,
         "kodi_layout_apply": lambda: ops.layout_apply(preview),
         "kodi_layout_rebuild": ops.rebuild_layout,
+        "kodi_configuration_backup": ops.configuration_backup,
+        "kodi_configuration_restore": lambda: ops.configuration_restore("backup-1"),
         "shield_remote": lambda: ops.remote("select"),
         "kodi_lifecycle": lambda: ops.lifecycle("restart"),
     }
@@ -370,6 +372,8 @@ GUARDED = [
     "kodi_manager_widget_cache_refresh",
     "kodi_layout_apply",
     "kodi_layout_rebuild",
+    "kodi_configuration_backup",
+    "kodi_configuration_restore",
     "shield_remote",
     "kodi_lifecycle",
 ]

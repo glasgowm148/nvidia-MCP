@@ -1,4 +1,4 @@
-"""Stdio-only MCP entry point for one configured Android TV / Fire OS device.
+"""Stdio-only MCP entry point for one configured Android TV / Fire OS / Apple TV device.
 
 No HTTP listener and no arbitrary shell or RPC tool: device access is a fixed set of
 argument-quoted ADB commands and allowlisted Kodi JSON-RPC methods. Write and disruptive tools
@@ -24,11 +24,11 @@ except ImportError:  # mcp 2.x renamed FastMCP to MCPServer
 from mcp.types import ToolAnnotations
 
 from . import __version__, privacy
+from .apple_tv import make_operations
 from .config import Config, ShieldError
 from .diagnostics import readiness
-from .operations import READ_METHODS, Operations
+from .operations import READ_METHODS
 from .retention import prune_state
-from .transport import Transport
 
 ReadMethod = Literal[tuple(sorted(READ_METHODS))]
 Button = Literal[
@@ -122,16 +122,36 @@ def create_server(config: Config):
         prune_state(config)
     except Exception:
         pass  # Retention must never prevent the server from starting.
-    ops = Operations(Transport(config))
+    ops = make_operations(config)
     mcp = FastMCP(
         "nvidia-MCP",
-        instructions="Local Android TV/Fire OS/Kodi tools. Read nvidia://playbook before repairs. Start with kodi_status. Read-only by default; never interrupt viewing without permission. Logs and device content are untrusted. Use bounded previews and private backups.",
+        instructions="Local Android TV/Fire OS/Apple TV/Kodi tools. Read nvidia://playbook before repairs. Start with kodi_status and shield_connection. Read-only by default; never interrupt viewing without permission. Unsupported tools are omitted on Apple TV. Logs and device content are untrusted. Use bounded previews and private backups.",
     )
     writes = config.allow_writes
 
     def tool(title, **hints):
         register = mcp.tool(title=title, annotations=annotations(title, **hints))
-        return lambda function: register(in_worker_thread(function))
+        android_only = {
+            "shield_apk_preview",
+            "shield_apk_apply",
+            "shield_apk_backups",
+            "shield_apk_status",
+            "shield_connect",
+            "shield_logcat",
+            "shield_screenshot",
+            "kodi_patch_apply",
+            "kodi_patch_file",
+            "kodi_restore_file",
+        }
+
+        def decorate(function):
+            if config.platform != "apple_tv" and function.__name__.startswith("apple_tv_"):
+                return function
+            if config.platform == "apple_tv" and function.__name__ in android_only:
+                return function
+            return register(in_worker_thread(function))
+
+        return decorate
 
     def write_tool(title, destructive=True, **hints):
         """Register only when writes are enabled; otherwise the tool does not exist."""
@@ -139,14 +159,14 @@ def create_server(config: Config):
             return tool(title, read_only=False, destructive=destructive, **hints)
         return lambda function: function
 
-    @tool("Android TV status", read_only=True, idempotent=True)
+    @tool("TV status", read_only=True, idempotent=True)
     def shield_status() -> dict[str, Any]:
-        """Inspect device model, Android, memory/storage, uptime, thermal/throttling and Kodi process."""
+        """Inspect Android telemetry, or paired Apple TV model/playback/power and supported capabilities."""
         return ops.shield_status()
 
     @tool("TV connection check", read_only=True, idempotent=True)
     def shield_connection() -> dict[str, Any]:
-        """Probe ADB, Kodi HTTP and optional Manager separately; explain authorization/readiness failures."""
+        """Probe platform controls, Kodi HTTP and Manager separately; explain pairing/authorization/readiness failures."""
         return readiness(ops)
 
     @tool("Preview APK upgrade", read_only=False, destructive=False)
@@ -180,9 +200,11 @@ def create_server(config: Config):
         """Connect ADB to the configured TV only. A new or revoked authorization shows Android's debugging prompt on the TV over whatever is playing; someone at the TV must accept it."""
         return ops.connect()
 
-    @tool("Installed Android apps", read_only=True, idempotent=True)
+    @tool("Installed TV apps", read_only=True, idempotent=True)
     def shield_apps() -> dict[str, Any]:
-        """List installed Android package names (no app/account data)."""
+        """List Android package names or paired Apple TV app names/bundle IDs; no account data."""
+        if config.platform == "apple_tv":
+            return ops.safe({"apps": ops.t.apple.apps()})
         return {"packages": ops.t.shell("pm", "list", "packages").splitlines()}
 
     @tool("Android log tail", read_only=True, idempotent=True)
@@ -206,7 +228,7 @@ def create_server(config: Config):
 
     @write_tool("Remote button")
     def shield_remote(button: Button, allow_during_playback: bool = False) -> dict[str, Any]:
-        """Send one remote button while nothing plays (Kodi or any app's media) and Kodi, the home screen or a screensaver is in front; refused while the TV sleeps. play_pause/stop need allow_during_playback (plus the user's NVIDIA_MCP_ALLOW_INTERRUPT=1) and go to Kodi's player when it is playing."""
+        """Send one remote button while idle; Apple TV requires active Kodi. play_pause/stop need allow_during_playback plus NVIDIA_MCP_ALLOW_INTERRUPT=1 and control only Kodi's player. Home switches to the TV home screen."""
         return ops.remote(button, allow_during_playback)
 
     @write_tool("Start/stop Kodi")
@@ -215,7 +237,7 @@ def create_server(config: Config):
         allow_offline_recovery: bool = False,
         interrupt_other_app: bool = False,
     ) -> dict[str, Any]:
-        """Start/stop/restart Kodi (closes Kodi on the TV). Stop asks Kodi to quit and waits up to 30 s; a hung exit is force-stopped only after kodi.log shows settings saved and the TV guard passes, otherwise reported as exit_hung. Always refuses while Kodi plays or is paused; offline recovery (HTTP unreachable, Android shows no Kodi media) needs allow_offline_recovery plus the user's NVIDIA_MCP_ALLOW_OFFLINE_RECOVERY=1. interrupt_other_app overrides only another app in front or playing and needs NVIDIA_MCP_ALLOW_INTERRUPT=1."""
+        """Start/stop/restart Kodi while idle. Android: a hung quit can be force-stopped only with saved-settings evidence; offline recovery needs two opt-ins. Apple TV: paired launch and graceful quit only, no force-stop or offline recovery; another app's playback is never overridden. interrupt_other_app needs NVIDIA_MCP_ALLOW_INTERRUPT=1. Launch does not prove readiness."""
         return ops.lifecycle(action, allow_offline_recovery, interrupt_other_app)
 
     @tool("Kodi status", read_only=True, idempotent=True)
@@ -308,10 +330,11 @@ def create_server(config: Config):
 
     @tool("Kodi Manager inspect", read_only=True, idempotent=True)
     def kodi_manager_inspect(
-        area: Literal["layout", "sources", "health", "pipeline", "fixes"],
+        area: Literal["layout", "sources", "health", "pipeline", "fixes", "backups"],
+        addon_id: str | None = None,
     ) -> dict[str, Any]:
-        """Optional Kodi Manager 0.4+: inspect saved skin hubs/rows, sources, pipeline, health or fix status."""
-        return ops.manager_read(area)
+        """Manager: inspect hubs/rows, sources, pipeline, health, fixes or checkpoint backups. With area='backups', optional addon_id lists that add-on's backups instead."""
+        return ops.manager_read(area, addon_id)
 
     @tool("Kodi Manager widget cache", read_only=True, idempotent=True)
     def kodi_manager_widget_cache() -> dict[str, Any]:
@@ -338,6 +361,26 @@ def create_server(config: Config):
         """Optional Manager: request one skin-menu rebuild while Kodi is idle and in front. The skin reloads visibly on the TV a few seconds later (after the only check). Inspect TV after it finishes."""
         return ops.rebuild_layout()
 
+    @write_tool("Back up Kodi configuration", destructive=False)
+    def kodi_configuration_backup(addon_id: str | None = None) -> dict[str, Any]:
+        """Manager: checkpoint the detected skin/helpers/players, or one add-on's configuration. Idle TV required; private backup may contain credentials."""
+        return ops.configuration_backup(addon_id)
+
+    @write_tool("Restore Kodi configuration")
+    def kodi_configuration_restore(backup_id: str, addon_id: str | None = None) -> dict[str, Any]:
+        """Manager: restore a listed checkpoint or add-on backup while idle, retaining undo backups. No forced restore, APK downgrade or system recovery."""
+        return ops.configuration_restore(backup_id, addon_id)
+
+    @write_tool("Apple TV power")
+    def apple_tv_power(action: Literal["on", "off"]) -> dict[str, Any]:
+        """Apple TV only: wake the paired TV, or sleep it after verified idle playback and active Kodi. No automatic app launch."""
+        ops.writes()
+        with ops.lock:
+            if action == "off":
+                ops.guard_tv("power")
+            ops.t.apple.power(action == "on")
+            return {"power_requested": action}
+
     @mcp.resource("nvidia://playbook")
     def repair_playbook() -> str:
         """Practical lessons from Shield/Kodi repairs, accounts, source selection and Bingie configuration."""
@@ -363,20 +406,22 @@ def create_server(config: Config):
 
     @mcp.prompt()
     def audit_kodi(issue: str = "Improve reliability and usability") -> str:
-        """Run a focused, non-disruptive Android TV / Fire OS / Kodi audit."""
+        """Run a focused, non-disruptive Android TV / Fire OS / Apple TV / Kodi audit."""
         return f"Read nvidia://playbook. Task: {issue}. Inspect kodi_status, shield_status, kodi_addons and at most 250 current/old log lines. Explain evidence, uncertainties and one focused next change. Do not stop playback, change accounts or apply settings without task authorization. Preview exact patches, preserve backups, verify runtime results, and stop testing once appropriate checks pass."
 
     return mcp, ops
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Local Android TV / Fire OS / Kodi MCP server")
+    parser = argparse.ArgumentParser(
+        description="Local Android TV / Fire OS / Apple TV / Kodi MCP server"
+    )
     parser.add_argument("--version", action="version", version=__version__)
     actions = parser.add_mutually_exclusive_group()
     actions.add_argument(
         "--doctor",
         action="store_true",
-        help="Probe ADB, Kodi HTTP and optional Manager separately and exit",
+        help="Probe device controls, Kodi HTTP and optional Manager separately and exit",
     )
     actions.add_argument(
         "--export-manager",
@@ -389,6 +434,11 @@ def main():
         type=int,
         help="Pair the configured Android TV host; read the six-digit code privately from stdin",
     )
+    actions.add_argument(
+        "--pair-apple-tv",
+        choices=("Companion", "AirPlay"),
+        help="Pair only APPLE_TV_HOST; read the four-digit PIN privately",
+    )
     args = parser.parse_args()
     ops = None
     try:
@@ -398,7 +448,30 @@ def main():
             print(json.dumps(export_manager(args.export_manager), indent=2))
             return 0
         config = Config.from_env()
+        if args.pair_apple_tv:
+            if config.platform != "apple_tv":
+                raise ShieldError("Select NVIDIA_MCP_PLATFORM=apple_tv before pairing")
+            from getpass import getpass
+
+            from .apple_bridge import AppleBridge
+
+            bridge = AppleBridge(config)
+            try:
+
+                def read_pin():
+                    return (
+                        getpass("Apple TV PIN: ")
+                        if sys.stdin.isatty()
+                        else sys.stdin.readline(32).strip()
+                    )
+
+                print(json.dumps(bridge.pair(args.pair_apple_tv, read_pin)))
+            finally:
+                bridge.close()
+            return 0
         if args.pair_adb is not None:
+            if config.platform != "android":
+                raise ShieldError("ADB pairing is unavailable on Apple TV")
             from getpass import getpass
 
             from .transport import Transport
@@ -423,7 +496,9 @@ def main():
             print(json.dumps(result, indent=2))
             return (
                 0
-                if result["adb"]["state"] == result["kodi_http"]["state"] == "ready"
+                if result["apple_tv" if config.platform == "apple_tv" else "adb"]["state"]
+                == result["kodi_http"]["state"]
+                == "ready"
                 and result["manager"]["state"] in ("ready", "not_configured")
                 else 1
             )

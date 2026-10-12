@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.5.0 — 2026-10-12 (prerelease)
+
+- Add explicit experimental Apple TV backend with optional public pyatv 0.16 dependency.
+  Keep Android/Shield defaults, existing names and stdio/read-only behavior. Omit Android-only
+  tools on tvOS; expose paired installed-app listing, Home, power and graceful launch/quit/restart.
+- Pair Companion/AirPlay through private CLI PIN input, scoped to one explicit unicast host.
+  Save credentials atomically/private, require both protocols, reject changed device identity,
+  serialize SDK actions and establish a fresh connection before playback/power guards.
+- Reuse Kodi/Manager skin previews, source/revision/TTL checks, settings and widget workflows.
+  Bind tvOS previews to Manager identity/profile path; unknown media/focus blocks changes.
+  Native Kodi focus comes from Manager, not playing-app metadata. No force-stop or offline writes.
+- Add Manager configuration backup/restore tools and backup listing through Manager inspect
+  on both platforms. Apple TV uses bounded checksum-checked VFS reads and private per-file
+  snapshots. Export `AppleTV` library facade alongside unchanged AndroidTV/Shield APIs.
+- Bundle public Manager 0.7.16; explain setup, parity, disposable tvOS backup/cache limits and
+  physical-test requirements. Synthetic tests and SDK contract checks only; no live TV mutations.
+
 ## 0.4.10 — 2026-10-12 (prerelease)
 
 - Refresh hardware identity on each operation; reject placeholder serials and refuse to downgrade

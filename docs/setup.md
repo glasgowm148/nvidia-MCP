@@ -4,6 +4,8 @@ Your part is the **TV settings and permission prompt**. An agent with terminal/f
 downloads, installation, commands and MCP configuration on the computer. Both devices should be on
 the same home network; the TV can use Ethernet while the computer uses Wi-Fi.
 
+For **Apple TV / tvOS**, use the [Apple TV guide](apple-tv.md). Kodi must already be installed; setup uses private pairing and direct HTTP, with no Android debugging menus.
+
 For **Android TV / Google TV or Android-based Fire TV**, follow [device-specific preparation](android-tv.md)
 for IP/debugging menus and pairing ports, then continue at **step 3** below. Vega OS devices are
 unsupported. Steps 1–2 below are the Shield reference menus.

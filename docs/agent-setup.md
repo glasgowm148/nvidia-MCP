@@ -5,6 +5,8 @@ first. Handle downloads, installation, commands, paths, client configuration and
 do not give the user a terminal/JSON checklist. You need local file/terminal access and network access.
 Ask for missing information or an unavoidable TV/OS/client interaction, then continue the remaining work.
 
+For **Apple TV**, follow [Apple TV computer setup](apple-tv.md#computer-setup-agent-performs-this) instead of the ADB steps below. Preserve an existing Shield server entry; configure Apple TV as a separate instance. Install the optional dependency, pair both protocols privately, merge credentials and verify read-only tools. The user handles Kodi installation/security settings and private PIN/token entry.
+
 ## 1. Resolve the environment and connection details
 
 - Identify the OS/architecture, the MCP client to configure and its existing installation/configuration.
@@ -15,7 +17,7 @@ Ask for missing information or an unavoidable TV/OS/client interaction, then con
   and a dedicated virtual environment; preserve the user's system Python and other projects.
 - Reuse an existing suitable nvidia-MCP checkout. Inspect its state before updating; preserve local
   changes. Otherwise clone this repo to an appropriate user-owned workspace.
-  For a released install, prefer tag **v0.4.10** (or a newer reviewed release) rather than an
+  For a released install, prefer tag **v0.5.0** (or a newer reviewed release) rather than an
   unreviewed moving `main`. Downloading GitHub's Source code ZIP alone does not register an MCP server.
 
 Use the [official Python downloads](https://www.python.org/downloads/),

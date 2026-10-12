@@ -1,5 +1,7 @@
 # Configuration and operation rules
 
+For Apple TV setup and supported operations, see [tvOS support](apple-tv.md). Apple TV requires direct HTTP; Android forwarding, mounted storage, APK/shell access and offline recovery do not apply. Writes still need both write switches, private pairing and confirmed active Kodi. Apple snapshots are owned by a persistent Manager-instance ID, not a hardware serial.
+
 For Android TV, Google TV and Fire OS menus, pairing codes and OS limits, see [device setup](android-tv.md).
 
 The [agent setup guide](agent-setup.md) explains where to put these values in your MCP client's
@@ -10,6 +12,10 @@ filled configuration or print account credentials into diagnostic output.
 
 | Variable | Default | Meaning |
 | --- | --- | --- |
+| `NVIDIA_MCP_PLATFORM` | `android` | `android` or opt-in `apple_tv`; existing Shield settings keep the default |
+| `APPLE_TV_HOST` | required in Apple mode | One private Apple TV IP; conflicting Android host settings rejected |
+| `APPLE_TV_CREDENTIALS_FILE` | unset | Private computer file containing paired Companion/AirPlay credentials; CLI pairing only |
+| `APPLE_TV_KODI_APP_ID` | empty | Actual installed Kodi signing bundle ID for launch/restart; inspect `shield_apps` |
 | `ANDROID_TV_HOST` / `SHIELD_HOST` | required | Private LAN IP; one Android TV / Fire OS device per instance; conflicting aliases are rejected |
 | `ANDROID_TV_ADB_PORT` / `SHIELD_ADB_PORT` | `5555` | ADB connection port; paired Wireless debugging can use a dynamic port; conflicting aliases are rejected |
 | `ADB_PATH` | `adb` | Platform Tools executable |

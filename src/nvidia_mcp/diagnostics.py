@@ -44,6 +44,25 @@ def readiness(ops):
             and isinstance(response.get("version"), dict)
         )
 
+    if ops.c.platform == "apple_tv":
+        from .apple_tv import apple_capabilities
+
+        return ops.safe(
+            {
+                "platform": "apple_tv",
+                "adb": {"state": "unsupported"},
+                "apple_tv": probe(lambda: bool(ops.t.apple.snapshot())),
+                "kodi_http": probe(kodi),
+                "manager": probe(lambda: ops.state())
+                if ops.c.manager_token
+                else {
+                    "state": "not_configured",
+                    "next_step": "Install/configure Kodi Manager 0.7.16+ for skin/settings/file management",
+                },
+                "capabilities": apple_capabilities(ops.c),
+                "note": "Readiness is separate from idle playback and active Kodi; unknown state blocks changes.",
+            }
+        )
     result = {
         "adb": probe(lambda: ops.t.adb("get-state").decode().strip() == "device"),
         "kodi_http": probe(kodi),

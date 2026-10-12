@@ -16,10 +16,10 @@
   <a href="#documentation">Documentation</a>
 </p>
 
-**Local MCP tools for Kodi on NVIDIA Shield, Android TV, Google TV and Android-based Fire TV.** Give your assistant the tools to inspect your setup, diagnose playback problems, adjust settings and apply reversible repairs from your computer. Works over your home network on macOS, Windows and Linux, with an MCP client that supports stdio. No cloud account is required for the server.
+**Local MCP tools for Kodi on NVIDIA Shield, Android TV, Google TV and Android-based Fire TV, with experimental Apple TV support.** Give your assistant the tools to inspect your setup, diagnose playback problems, adjust settings and apply reversible repairs from your computer. Works over your home network on macOS, Windows and Linux, with an MCP client that supports stdio. No cloud account is required for the server.
 
 > [!NOTE]
-> **Alpha / prerelease (0.4.10).** Start with read-only access. See [tested compatibility](docs/compatibility.md)
+> **Alpha / prerelease (0.5.0).** Start with read-only access. See [tested compatibility](docs/compatibility.md)
 > and [verification evidence](docs/verification.md) before using repair or upgrade tools.
 
 ## What you can do
@@ -36,9 +36,13 @@
 
 The bundled repair playbook covers profiles, audio, autoplay, source priorities, skin widgets and stale stream URLs. It helps distinguish **installed**, **enabled**, **configured** and **actually used**. It is available as the `nvidia://playbook` resource and `audit_kodi` prompt.
 
+**New in 0.5.0:** Apple TV reuses the Kodi/Manager skin, settings, widget, backup and undo workflows. Optional private Companion/AirPlay pairing adds launch, installed-app listing, Home and power. Android-only tools are omitted on tvOS. Hardware validation is pending; see the [Apple TV setup and parity table](docs/apple-tv.md). Shield configuration stays the default.
+
 ## Quick start
 
 **You prepare the TV. Your agent handles the computer.** Use an agent with terminal/file access; the computer and TV must be on the same home network.
+
+For **Apple TV**, use the [Apple TV guide](docs/apple-tv.md) and its separate private server entry. The Android procedure below remains unchanged.
 
 ### 1. Prepare your TV and Kodi
 
@@ -94,7 +98,7 @@ flowchart LR
     B -->|ADB + Kodi HTTP| C[Android TV or Fire OS / Kodi]
     B -.->|Optional live settings and layout API| D[Kodi Manager inside Kodi]
 ```
- The server targets **one configured Android device**. The public ADB/Kodi interfaces need no proprietary connector. Legacy `shield_*` tool names remain
+ The server targets **one explicitly configured device per instance**. Android/Shield is the default; Apple TV uses an opt-in backend. The public ADB/Kodi interfaces need no proprietary connector. Legacy `shield_*` tool names remain
 compatible; `ANDROID_TV_HOST` / `ANDROID_TV_ADB_PORT` also accept existing `SHIELD_*` names.
 See [device support and evidence](docs/android-tv.md). Core diagnostics and file repairs work without the companion. Credentials and recovery backups stay in your local configuration/storage.
 
@@ -106,19 +110,24 @@ See [device support and evidence](docs/android-tv.md). Core diagnostics and file
 
 *Optional companion dashboard, captured from the public UI with synthetic demo data. The MCP server itself is a stdio service.*
 
-The MCP distribution includes a pinned **Kodi Manager 0.7.15** ZIP (built from the source commit pinned in the bundled manifest, checksum-verified). Your agent can export it with `nvidia-mcp --export-manager ./companion`, verify it and transfer it to the TV. Install through Kodi's native **Install from zip file**, then let the agent configure the connection. Follow the [companion setup guide](docs/companion.md).
+The MCP distribution includes a pinned **Kodi Manager 0.7.16** ZIP (built from the source commit pinned in the bundled manifest, checksum-verified). Your agent can export it with `nvidia-mcp --export-manager ./companion`, verify it and transfer it to the TV. Install through Kodi's native **Install from zip file**, then let the agent configure the connection. Follow the [companion setup guide](docs/companion.md).
+
+Apple TV skin/file management needs **Manager 0.7.16+** and direct authenticated HTTP. Pairing uses the optional open-source `pyatv` computer dependency; no proprietary connector. Its guards require reported idle media and confirmed active Kodi; unknown state blocks changes. APK installs, offline file writes, screenshots, logcat and force-stop are unavailable.
 
 Kodi Manager 0.4+ is supported; the widget-cache tools need 0.6+. Older installations should be upgraded; back up customized installations before replacing them. Layout writes require reviewed **Bingie 2.0.2 / Skin Shortcuts 2.0.3 source hashes**; unknown variants remain view-only. Installing the Python library alone does not install the TV service.
 
 ## Making changes
 
-**Read-only is the default.** Writes and plugin browsing have separate opt-ins; without write mode the write tools are not even listed. File/configuration changes use backups. Every disruptive tool checks Kodi playback, Android media sessions (background audio too) and the foreground Android app, so a Home press is refused while Netflix or SmartTube is in front; an unknown state blocks the change. "Interrupt anyway" flags also need `NVIDIA_MCP_ALLOW_INTERRUPT=1`, and stopping a Kodi whose HTTP server does not answer needs `NVIDIA_MCP_ALLOW_OFFLINE_RECOVERY=1`. Security and service settings (web server, unknown sources, master lock...) cannot be changed by an agent, and new APK signers must be trusted in your own configuration.
+**Read-only is the default.** Writes and plugin browsing have separate opt-ins; without write mode the write tools are not even listed. File/configuration changes use backups. On Android, every disruptive tool checks Kodi playback, Android media sessions (background audio too) and the foreground Android app, so a Home press is refused while Netflix or SmartTube is in front; an unknown state blocks the change. "Interrupt anyway" flags also need `NVIDIA_MCP_ALLOW_INTERRUPT=1`, and stopping a Kodi whose HTTP server does not answer needs `NVIDIA_MCP_ALLOW_OFFLINE_RECOVERY=1`. Security and service settings (web server, unknown sources, master lock...) cannot be changed by an agent, and new APK signers must be trusted in your own configuration.
 
 Ask the agent to inspect and preview a change before enabling it. Live companion writes also need Manager's own write mode. See [configuration and operation rules](docs/configuration.md), [repair workflows](docs/repairs.md) and [APK upgrades](docs/apk-upgrades.md).
 
 Cloud account signup/OAuth, Trakt history migrations and household provider/skin patches are not bundled. See the [capability boundaries](docs/companion.md#capability-boundaries).
 
 ## Tool reference
+
+The table below is the Android/Shield tool set. Apple TV has 17 tools read-only, 27 with writes;
+see its [capability table](docs/apple-tv.md#what-matches-the-shield-workflow).
 
 *Write mode* tools exist only when `NVIDIA_MCP_ALLOW_WRITES=1`; without it the server lists 23
 tools. *No TV changes* tools write only private local state or run opt-in, idle-only reads.
@@ -131,12 +140,14 @@ tools. *No TV changes* tools write only private local state or run opt-in, idle-
 | `kodi_backup_file` | Back up Kodi file | read-only | Save a private local rollback snapshot of one Kodi file. Does not modify the TV. |
 | `kodi_backups` | Kodi file backups | read-only | List the latest 50 private per-file snapshots without exposing their contents. |
 | `kodi_browse` | Browse Kodi folder | no TV changes | Preview one page of actual provider/library folders; opt-in, idle-only. Runs the add-on's own code, which contacts its provider and can show notifications or dialogs on the TV. Routes with play/auth/settings/maintenance verbs are refused. |
+| `kodi_configuration_backup` | Back up Kodi configuration | write mode | Manager: checkpoint the detected skin/helpers/players, or one add-on's configuration. Idle TV required; private backup may contain credentials. |
+| `kodi_configuration_restore` | Restore Kodi configuration | write mode | Manager: restore a listed checkpoint or add-on backup while idle, retaining undo backups. No forced restore, APK downgrade or system recovery. |
 | `kodi_layout_apply` | Apply hub layout | write mode | Optional Manager: apply the exact staged plan within 10 minutes, changing the household's home-screen rows; Manager backs up and rejects stale revisions. |
 | `kodi_layout_preview` | Preview hub layout | no TV changes | Optional Manager: stage existing section rows with section_id and expected_revision; no layout write. |
 | `kodi_layout_rebuild` | Rebuild skin menus | write mode | Optional Manager: request one skin-menu rebuild while Kodi is idle and in front. The skin reloads visibly on the TV a few seconds later (after the only check). Inspect TV after it finishes. |
-| `kodi_lifecycle` | Start/stop Kodi | write mode | Start/stop/restart Kodi (closes Kodi on the TV). Stop asks Kodi to quit and waits up to 30 s; a hung exit is force-stopped only after kodi.log shows settings saved and the TV guard passes, otherwise reported as exit_hung. Always refuses while Kodi plays or is paused; offline recovery (HTTP unreachable, Android shows no Kodi media) needs allow_offline_recovery plus the user's NVIDIA_MCP_ALLOW_OFFLINE_RECOVERY=1. interrupt_other_app overrides only another app in front or playing and needs NVIDIA_MCP_ALLOW_INTERRUPT=1. |
+| `kodi_lifecycle` | Start/stop Kodi | write mode | Start/stop/restart Kodi while idle. Android: a hung quit can be force-stopped only with saved-settings evidence; offline recovery needs two opt-ins. Apple TV: paired launch and graceful quit only, no force-stop or offline recovery; another app's playback is never overridden. interrupt_other_app needs NVIDIA_MCP_ALLOW_INTERRUPT=1. Launch does not prove readiness. |
 | `kodi_logs` | Kodi log tail | read-only | Inspect redacted Kodi log tail and crash/stream/storage signals; safe while viewing. |
-| `kodi_manager_inspect` | Kodi Manager inspect | read-only | Optional Kodi Manager 0.4+: inspect saved skin hubs/rows, sources, pipeline, health or fix status. |
+| `kodi_manager_inspect` | Kodi Manager inspect | read-only | Manager: inspect hubs/rows, sources, pipeline, health, fixes or checkpoint backups. With area='backups', optional addon_id lists that add-on's backups instead. |
 | `kodi_manager_widget_cache` | Kodi Manager widget cache | read-only | Optional Kodi Manager 0.6+: widget-cache status and cached rows for faster rows on any skin. |
 | `kodi_manager_widget_cache_refresh` | Refresh widget cache | write mode | Optional Kodi Manager 0.6+: queue a refresh of every cached widget row while Kodi is idle and no other app is in front. Runs each row's add-on in the background on the TV (CPU and network load for a while). |
 | `kodi_patch_apply` | Apply Kodi file patch | write mode | Apply the edits from kodi_patch_preview. Needs Kodi stopped and a matching SHA; creates an automatic backup. |
@@ -153,16 +164,18 @@ tools. *No TV changes* tools write only private local state or run opt-in, idle-
 | `shield_apk_backups` | APK recovery bundles | read-only | List private APK recovery bundles for this TV, with phases and Kodi data snapshot checksums. |
 | `shield_apk_preview` | Preview APK upgrade | no TV changes | Stage 1–20 local APKs, verify hardware serial/SDK/ABI/signers and save the installed originals (pulls up to 1 GB from the TV over the network; refused while any media is playing or paused). A stable hardware serial is required. New apps need signers configured in NVIDIA_MCP_TRUSTED_SIGNERS; trusted_signers can only narrow that set. No TV changes. |
 | `shield_apk_status` | APK recovery bundle status | read-only | Report one recovery bundle's phase, saved files and the version now installed on the TV. |
-| `shield_apps` | Installed Android apps | read-only | List installed Android package names (no app/account data). |
+| `shield_apps` | Installed TV apps | read-only | List Android package names or paired Apple TV app names/bundle IDs; no account data. |
 | `shield_connect` | Connect ADB | no TV changes | Connect ADB to the configured TV only. A new or revoked authorization shows Android's debugging prompt on the TV over whatever is playing; someone at the TV must accept it. |
-| `shield_connection` | TV connection check | read-only | Probe ADB, Kodi HTTP and optional Manager separately; explain authorization/readiness failures. |
+| `shield_connection` | TV connection check | read-only | Probe platform controls, Kodi HTTP and Manager separately; explain pairing/authorization/readiness failures. |
 | `shield_logcat` | Android log tail | read-only | Read a bounded Android log tail for native crashes. Redaction is best effort. |
-| `shield_remote` | Remote button | write mode | Send one remote button while nothing plays (Kodi or any app's media) and Kodi, the home screen or a screensaver is in front; refused while the TV sleeps. play_pause/stop need allow_during_playback (plus the user's NVIDIA_MCP_ALLOW_INTERRUPT=1) and go to Kodi's player when it is playing. |
+| `shield_remote` | Remote button | write mode | Send one remote button while idle; Apple TV requires active Kodi. play_pause/stop need allow_during_playback plus NVIDIA_MCP_ALLOW_INTERRUPT=1 and control only Kodi's player. Home switches to the TV home screen. |
 | `shield_screenshot` | TV screenshot | read-only | Capture the current TV screen without navigation. Screens can contain private information. |
-| `shield_status` | Android TV status | read-only | Inspect device model, Android, memory/storage, uptime, thermal/throttling and Kodi process. |
+| `shield_status` | TV status | read-only | Inspect Android telemetry, or paired Apple TV model/playback/power and supported capabilities. |
 <!-- tools:end -->
 
 ## Documentation
+
+- [Apple TV setup, parity and limitations](docs/apple-tv.md) — experimental tvOS backend, private pairing, skin workflows and recovery.
 
 | Guide | Use it for |
 | --- | --- |
