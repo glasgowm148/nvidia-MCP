@@ -1,4 +1,4 @@
-"""M7: the README tool table is generated from list_tools() and must be current."""
+"""M7: the tool reference table is generated from list_tools() and must be current."""
 
 import asyncio
 import importlib.util
@@ -16,13 +16,13 @@ def load_generator():
     return module
 
 
-def test_readme_tool_table_is_current():
+def test_tool_reference_is_current():
     gen = load_generator()
     always = {t.name for t in asyncio.run(gen.listed_tools(writes=False))}
     tools = asyncio.run(gen.listed_tools())
-    text = gen.README.read_text(encoding="utf-8")
+    text = gen.TOOL_DOC.read_text(encoding="utf-8")
     assert gen.render(text, gen.table(tools, always)) == text, (
-        "README tool table is stale: run python scripts/gen_tool_docs.py"
+        "tool reference table is stale: run python scripts/gen_tool_docs.py"
     )
     assert f"lists {len(always)}\ntools" in text
 

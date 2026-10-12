@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Shorten the project and profile-helper READMEs, add a documentation index, move the generated tool catalogue to `docs/tools.md`, and correct outdated setup/build examples. Runtime and bundled companion are unchanged.
+
 ## 0.5.6 — 2026-10-12 (prerelease)
 
 - Fix the opt-in Android profile handoff's automatic reopen race. Arming no longer starts a ten-second countdown while Kodi is quitting. The child waits for `Application stopped`, obtains a versioned `READY` acknowledgment, and schedules one reopen two seconds later before ending the old process.

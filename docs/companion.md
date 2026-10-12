@@ -65,6 +65,7 @@ bundled ZIP is not an instruction to overwrite them or remove their separately i
 
 Account setting controls are not cloud-account signup/OAuth. Installing a provider is not authorization
 to access content/accounts. The public companion does not reproduce the original household settings.
+Layout writes require reviewed **Bingie 2.0.2 / Skin Shortcuts 2.0.3 source hashes**.
 Unknown Bingie/Shortcuts source versions stay view-only; source fingerprints gate actual layout writes.
 
 ## Updating the bundle
