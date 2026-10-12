@@ -106,9 +106,16 @@ See [device support and evidence](docs/android-tv.md). Core diagnostics and file
 
 [Kodi Manager](https://github.com/glasgowm148/kodi-manager) adds live add-on settings, playback pipeline inspection, a browser dashboard and supported Bingie layout editing. It also offers a standalone Python client/parser library.
 
-![Kodi Manager dashboard showing add-on installation, enabled states and configuration](docs/images/manager-dashboard.png)
+![Kodi Manager overview showing TV status, seven-day trends, home-row health, backups, protection and accounts](docs/images/manager-dashboard.png)
 
-*Optional companion dashboard, captured from the public UI with synthetic demo data. The MCP server itself is a stdio service.*
+<details>
+<summary>Playback setup: routing, scraper connections and integrations</summary>
+
+![Kodi Manager playback setup showing the skin, metadata helper, selected player, routing evidence and account integrations](docs/images/manager-pipeline.png)
+
+</details>
+
+*Current optional companion UI, captured with synthetic demo data in view-only mode. The MCP server itself is a stdio service.*
 
 The MCP distribution includes a pinned **Kodi Manager 0.7.23** ZIP (built from the source commit pinned in the bundled manifest, checksum-verified). Your agent can export it with `nvidia-mcp --export-manager ./companion`, verify it and transfer it to the TV. Install through Kodi's native **Install from zip file**, then let the agent configure the connection. Follow the [companion setup guide](docs/companion.md).
 
