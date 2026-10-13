@@ -71,7 +71,7 @@ separate configuration. Credentials and recovery files stay in your private loca
 [Kodi Manager](https://github.com/glasgowm148/kodi-manager) runs inside Kodi and adds a browser dashboard,
 live add-on settings, playback pipeline inspection and supported Bingie layout editing.
 
-![Kodi Manager overview showing prioritised issues, management shortcuts and recent log activity](docs/images/manager-dashboard.png)
+![Kodi Manager overview showing clickable status charts, recorded log activity and management shortcuts](docs/images/manager-dashboard.png)
 
 <details>
 <summary>Playback setup: routing, scraper connections and integrations</summary>
