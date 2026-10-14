@@ -334,8 +334,9 @@ class Transport:
         try:
             # Spooled output avoids unbounded pipe buffers, including Android logcat.
             with tempfile.TemporaryFile() as out, tempfile.TemporaryFile() as err:
-                kwargs = {"stdin": subprocess.PIPE} if input_data is not None else {}
-                proc = subprocess.Popen(command, stdout=out, stderr=err, **kwargs)
+                # Never inherit the MCP server's stdin: it is the client's JSON-RPC pipe.
+                stdin = subprocess.DEVNULL if input_data is None else subprocess.PIPE
+                proc = subprocess.Popen(command, stdin=stdin, stdout=out, stderr=err)
                 try:
                     if input_data is None:
                         proc.wait(timeout=timeout)
@@ -414,7 +415,9 @@ class Transport:
             created = True
             with target, tempfile.TemporaryFile() as err:
                 destination.chmod(0o600)
-                proc = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=err)
+                proc = subprocess.Popen(
+                    command, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=err
+                )
 
                 def pump():
                     count = 0
@@ -577,7 +580,7 @@ def manager_error(status, raw, known=()):
 def checked_script(argv):
     """Shell script that runs argv (stderr discarded) and appends a unique exit-status line."""
     token = "__nvidia_mcp_exit_" + uuid.uuid4().hex + "__"
-    return f"{shlex.join(argv)} 2>/dev/null; echo; echo {token}$?", token
+    return f"{shlex.join(argv)} 2>/dev/null; s=$?; echo; echo {token}$s", token
 
 
 def split_status(data, token):

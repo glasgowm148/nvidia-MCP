@@ -7,7 +7,7 @@ from dataclasses import replace
 import pytest
 from conftest import media_session
 
-from nvidia_mcp import AndroidTV, Shield
+from nvidia_mcp import AndroidTV, Shield, android_tools
 from nvidia_mcp.config import Config, ShieldError
 from nvidia_mcp.operations import foreground_state
 from nvidia_mcp.transport import Transport
@@ -239,6 +239,40 @@ def test_invalid_pairing_never_launches_adb(monkeypatch, port, code):
             transport.pair(port, code)
     finally:
         transport.close()
+
+
+def test_adb_and_sdk_children_never_inherit_the_mcp_stdio_pipe(monkeypatch, tmp_path):
+    # The server's stdin is the client's JSON-RPC stream; "adb shell" would consume it.
+    launches = []
+
+    class Process:
+        returncode = 0
+
+        def __init__(self, command, **kwargs):
+            launches.append(kwargs)
+            self.stdout = io.BytesIO(b"payload")
+
+        def wait(self, timeout=None):
+            return 0
+
+        def kill(self):
+            pass
+
+    def run(command, **kwargs):
+        launches.append(kwargs)
+        return subprocess.CompletedProcess(command, 0)
+
+    monkeypatch.setattr(subprocess, "Popen", Process)
+    monkeypatch.setattr(subprocess, "run", run)
+    transport = Transport(Config(host="192.168.0.80"))
+    try:
+        transport.adb("shell", "true")
+        transport.stream_to_file(["adb", "exec-out", "cat"], tmp_path / "out.bin", 100, 5)
+    finally:
+        transport.close()
+    android_tools.run_tool(["aapt2", "dump", "badging", "x.apk"])
+    assert [kwargs.get("stdin") for kwargs in launches] == [subprocess.DEVNULL] * 3
+    assert (tmp_path / "out.bin").read_bytes() == b"payload"
 
 
 def test_pairing_cli_without_mcp_or_write_mode(monkeypatch, capsys, tmp_path):

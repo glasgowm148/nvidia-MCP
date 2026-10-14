@@ -24,7 +24,9 @@ def sha256_file(path):
 def run_tool(command):
     try:
         with tempfile.TemporaryFile() as out, tempfile.TemporaryFile() as err:
-            result = subprocess.run(command, stdout=out, stderr=err, timeout=60, check=False)
+            result = subprocess.run(
+                command, stdin=subprocess.DEVNULL, stdout=out, stderr=err, timeout=60, check=False
+            )
             if result.returncode:
                 raise ShieldError(
                     "Android SDK tool rejected the APK; check its signature/manifest and Java installation"

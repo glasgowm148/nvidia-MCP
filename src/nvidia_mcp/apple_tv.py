@@ -321,7 +321,12 @@ class AppleOperations(Operations):
             self.guard_tv("lifecycle")
             if action == "restart":
                 self.t.apple.can_launch(self.c.apple_kodi_app_id)
-            self.t.rpc("Application.Quit")
+            try:
+                self.t.rpc("Application.Quit")
+            except ShieldError as exc:
+                # As on Android: no answer still means the quit request was sent.
+                if exc.kind not in ("unreachable", "timeout", "response_timeout"):
+                    raise
             end = time.monotonic() + self.quit_wait
             while time.monotonic() < end:
                 try:
@@ -335,7 +340,9 @@ class AppleOperations(Operations):
                             "state": "restart_requested" if action == "restart" else "http_stopped",
                             "note": "HTTP disappearance does not prove process termination; tvOS has no force-stop recovery",
                         }
-                    raise
+                    # A stalled answer while exiting is neither "still running" nor "gone".
+                    if exc.kind != "response_timeout":
+                        raise
                 time.sleep(self.quit_poll)
             raise ShieldError(
                 "Kodi still answers after quit; Apple TV force-stop is unavailable", "exit_hung"

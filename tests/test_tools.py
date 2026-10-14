@@ -285,6 +285,31 @@ def test_secret_helpers():
     assert not privacy.contains_secret("https://example.com/repo/")
 
 
+@pytest.mark.parametrize(
+    "kind,stops",
+    [
+        ("unreachable", True),
+        ("timeout", True),
+        ("response_timeout", True),
+        ("authentication_denied", True),
+        ("rpc_error", False),
+    ],
+)
+def test_kodi_status_stops_after_a_connection_failure_by_kind(ops, kind, stops):
+    # The real transport's messages no longer start with "Cannot reach"; match on kind.
+    methods = []
+
+    def failing(method, params=None):
+        methods.append(method)
+        raise ShieldError("Device HTTP request failed; inspect state", kind)
+
+    ops.t.rpc = failing
+    status = ops.kodi_status()
+    assert len(methods) == (1 if stops else 4)
+    for name in ("application", "screen", "profile", "players"):
+        assert status[name]["unavailable"].startswith("Device HTTP request failed")
+
+
 def test_kodi_read_results_are_bounded(ops):
     everything = {
         "categories": [

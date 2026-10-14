@@ -779,7 +779,13 @@ class Operations:
                 result[name] = self.t.rpc(method, params)
             except ShieldError as exc:
                 result[name] = {"unavailable": str(exc)}
-                if str(exc).startswith(("Cannot reach", "Authentication denied")):
+                # Every later query would fail (or wait out the deadline) the same way.
+                if exc.kind in (
+                    "unreachable",
+                    "timeout",
+                    "response_timeout",
+                    "authentication_denied",
+                ):
                     connection_error = str(exc)
         result["capabilities"] = {
             "writes_enabled": self.c.allow_writes,
@@ -946,8 +952,9 @@ class Operations:
         try:
             self.t.rpc("Application.Quit")
         except ShieldError as exc:
-            # Kodi often closes its HTTP server before answering; that is a sent request.
-            if exc.kind not in ("unreachable", "timeout"):
+            # Kodi often closes its HTTP server before answering, or stalls while exiting
+            # (response_timeout); either way the request was sent and the exit is checked below.
+            if exc.kind not in ("unreachable", "timeout", "response_timeout"):
                 raise ShieldError(
                     f"Kodi refused Application.Quit ({exc.message}); Kodi was left running",
                     "quit_failed",

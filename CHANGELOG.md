@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.5.9 — 2026-10-15 (prerelease)
+
+- Device command status trailers now report the command's own exit code. Previously the status was always 0, so a failed `tar`, `cat` or `head` on the device (including the Kodi data snapshot before an APK install) could pass as success.
+- adb and SDK child processes no longer inherit the MCP server's stdin, so a long `adb shell` cannot consume the client's JSON-RPC messages.
+- A Kodi that stalls its reply while quitting is treated as "quit sent" (then waited for) instead of "Kodi refused Application.Quit", on Android and Apple TV.
+- `kodi_status` stops after the first connection failure by error kind instead of by message text.
+- Operation history records `trakt_unavailable` as a refusal (byte-identical with Kodi Manager 0.7.36).
+
 ## 0.5.8 — 2026-10-14 (prerelease)
 
 - Operation history retries SQLite busy/locked errors (including table creation on connect and

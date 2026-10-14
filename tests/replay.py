@@ -93,8 +93,8 @@ class ReplayShield(Transport):
         if args[0] == "shell":
             return self.run(shlex.split(args[1])).encode()
         if args[0] == "exec-out":
-            command, trailer = args[1].split(" 2>/dev/null; echo; echo ")
-            token = trailer.removesuffix("$?")
+            command, trailer = args[1].split(" 2>/dev/null; s=$?; echo; echo ")
+            token = trailer.removesuffix("$s")
             try:
                 payload, code = self.run_bytes(shlex.split(command)), 0
             except FileNotFoundError:

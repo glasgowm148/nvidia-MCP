@@ -18,7 +18,7 @@ SIGNER = "a" * 64
 
 def trailer(command, code=0):
     """What the device appends after a checked exec-out command (see transport.checked_script)."""
-    token = re.search(r"echo (__nvidia_mcp_exit_[0-9a-f]+__)\$\?", command[-1])[1]
+    token = re.search(r"echo (__nvidia_mcp_exit_[0-9a-f]+__)\$s", command[-1])[1]
     return f"\n{token}{code}\n".encode()
 
 

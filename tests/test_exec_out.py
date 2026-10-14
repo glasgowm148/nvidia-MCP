@@ -1,7 +1,10 @@
 """M2: exec-out reads verify exit status/existence instead of returning error text as content."""
 
+import os
 import re
 import shlex
+import shutil
+import subprocess
 
 import pytest
 
@@ -31,7 +34,7 @@ class FakeAdb(Transport):
             raise AssertionError(argv)
         assert args[0] == "exec-out"
         script = args[1]
-        token = re.search(r"echo (__nvidia_mcp_exit_[0-9a-f]+__)\$\?", script)[1]
+        token = re.search(r"echo (__nvidia_mcp_exit_[0-9a-f]+__)\$s", script)[1]
         argv = shlex.split(script.split(" 2>/dev/null;")[0])
         path = argv[-1]
         if path not in self.files:
@@ -85,6 +88,18 @@ def test_status_trailer_parsing(tmp_path):
     with pytest.raises(ShieldError, match="exit 2"):
         strip_status(target, token)
     assert not target.exists()
+
+
+@pytest.mark.skipif(os.name != "posix" or not shutil.which("sh"), reason="needs a POSIX shell")
+@pytest.mark.parametrize(
+    "command,payload,code",
+    [("printf partial; exit 3", b"partial", 3), ("printf whole", b"whole", 0)],
+)
+def test_status_trailer_reports_the_commands_exit_code_in_a_real_shell(command, payload, code):
+    # Regression: "$?" after the bare "echo" was always 0, so failed tar/cat looked successful.
+    script, token = checked_script(["sh", "-c", command])
+    out = subprocess.run(["sh", "-c", script], capture_output=True, timeout=10, check=True)
+    assert split_status(out.stdout, token) == (payload, code)
 
 
 def test_download_checks_existence(tmp_path):

@@ -514,6 +514,31 @@ def test_start_offline_still_requires_both_opt_ins(apple, kind):
     assert ops.lifecycle("start", interrupt_other_app=True)["state"] == "launch_requested"
 
 
+@pytest.mark.parametrize("action", ["stop", "restart"])
+def test_kodi_stalling_while_it_exits_is_not_a_refused_quit(apple, action):
+    ops, transport = apple
+    ops.quit_poll = 0
+    # A response_timeout means Kodi accepted the connection, then stalled while exiting.
+    stalls = {
+        "Application.Quit": ["response_timeout"],
+        "JSONRPC.Version": ["response_timeout", "unreachable"],
+    }
+    rpc = transport.rpc
+
+    def stalling(method, params=None):
+        if stalls.get(method):
+            transport.calls.append((method, params))
+            raise ShieldError("Device HTTP response deadline exceeded", stalls[method].pop(0))
+        return rpc(method, params)
+
+    transport.rpc = stalling
+    result = ops.lifecycle(action)
+    assert result["state"] == ("restart_requested" if action == "restart" else "http_stopped")
+    probes = [call[0] for call in transport.calls if call[0] in stalls]
+    assert probes == ["Application.Quit", "JSONRPC.Version", "JSONRPC.Version"]
+    assert any(call[0] == "launch" for call in transport.calls) == (action == "restart")
+
+
 @pytest.mark.parametrize("owner", ["device_id", "profile_root"])
 def test_file_response_owner_must_match_request_even_if_state_returns_to_original(apple, owner):
     ops, transport = apple
