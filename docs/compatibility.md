@@ -3,7 +3,7 @@
 | Component | Evidence | Limit |
 | --- | --- | --- |
 | Computer runtime | Python 3.11+; Linux/Windows CI on 3.11–3.13; macOS local Python 3.14 | Read actual CI for the release; broader systems unverified |
-| MCP interface | Real stdio initialization, Android: 23 default tools (36 with writes enabled); Apple TV: 17/27, resource/prompt discovery; mcp 1.28 and latest in CI; fresh-wheel local HTTP fixture | Client approval behavior depends on your MCP client |
+| MCP interface | Real stdio initialization, Android: 24 default tools (37 with writes enabled); Apple TV: 18/28, resource/prompt discovery; mcp 1.28 and latest in CI; fresh-wheel local HTTP fixture | Client approval behavior depends on your MCP client |
 | Shield ADB | Reference Android 11 captures replayed in tests; 0.4.8 source checked live for authorization and viewing state on 2026-10-12 | One Shield; no new live mutations/installation checks; sleeping display unobserved |
 | Android TV / Google TV / Fire OS | 0.4.9 synthetic tests for Fire home launcher, legacy/modern foreground, background/paused media, missing-pidof process guards, config aliases and private ADB pairing | No physical Firestick/Google TV validation; vendor restrictions vary; Vega OS unsupported; see [device guide](android-tv.md) |
 | Apple TV / tvOS | 0.5.5 synthetic paired-protocol, private PIN/error/debug-log, profile/device, VFS file checksum, layout/backup, capability and viewing-refusal tests; real pyatv uninitialized/metadata-less-paused state regression and API check in CI | Experimental; no physical Apple TV tests. Needs Manager 0.7.17+ for skin/files/guarded changes; no ADB/offline recovery. See [Apple TV guide](apple-tv.md) |

@@ -160,6 +160,9 @@ class Files:
             json.dumps({"path": relative(path), "sha256": digest(data), **self.owner()})
         )
         manifest.chmod(0o600)
+        from .operation_records import capture_backup
+
+        capture_backup(backup_id)
         return backup_id
 
     def write(self, path, data, expected):

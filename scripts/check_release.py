@@ -10,7 +10,17 @@ from pathlib import Path, PurePosixPath
 from zipfile import ZipFile
 
 PRIVATE_PARTS = {".private", ".venv", "__pycache__", "backups", "device_fixes"}
-PRIVATE_SUFFIXES = {".apk", ".jar", ".key", ".pem", ".keystore", ".log", ".db", ".sqlite"}
+PRIVATE_SUFFIXES = {
+    ".apk",
+    ".jar",
+    ".key",
+    ".pem",
+    ".keystore",
+    ".log",
+    ".db",
+    ".sqlite",
+    ".sqlite3",
+}
 MAX_MEMBER = 10_000_000
 MAX_TOTAL = 100_000_000
 

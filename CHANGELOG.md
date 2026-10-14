@@ -1,7 +1,10 @@
 # Changelog
 
-## Unreleased
+## 0.5.7 — 2026-10-14 (prerelease)
 
+- Add support bundle v1 and bounded private operation history shared with Kodi Manager; carry correlation and backup/undo references across the optional interface.
+- Preserve Manager reason codes, refuse automatic write retries after ambiguous replies/timeouts, and keep completed work successful when audit recording fails.
+- Add synthetic cross-project and generated-wheel/add-on interface checks. The pinned Manager 0.7.23 ZIP remains unchanged; new diagnostics are capability-negotiated.
 - Complete fresh Apple TV installation and CLI environment/path instructions; correct the sample Manager minimum and backup-ownership guidance, and document private token entry when storage is blocked.
 - Shorten the project and profile-helper READMEs, add a documentation index, move the generated tool catalogue to `docs/tools.md`, and correct outdated setup/build examples. Runtime and bundled companion are unchanged.
 

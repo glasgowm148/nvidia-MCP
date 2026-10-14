@@ -6,6 +6,7 @@ import sys
 import tempfile
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from importlib.metadata import version
 from pathlib import Path
 
 from mcp import ClientSession, StdioServerParameters
@@ -74,6 +75,13 @@ def main():
                         assert not names & {"shield_apk_apply", "shield_remote", "kodi_patch_apply"}
                         result = await client.call_tool("kodi_status", {})
                         assert not field(result, "is_error", "isError")
+                        metadata = field(result, "structured_content", "structuredContent")[
+                            "operation"
+                        ]
+                        assert (
+                            metadata["schema_version"] == 1 and metadata["outcome"] == "succeeded"
+                        )
+                        assert "Synthetic" not in json.dumps(metadata)
                         assert (
                             field(result, "structured_content", "structuredContent")["application"][
                                 "name"
@@ -87,6 +95,8 @@ def main():
                             assert field(await client.call_tool(name, args), "is_error", "isError")
                         assert (await client.read_resource("nvidia://playbook")).contents
                         assert (await client.list_prompts()).prompts
+
+                print("MCP SDK:", version("mcp"))
                 print(
                     "Installed nvidia-MCP %s: stdio, %d tools, refusal gates and companion export passed"
                     % (__version__, len(names))

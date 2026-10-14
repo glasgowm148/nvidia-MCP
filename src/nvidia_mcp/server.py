@@ -10,6 +10,7 @@ import functools
 import inspect
 import json
 import sys
+import time
 from importlib.resources import files
 from typing import Any, Literal
 
@@ -26,7 +27,8 @@ from mcp.types import ToolAnnotations
 from . import __version__, privacy
 from .apple_tv import make_operations
 from .config import Config, ShieldError
-from .diagnostics import readiness
+from .diagnostics import readiness, support_bundle
+from .operation_records import CONTEXT, REFUSALS, correlation, next_step, record
 from .operations import READ_METHODS
 from .retention import prune_state
 
@@ -131,6 +133,7 @@ def create_server(config: Config):
 
     def tool(title, **hints):
         register = mcp.tool(title=title, annotations=annotations(title, **hints))
+        read_only = hints["read_only"]
         android_only = {
             "shield_apk_preview",
             "shield_apk_apply",
@@ -149,7 +152,74 @@ def create_server(config: Config):
                 return function
             if config.platform == "apple_tv" and function.__name__ in android_only:
                 return function
-            return register(in_worker_thread(function))
+            worker = in_worker_thread(function)
+
+            @functools.wraps(function)
+            async def observed(*args, **kwargs):
+                started = time.monotonic()
+                context = {"id": correlation(), "backup_refs": [], "manager_operations": []}
+                token = CONTEXT.set(context)
+                result, failure = None, None
+                try:
+                    result = await worker(*args, **kwargs)
+                    code, outcome = "ok", "succeeded"
+                    if isinstance(result, dict) and result.get("failed"):
+                        code, outcome = "operation_failed", "partial"
+                except Exception as exc:
+                    failure = exc
+                    code = getattr(exc, "reason_code", getattr(exc, "kind", "unknown"))
+                    outcome = "refused" if code in REFUSALS else "failed"
+                    if (
+                        code in ("outcome_unknown", "stop_unconfirmed")
+                        # A late reply to a read cannot leave a change behind.
+                        or code == "response_timeout"
+                        and not read_only
+                        or getattr(exc, "kind", "") == "outcome_unknown"
+                    ):
+                        outcome = "unknown"
+                finally:
+                    CONTEXT.reset(token)
+                row = record(function.__name__, context["id"], started, code, outcome, result)
+                row["backup_refs"] = list(
+                    dict.fromkeys(row["backup_refs"] + context["backup_refs"])
+                )[:20]
+                for remote in context["manager_operations"]:
+                    for key in ("backup_refs", "recovery_refs"):
+                        row[key] = list(dict.fromkeys(row[key] + remote[key]))[:20]
+                try:
+                    # SQLite with a busy timeout: keep it off the event loop.
+                    saved = await anyio.to_thread.run_sync(ops.history.append, row)
+                except Exception:
+                    saved = False
+                if not saved:
+                    ops.history.available = False
+                if failure is not None:
+                    # FastMCP 1.x and 2.x preserve ToolError text; use only value-free metadata.
+                    manager = context["manager_operations"]
+                    remote = manager[-1] if manager else None
+                    ref = remote["operation_id"] if remote else row["operation_id"]
+                    message = (
+                        # .message, not str(): the reason tag is appended once, below.
+                        privacy.text(failure.message[:1000].rstrip(".") + ".", ops.known_secrets)
+                        if isinstance(failure, ShieldError)
+                        else "Operation failed; inspect current state before retrying."
+                    )
+                    raise ShieldError(
+                        f"{message} Operation reference: {ref}; correlation: {row['correlation_id']}. "
+                        + next_step(
+                            "outcome_unknown" if outcome == "unknown" else row["reason_code"]
+                        ),
+                        row["reason_code"],
+                    ) from None
+                if isinstance(result, dict):
+                    result = dict(result, operation=row, history_recorded=bool(saved))
+                    if context["manager_operations"]:
+                        result["manager_operations"] = context["manager_operations"]
+                    if not saved:
+                        result["diagnostic_warning"] = "history_unavailable"
+                return result
+
+            return register(observed)
 
         return decorate
 
@@ -168,6 +238,11 @@ def create_server(config: Config):
     def shield_connection() -> dict[str, Any]:
         """Probe platform controls, Kodi HTTP and Manager separately; explain pairing/authorization/readiness failures."""
         return readiness(ops)
+
+    @tool("Private support bundle", read_only=True, idempotent=True)
+    def shield_support_bundle() -> dict[str, Any]:
+        """Collect bounded readiness, versions, capabilities and operation metadata; excludes logs, arguments and viewing history."""
+        return support_bundle(ops)
 
     @tool("Preview APK upgrade", read_only=False, destructive=False)
     async def shield_apk_preview(

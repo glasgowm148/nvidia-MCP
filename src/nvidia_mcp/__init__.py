@@ -1,6 +1,6 @@
 """Android TV / Fire OS / Apple TV Kodi tools (legacy Shield API retained)."""
 
-__version__ = "0.5.6"
+__version__ = "0.5.7"
 
 from .config import Config, ShieldError  # noqa: E402
 from .device import Shield  # noqa: E402

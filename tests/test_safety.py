@@ -130,7 +130,9 @@ def test_patch_restore_and_conflicts(ops, newline):
         ops.patch_file(path, digest(original), edits, False)
     restored = ops.restore_file(change["backup_id"], change["sha256"])
     assert ops.files.read(path) == original and restored["undo_backup_id"]
-    assert "value = 1" not in (ops.c.state / "audit.jsonl").read_text()
+    history = ops.history.selected()
+    assert history and "value = 1" not in str(history)
+    assert all("target" not in row for row in history)
 
 
 def test_ambiguous_anchor_syntax_and_backup_integrity(ops):

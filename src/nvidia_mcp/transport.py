@@ -15,8 +15,22 @@ import httpx
 
 from . import privacy
 from .config import Config, ShieldError, port, private_host
+from .operation_records import CONTEXT, clean, correlation
 
 KODI_ROUTES = ("direct", "forward", "auto")
+# Kodi Manager POST routes that only read (needs_write False on the Manager side): a lost reply
+# or timeout cannot leave a change behind, so they are failures, not unknown outcomes.
+MANAGER_READ_POSTS = frozenset(
+    {
+        "/api/widgets/browse",
+        "/api/widgets/suggestions",
+        "/api/widgets/row-preview",
+        "/api/widgets/layout/preview",
+        "/api/pipeline/rescan",
+        "/api/playback/test",
+        "/api/widget-cache/refresh",
+    }
+)
 
 
 class Transport:
@@ -108,7 +122,8 @@ class Transport:
     def known_secrets(self):
         return (self.c.password, self.c.manager_token)
 
-    def request(self, url, method="POST", body=None, manager=False):
+    def request(self, url, method="POST", body=None, manager=False, write=None):
+        write = method != "GET" if write is None else write
         deadline, response_started = time.monotonic() + self.response_deadline, False
         expired, connection = threading.Event(), [None]
 
@@ -141,6 +156,9 @@ class Transport:
                 )
 
         headers = {"Authorization": "Bearer " + self.c.manager_token} if manager else {}
+        if manager:
+            context = CONTEXT.get()
+            headers["X-Correlation-ID"] = context["id"] if context else correlation()
         auth = None if manager else (self.c.username, self.c.password)
         timer = threading.Timer(self.response_deadline, abort)
         timer.daemon = True
@@ -174,10 +192,12 @@ class Transport:
                     data.extend(chunk)
                 check_time()
                 return json.loads(data)
-        except httpx.TimeoutException:
+        except httpx.TimeoutException as exc:
             raise ShieldError(
                 "Device HTTP request timed out; inspect state before retrying changes",
-                timeout_kind(),
+                "outcome_unknown"
+                if manager and write and not isinstance(exc, httpx.ConnectTimeout)
+                else timeout_kind(),
             ) from None
         except httpx.HTTPError as exc:
             check_time()
@@ -187,7 +207,11 @@ class Transport:
             )
             raise ShieldError(
                 "Device HTTP connection failed; inspect state before retrying changes",
-                "invalid_response" if response_started or malformed else "unreachable",
+                "outcome_unknown"
+                if manager and write and not isinstance(exc, httpx.ConnectError)
+                else "invalid_response"
+                if response_started or malformed
+                else "unreachable",
             ) from None
         except (ValueError, RecursionError):
             raise ShieldError(
@@ -228,14 +252,55 @@ class Transport:
                 "KODI_MANAGER_TOKEN; core ADB/Kodi tools work without it",
                 "not_configured",
             )
-        result = self.request(self.service_url(True) + path, method, body, manager=True)
+        write = method != "GET" and path not in MANAGER_READ_POSTS
+        try:
+            result = self.request(
+                self.service_url(True) + path, method, body, manager=True, write=write
+            )
+        except ShieldError as exc:
+            remote = getattr(exc, "operation", None)
+            self._manager_operation(remote)
+            if write and (
+                exc.kind in ("response_timeout", "invalid_response")
+                or exc.kind == "service_error"
+                and remote is None
+                or remote
+                and remote["outcome"] == "unknown"
+            ):
+                ambiguous = ShieldError(
+                    "Manager write outcome is unknown; inspect current state before any retry",
+                    "outcome_unknown",
+                )
+                ambiguous.operation = remote
+                ambiguous.reason_code = exc.reason_code
+                raise ambiguous from None
+            raise
         if not isinstance(result, dict):
-            raise ShieldError("Invalid Kodi Manager response", "invalid_response")
+            raise ShieldError(
+                "Invalid Kodi Manager response; inspect state before retrying",
+                "outcome_unknown" if write else "invalid_response",
+            )
+        self._manager_operation(clean(result.get("operation")))
         if result.get("ok") is not True:
             raise manager_error(200, json.dumps(result).encode(), self.known_secrets)
         if "data" not in result:
-            raise ShieldError("Invalid Kodi Manager response: data is missing", "invalid_response")
+            raise ShieldError(
+                "Invalid Kodi Manager response: data is missing",
+                "outcome_unknown" if write else "invalid_response",
+            )
         return result["data"]
+
+    def _manager_operation(self, remote):
+        context = CONTEXT.get()
+        if remote and any(secret and secret in json.dumps(remote) for secret in self.known_secrets):
+            remote = None
+        if (
+            context
+            and remote
+            and remote["correlation_id"] == context["id"]
+            and len(context["manager_operations"]) < 20
+        ):
+            context["manager_operations"].append(remote)
 
     def pair(self, pairing_port, code):
         """Pair only this host. The temporary six-digit secret goes through stdin."""
@@ -467,7 +532,9 @@ def manager_error(status, raw, known=()):
     body = body if isinstance(body, dict) else {}
     error = body.get("error") if isinstance(body.get("error"), dict) else {}
     code = error.get("code", body.get("code"))
-    if not (isinstance(code, str) and re.fullmatch(r"[a-z][a-z0-9_]{0,39}", code)):
+    if not (isinstance(code, str) and re.fullmatch(r"[a-z][a-z0-9_]{0,39}", code)) or any(
+        secret and secret in (code or "") for secret in known
+    ):
         code = None
     message = error.get("message")
     detail = (
@@ -475,25 +542,34 @@ def manager_error(status, raw, known=()):
         if isinstance(message, str) and message.strip()
         else ""
     )
-    if status == 401 or (status == 403 and code in (None, "unauthorized", "forbidden")):
-        return ShieldError(
+
+    def classified(message, kind):
+        error = ShieldError(message, kind)
+        error.reason_code = code or kind
+        error.operation = clean(body.get("operation"))
+        return error
+
+    if status == 401 or (status == 403 and code == "unauthorized"):
+        return classified(
             "Authentication denied: check KODI_MANAGER_TOKEN (the Kodi Manager bearer token)",
             "authentication_denied",
         )
     if status == 404 and code in (None, "not_found") and detail in ("", "Route not found"):
-        return ShieldError(
+        return classified(
             "Kodi Manager does not offer this API; it needs a newer Kodi Manager", "unsupported"
         )
     if code in MANAGER_ERRORS:
-        return ShieldError(MANAGER_ERRORS[code] + (f" ({detail})" if detail else ""), code)
+        return classified(MANAGER_ERRORS[code] + (f" ({detail})" if detail else ""), code)
     label = f"{status}, {code}" if code else str(status)
     if status == 404:
         kind = "not_found"
+    elif status == 403:
+        kind = "permission_denied"
     elif 400 <= status < 500 or status == 200:
         kind = "invalid_request"
     else:
         kind = "service_error"
-    return ShieldError(
+    return classified(
         f"Kodi Manager refused the request ({label})" + (f": {detail}" if detail else ""), kind
     )
 

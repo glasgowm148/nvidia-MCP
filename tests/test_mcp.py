@@ -62,7 +62,7 @@ def test_real_stdio_protocol(tmp_path):
                 tools = (await client.list_tools()).tools
                 names = {t.name for t in tools}
                 # Write tools are not registered at all without NVIDIA_MCP_ALLOW_WRITES=1.
-                assert len(tools) == 23
+                assert len(tools) == 24
                 assert not names & {"shield_apk_apply", "shield_remote", "kodi_patch_file"}
                 assert {"kodi_patch_preview", "kodi_manager_widget_cache"} <= names
                 assert field(

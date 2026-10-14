@@ -379,6 +379,7 @@ def envelope(code, message):
     [
         (403, "write_disabled", "Write Mode is disabled", "write_disabled", "Write Mode"),
         (403, "origin_mismatch", "Cross-origin request rejected", "origin_mismatch", "origin"),
+        (403, "forbidden", "Non-private client rejected", "permission_denied", "rejected"),
         (409, "playback_active", "Stop playback before restoring", "playback_active", "playback"),
         (400, "playback_active", "Playback is active", "playback_active", "playback"),
         (400, "invalid_value", "Expected a whole number", "invalid_request", "whole number"),

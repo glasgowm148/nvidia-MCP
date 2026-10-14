@@ -24,6 +24,8 @@ class ShieldError(ToolError):
         super().__init__(message if kind == "unknown" else f"{message} [{kind}]")
         self.message = message
         self.kind = kind
+        self.reason_code = kind
+        self.operation = None
 
 
 def private_host(host: str) -> str:

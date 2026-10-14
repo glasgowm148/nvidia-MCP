@@ -76,3 +76,10 @@ Release Kodi Manager first, then verify its companion ZIP checksum and review it
 exact release artifact into `src/nvidia_mcp/companion/`, update `manifest.json` version/source/SHA-256,
 and run the export/integrity tests and wheel/sdist builds. Include the companion ZIP, checksum and
 optional library wheel with the MCP release. Do not edit the bundled ZIP as a second source tree.
+
+## Optional diagnostics capability
+
+Development Manager builds can advertise operation-record/support-bundle v1. See
+[operation diagnostics](operation-records.md) for correlation, redaction and ambiguous write
+outcomes. `shield_support_bundle` negotiates this capability; the pinned 0.7.23 companion remains
+supported for its existing APIs and does not provide this optional bundle.

@@ -18,6 +18,7 @@ from . import privacy
 from .apks import ApkOperations
 from .config import ShieldError
 from .files import MAX_FILE, Files, digest, relative
+from .operation_records import CONTEXT, History, correlation, record, references
 
 READ_METHODS = {
     "JSONRPC.Version",
@@ -405,6 +406,7 @@ class Operations:
         self.plans = {}
         self.known_secrets = (self.c.password, self.c.manager_token)
         self.apks = ApkOperations(self)
+        self.history = History(self.c.state)
         # kodi_lifecycle: how long to wait for Kodi to exit after Application.Quit.
         self.quit_wait = 30
         self.quit_poll = 1.0
@@ -418,7 +420,8 @@ class Operations:
     def writes(self):
         if not self.c.allow_writes:
             raise ShieldError(
-                "Write tools are disabled. Set NVIDIA_MCP_ALLOW_WRITES=1 in your MCP client and restart the server"
+                "Write tools are disabled. Set NVIDIA_MCP_ALLOW_WRITES=1 in your MCP client and restart the server",
+                "write_disabled",
             )
 
     def idle(self, allow_offline=False):
@@ -714,22 +717,17 @@ class Operations:
             )
 
     def audit(self, operation, target, backup_id=None):
-        self.c.state.mkdir(parents=True, exist_ok=True, mode=0o700)
-        self.c.state.chmod(0o700)
-        p = self.c.state / "audit.jsonl"
-        with p.open("a", encoding="utf-8") as f:
-            f.write(
-                json.dumps(
-                    {
-                        "time": time.time(),
-                        "operation": operation,
-                        "target": target,
-                        "backup_id": backup_id,
-                    }
-                )
-                + "\n"
+        # Existing call sites keep their contract. Targets never enter operation history.
+        context = CONTEXT.get()
+        if context is not None:
+            context["backup_refs"].extend(references({"backup_id": backup_id})["backup_refs"])
+            return
+        try:
+            self.history.append(
+                record(operation, correlation(), time.monotonic(), result={"backup_id": backup_id})
             )
-        p.chmod(0o600)
+        except Exception:
+            self.history.available = False
 
     def shield_status(self):
         from .diagnostics import health
