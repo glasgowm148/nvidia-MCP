@@ -22,7 +22,7 @@ It uses public ADB and Kodi HTTP interfaces on NVIDIA Shield, Android TV, Google
 Fire TV. Apple TV support is experimental. No cloud account is required for the server.
 
 > [!NOTE]
-> **0.5.7 prerelease.** Read-only by default. Live evidence comes from one customized Shield;
+> **0.5.8 prerelease.** Read-only by default. Live evidence comes from one customized Shield;
 > Fire OS, Google TV and Apple TV hardware validation is pending. See [compatibility](docs/compatibility.md).
 
 ## What you can do

@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.8 — 2026-10-14 (prerelease)
+
+- Operation history retries SQLite busy/locked errors (including table creation on connect and
+  reads) for about 2 s, so concurrent writers on Windows no longer drop records. The module stays
+  byte-identical with Kodi Manager 0.7.35.
+
 ## 0.5.7 — 2026-10-14 (prerelease)
 
 - Add support bundle v1 and bounded private operation history shared with Kodi Manager; carry correlation and backup/undo references across the optional interface.
