@@ -17,7 +17,7 @@
   <a href="#documentation">Documentation</a>
 </p>
 
-**Local assistant tools for Kodi and your TV.** nvidia-MCP runs on your computer and lets an MCP
+**Diagnose Kodi problems with your AI assistant.** nvidia-MCP runs on your computer and lets an MCP
 assistant inspect Kodi, diagnose playback problems, preview repairs and apply changes with backups.
 It uses public ADB and Kodi HTTP interfaces on NVIDIA Shield, Android TV, Google TV and Android-based
 Fire TV. Apple TV support is experimental. No cloud account is required for the server.
@@ -154,6 +154,17 @@ live add-on settings, playback pipeline inspection and supported Bingie layout e
 </details>
 
 *Current optional companion UI, captured with synthetic demo data in view-only mode. The MCP server itself is a stdio service.*
+
+<details>
+<summary><strong>Watch Kodi Manager: find an add-on setting (45-second demo)</strong></summary>
+
+![Captioned Kodi Manager walkthrough: search for quality, open the matching add-on and compare the saved value with its default](https://raw.githubusercontent.com/glasgowm148/kodi-manager/main/docs/media/settings-demo.gif)
+
+[Download the shareable MP4](https://github.com/glasgowm148/kodi-manager/blob/main/docs/media/settings-demo.mp4) · [Text walkthrough and captions](https://github.com/glasgowm148/kodi-manager/blob/main/docs/demo.md)
+
+*This shows the optional browser dashboard. Silent, edited capture with synthetic data in view-only mode; no TV was connected.*
+
+</details>
 
 - **Already using nvidia-MCP?**
   - Ask your agent: **“Install Kodi Manager and connect it to nvidia-MCP.”**
