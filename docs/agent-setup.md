@@ -184,7 +184,7 @@ verification afterward; do not claim registration alone proves the tools work.
 
 ## 6. Verify through MCP and hand back a working connection
 
-Read `nvidia://playbook`, discover the tools and call **`shield_connection`**, **`shield_status`** and **`kodi_status`** through
+Read `nvidia://playbook`, discover the tools and call **`shield_check_connection`**, **`shield_get_status`** and **`kodi_get_status`** through
 the actual registered MCP connection. Confirm authorization, Kodi application/profile/skin information
 and read-only defaults. Keep reads bounded. Do not execute plugin previews, playback tests, remote
 buttons or lifecycle/repair tools as a setup test.
@@ -205,3 +205,12 @@ APK tooling is optional and is not part of ordinary onboarding. When the person 
 install/upgrade, follow [the agent APK workflow](apk-upgrades.md) and configure official SDK Build
 Tools yourself. ADB Wireless debugging code pairing is supported by the setup CLI. The separate Android TV
 Remote protocol is not implemented; all remote controls here use ADB.
+
+## Tool discovery after setup
+
+Keep the default `standard` profile for everyday diagnostics/settings. A configured Manager token
+adds its inspection tools after a server reload. For advanced file repair, screenshots, Android
+logs/app inventory or APK operations, set `NVIDIA_MCP_TOOL_PROFILE=full` in the existing private
+server environment and reload. This changes which tools the agent sees, not write permissions.
+See [tool profiles and name migration](tools.md). The 0.5.11 catalogue is available in this checkout;
+the v0.5.10 release uses the previous names/catalogue until a new release is published.

@@ -98,17 +98,28 @@ def test_explicit_apple_config_and_forwarding_refusal(monkeypatch):
 @pytest.mark.parametrize("writes", [False, True])
 def test_tool_capabilities_match_platform_and_write_mode(tmp_path, platform, writes):
     server, ops = create_server(
-        Config(host="127.0.0.1", platform=platform, state=tmp_path, allow_writes=writes)
+        Config(
+            host="127.0.0.1",
+            platform=platform,
+            state=tmp_path,
+            allow_writes=writes,
+            tool_profile="full",
+        )
     )
     try:
         tools = {tool.name for tool in asyncio.run(server.list_tools())}
-        assert "kodi_layout_preview" in tools and "kodi_read_file" in tools
-        assert ("kodi_layout_apply" in tools) is writes
-        assert ("kodi_configuration_restore" in tools) is writes
-        assert ("apple_tv_power" in tools) is (platform == "apple_tv" and writes)
-        for name in ["shield_screenshot", "shield_logcat", "shield_connect", "shield_apk_preview"]:
+        assert "kodi_preview_layout" in tools and "kodi_read_file" in tools
+        assert ("kodi_apply_layout" in tools) is writes
+        assert ("kodi_restore_configuration" in tools) is writes
+        assert ("apple_tv_set_power" in tools) is (platform == "apple_tv" and writes)
+        for name in [
+            "shield_capture_screenshot",
+            "shield_read_logs",
+            "shield_connect_adb",
+            "shield_preview_apk_upgrade",
+        ]:
             assert (name in tools) is (platform == "android")
-        assert ("kodi_patch_apply" in tools) is (platform == "android" and writes)
+        assert ("kodi_apply_file_patch" in tools) is (platform == "android" and writes)
     finally:
         ops.t.close()
 

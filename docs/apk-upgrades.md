@@ -6,7 +6,10 @@ Do not ask the person to download APKs, install SDK tools or enter terminal comm
 
 ## Prepare the computer
 
-Use `shield_connection` to check ADB and Kodi HTTP separately. ADB authorization, Kodi's HTTP password
+Set `NVIDIA_MCP_TOOL_PROFILE=full` in the existing private MCP server environment and reload it
+to discover APK tools. Installation separately requires `NVIDIA_MCP_ALLOW_WRITES=1`.
+
+Use `shield_check_connection` to check ADB and Kodi HTTP separately. ADB authorization, Kodi's HTTP password
 and Manager's token are separate. `nvidia-mcp --doctor` now reports all configured services; an absent
 optional Manager is not a failure. Neither readiness nor a foreground-app name proves idle playback.
 
@@ -25,7 +28,7 @@ embedded in an unrelated project's APK.
 
 ## Preview and apply
 
-1. Call `shield_apk_preview` with `apk_paths` containing 1–20 local `.apk` files. The agent verifies
+1. Call `shield_preview_apk_upgrade` with `apk_paths` containing 1–20 local `.apk` files. The agent verifies
    metadata and signatures using `aapt2` and `apksigner`, checks Android/CPU requirements, and saves
    private staged copies plus verified originals. No Shield files are changed. Saving the originals
    pulls the installed APKs (Kodi's are a few hundred MB, up to 1 GB in total) over the Shield's
@@ -42,9 +45,9 @@ embedded in an unrelated project's APK.
    outside it is refused. Copying a fingerprint from the candidate APK is not independent
    verification. Key rotation is conservatively refused.
 3. Confirm viewing has finished. Stop the target app using an authorized, app-appropriate route and
-   verify the foreground state. For Kodi use `kodi_lifecycle` after its playback guard allows it.
+   verify the foreground state. For Kodi use `kodi_control_lifecycle` after its playback guard allows it.
    The APK tool does not stop apps or press Home automatically.
-4. Enable MCP write mode only for the authorized change, then call `shield_apk_apply(preview_id)`.
+4. Enable MCP write mode only for the authorized change, then call `shield_apply_apk_upgrade(preview_id)`.
    Preview and apply report progress per stage (save originals, Kodi data tar, push, install, verify)
    to MCP clients that request it.
    Previews expire after ten minutes; they are immutable and tied to this server and hardware serial.
@@ -62,12 +65,12 @@ embedded in an unrelated project's APK.
 Known limits: the last viewing check runs just before `pm install`, which can take up to five
 minutes. If someone opens the target app during that window, Android's `pm install -r` closes it.
 If ADB times out, only the local ADB client is stopped; the install may still finish on the Shield
-after the tool reports a failure. Check `shield_apk_status(backup_id)` before retrying, and ask the
+after the tool reports a failure. Check `shield_get_apk_backup(backup_id)` before retrying, and ask the
 household not to use the TV during an upgrade.
 
 ## Recover from a failed change
 
-Use `shield_apk_backups` to find this Shield's latest recovery bundles and `shield_apk_status(backup_id)`
+Use `shield_list_apk_backups` to find this Shield's latest recovery bundles and `shield_get_apk_backup(backup_id)`
 for one bundle's phase, saved files (optionally re-checked against their SHA-256) and the version now
 installed on the Shield. The bundle
 is stored under `NVIDIA_MCP_STATE_DIR/apk_backups/<backup_id>` (the default OS-private state directory
@@ -100,10 +103,10 @@ refuses for production apps, and the only generic workaround (uninstall) erases 
 Kodi's `Android/data` folder. A human-reviewed procedure is safer than an automated one. With the
 person's authorization and the TV free:
 
-1. `shield_apk_status(backup_id, verify_checksums=true)`: confirm the bundle belongs to this Shield,
+1. `shield_get_apk_backup(backup_id, verify_checksums=true)`: confirm the bundle belongs to this Shield,
    every saved file is present with a matching checksum, and which version is installed now.
-2. Stop the app (for Kodi, `kodi_lifecycle stop`) and keep a separate copy of the current data before
-   changing anything; for Kodi, `kodi_backup_file` covers single files only, so copy the whole
+2. Stop the app (for Kodi, `kodi_control_lifecycle stop`) and keep a separate copy of the current data before
+   changing anything; for Kodi, `kodi_create_file_backup` covers single files only, so copy the whole
    `.kodi` folder from the mounted share or with `adb pull`.
 3. If the failed install left the **original** version installed (`installed_matches: original`),
    only data may need restoring. If the candidate is installed and works, no recovery is needed.
@@ -115,7 +118,7 @@ person's authorization and the TV free:
    into the Kodi root (the mounted share, or push it and run `tar -xf` in
    `/sdcard/Android/data/org.xbmc.kodi/files/.kodi`). Regenerable caches (`userdata/Thumbnails`,
    `addons/packages`, `addons/temp`) were not archived and are rebuilt by Kodi.
-6. Start Kodi, run `kodi_status`, and check both profiles and playback before calling it recovered.
+6. Start Kodi, run `kodi_get_status`, and check both profiles and playback before calling it recovered.
 
 ## Inspiration
 

@@ -179,7 +179,7 @@ def test_keymap_key_elements_are_not_redacted():
     ],
 )
 def test_info_labels_cannot_read_addon_settings_or_secrets(ops, label):
-    with pytest.raises(ShieldError, match="kodi_addon_settings"):
+    with pytest.raises(ShieldError, match="kodi_list_addon_settings"):
         ops.rpc_read("XBMC.GetInfoLabels", {"labels": ["System.BuildVersion", label]})
     assert not any(c[0] == "XBMC.GetInfoLabels" for c in ops.t.calls)
 

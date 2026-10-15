@@ -297,7 +297,7 @@ def test_missing_or_damaged_backup_is_a_clean_refusal(ops, damage):
         manifest.write_text("{not json")
     elif damage == "not_a_dict":
         manifest.write_text("[]")
-    with pytest.raises(ShieldError, match="kodi_backups") as error:
+    with pytest.raises(ShieldError, match="kodi_list_file_backups") as error:
         ops.restore_file(backup, digest(ops.files.read(path)))
     assert str(ops.c.state) not in str(error.value)
     assert ops.files.read(path) == b"value = 1\n"

@@ -1,6 +1,6 @@
 # Operation diagnostics (development capability)
 
-Use `shield_support_bundle` for bounded readiness, versions, access flags, classified failures,
+Use `shield_get_support_bundle` for bounded readiness, versions, access flags, classified failures,
 selected operation history and recovery references. It performs existing read-only readiness
 probes and cached Manager diagnostics; it never plays media, runs providers, retries writes or
 uploads the bundle. Missing information is unavailable rather than healthy.

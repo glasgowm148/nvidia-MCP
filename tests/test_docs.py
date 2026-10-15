@@ -24,7 +24,8 @@ def test_tool_reference_is_current():
     assert gen.render(text, gen.table(tools, always)) == text, (
         "tool reference table is stale: run python scripts/gen_tool_docs.py"
     )
-    assert f"lists {len(always)}\ntools" in text
+    default = asyncio.run(gen.listed_tools(writes=False, profile="standard", plugin_browse=False))
+    assert f"lists **{len(default)} tools**" in text
 
 
 def test_single_version_source():

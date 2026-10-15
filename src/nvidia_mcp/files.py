@@ -247,7 +247,7 @@ class Files:
         except (OSError, ValueError, KeyError, TypeError):
             # Never echo local state paths; list_backups shows what can be restored.
             raise ShieldError(
-                "Backup is missing or incomplete in local private storage; see kodi_backups",
+                "Backup is missing or incomplete in local private storage; see kodi_list_file_backups",
                 "not_found",
             ) from None
         if len(data) > MAX_FILE or digest(data) != expected:

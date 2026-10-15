@@ -19,8 +19,10 @@ signing its IPA and renewing its provisioning are outside this server; follow
 | Remote/lifecycle | Kodi navigation; paired Home, installed-app list, power and launch; graceful Kodi quit/restart |
 | Android system access | APK/split installs, screenshots, logcat, arbitrary file patches, offline restores, shell, process/memory telemetry and force-stop unavailable |
 
-Legacy shared tools keep their `shield_*` names. Android-only tools are omitted in Apple TV mode.
-`apple_tv_power` is Apple-only and appears with write mode. Core Kodi reads work without pairing
+Shared tools keep the `shield_*` namespace; old names remain callable. Android-only tools are
+omitted in Apple TV mode. The [standard/full discovery profiles](tools.md) also apply here; use
+`full` for app inventory and file diagnostics, then reload the MCP server.
+`apple_tv_set_power` is Apple-only and appears with write mode. Core Kodi reads work without pairing
 or Manager; skin management, file reads and guarded changes need Manager **0.7.17+**. Layout
 writes still require reviewed Bingie 2.0.2 / Skin Shortcuts 2.0.3 source hashes. Installing this
 release does not make an unknown or modified skin writable, and does not install a skin for you.
@@ -116,17 +118,17 @@ The CLI reads four-digit PINs with hidden terminal input or private stdin; it me
 into an atomically saved 0600 file and prints no secret. PINs never go in command arguments. Input runs on the calling terminal thread so Ctrl-C/EOF closes pairing without leaving a blocked executor reader. Pairing
 suppresses the pyatv logging namespace during pairing, including PIN/key debug traces, and restores
 its previous log levels after success or failure. Pairing does not enable write mode. Both protocols are required for the paired playback/power guard.
-`shield_apps` lists installed bundle IDs; confirm Kodi's ID instead of guessing `org.xbmc.kodi`.
-Start with `kodi_status`, `shield_connection` and `kodi_manager_inspect(area='layout')`.
+`shield_list_apps` lists installed bundle IDs; confirm Kodi's ID instead of guessing `org.xbmc.kodi`.
+Start with `kodi_get_status`, `shield_check_connection` and `kodi_inspect_manager(area='layout')`.
 
 ## Changes and recovery
 
 Explicitly enable MCP writes and Manager writes only for requested changes. Inspect a layout,
 preview its complete section rows, then apply the returned preview ID within ten minutes. Device,
 profile path, installed source hashes and layout revision are checked; stale plans require a new
-preview. Use `kodi_manager_inspect(area='backups', addon_id='skin.bingie')` to list add-on backups,
-or omit `addon_id` for checkpoints. `kodi_configuration_backup` and
-`kodi_configuration_restore` reuse Manager's backup/undo implementation.
+preview. Use `kodi_inspect_manager(area='backups', addon_id='skin.bingie')` to list add-on backups,
+or omit `addon_id` for checkpoints. `kodi_create_configuration_backup` and
+`kodi_restore_configuration` reuse Manager's backup/undo implementation.
 
 Before changes, the guard establishes a new paired connection because SDK playback/power getters
 are push caches, checks reported system media (paused media counts as busy), confirms Kodi's

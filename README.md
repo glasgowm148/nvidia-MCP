@@ -26,7 +26,7 @@ Fire TV. Apple TV support is experimental. No cloud account is required for the 
 You do not need the TV's IP yet; the agent explains where to find it.
 
 > [!NOTE]
-> **0.5.10 prerelease.** Read-only by default. Live evidence comes from one customized Shield;
+> **0.5.11 prerelease.** Read-only by default. Live evidence comes from one customized Shield;
 > Fire OS, Google TV and Apple TV hardware validation is pending. See [compatibility](docs/compatibility.md).
 
 ## What you can do
@@ -39,7 +39,8 @@ You do not need the TV's IP yet; the agent explains where to find it.
   cached rows, configuration checkpoints and reviewed Bingie layouts.
 
 The `nvidia://playbook` resource and `audit_kodi` prompt guide focused audits.
-See the [tool reference](docs/tools.md) for each tool's access requirements and limits.
+The default profile shows 10 everyday tools. Your agent can enable the full profile for advanced
+file/APK repair; see the [tool reference](docs/tools.md) for profiles, permissions and limits.
 
 ## Quick start
 

@@ -3,7 +3,9 @@ import json
 import re
 import sys
 import threading
+from datetime import timedelta
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from importlib.metadata import version
 from pathlib import Path
 
 from mcp import ClientSession, StdioServerParameters
@@ -57,26 +59,45 @@ def test_real_stdio_protocol(tmp_path):
             },
         )
         async with stdio_client(params) as (read, write):
-            async with ClientSession(read, write) as client:
+            async with ClientSession(
+                read,
+                write,
+                read_timeout_seconds=(
+                    timedelta(seconds=45) if version("mcp").startswith("1.") else 45
+                ),
+            ) as client:
                 await client.initialize()
                 tools = (await client.list_tools()).tools
                 names = {t.name for t in tools}
                 # Write tools are not registered at all without NVIDIA_MCP_ALLOW_WRITES=1.
-                assert len(tools) == 24
+                assert len(tools) == 10
                 assert not names & {"shield_apk_apply", "shield_remote", "kodi_patch_file"}
-                assert {"kodi_patch_preview", "kodi_manager_widget_cache"} <= names
+                assert {"kodi_get_status", "kodi_list_settings"} <= names
+                assert not names & {
+                    "kodi_preview_file_patch",
+                    "kodi_inspect_manager",
+                    "kodi_status",
+                }
                 assert field(
-                    next(t for t in tools if t.name == "kodi_status").annotations, "readOnlyHint"
+                    next(t for t in tools if t.name == "kodi_get_status").annotations,
+                    "readOnlyHint",
                 )
-                preview = next(t for t in tools if t.name == "shield_apk_preview").annotations
-                assert not field(preview, "readOnlyHint")
-                assert not field(preview, "destructiveHint")
                 assert all(field(t.annotations, "title") for t in tools)
+                canonical = await client.call_tool("kodi_get_status", {})
+                assert not field(canonical, "isError")
                 status = await client.call_tool("kodi_status", {})
                 assert not field(status, "isError") and "Kodi" in str(status.content)
                 assert field(status, "structuredContent")["application"]["name"] == "Kodi"
                 bad = await client.call_tool("kodi_read", {"method": "System.Shutdown"})
                 assert field(bad, "isError")
+                for name in (
+                    "kodi_set_setting",
+                    "kodi_patch_apply",
+                    "kodi_apply_file_patch",
+                    "kodi_patch_file",
+                ):
+                    denied = await client.call_tool(name, {})
+                    assert field(denied, "isError")
                 traversal = await client.call_tool("kodi_read_file", {"path": "../.env"})
                 assert field(traversal, "isError") and "traversal" in str(traversal.content)
                 resource = await client.read_resource("nvidia://playbook")

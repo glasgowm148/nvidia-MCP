@@ -409,6 +409,10 @@ def test_running_kodi_write_refuses_playback(ops, tmp_path, name):
 def test_guarded_list_covers_every_write_tool_that_needs_running_kodi():
     from test_tools import WRITE_TOOLS
 
+    from nvidia_mcp.catalog import TOOL_NAMES
+
     # File edits need Kodi stopped; APK installs have their own guard tests in test_apks.
     elsewhere = {"kodi_patch_apply", "kodi_patch_file", "kodi_restore_file", "shield_apk_apply"}
-    assert set(WRITE_TOOLS) - elsewhere == set(GUARDED)
+    assert set(WRITE_TOOLS) - {TOOL_NAMES[name] for name in elsewhere} == {
+        TOOL_NAMES[name] for name in GUARDED
+    }

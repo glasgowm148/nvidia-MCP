@@ -15,7 +15,7 @@ filled configuration or print account credentials into diagnostic output.
 | `NVIDIA_MCP_PLATFORM` | `android` | `android` or opt-in `apple_tv`; existing Shield settings keep the default |
 | `APPLE_TV_HOST` | required in Apple mode | One private Apple TV IP; conflicting Android host settings rejected |
 | `APPLE_TV_CREDENTIALS_FILE` | unset | Private computer file containing paired Companion/AirPlay credentials; CLI pairing only |
-| `APPLE_TV_KODI_APP_ID` | empty | Actual installed Kodi signing bundle ID for launch/restart; inspect `shield_apps` |
+| `APPLE_TV_KODI_APP_ID` | empty | Actual installed Kodi signing bundle ID for launch/restart; inspect `shield_list_apps` |
 | `ANDROID_TV_HOST` / `SHIELD_HOST` | required | Private LAN IP; one Android TV / Fire OS device per instance; conflicting aliases are rejected |
 | `ANDROID_TV_ADB_PORT` / `SHIELD_ADB_PORT` | `5555` | ADB connection port; paired Wireless debugging can use a dynamic port; conflicting aliases are rejected |
 | `ADB_PATH` | `adb` | Platform Tools executable |
@@ -28,10 +28,11 @@ filled configuration or print account credentials into diagnostic output.
 | `KODI_MOUNT` | unset | Absolute mounted `.kodi` path; otherwise ADB files |
 | `KODI_REMOTE_ROOT` | `/sdcard/Android/data/org.xbmc.kodi/files/.kodi` | Shared-storage root for ADB |
 | `KODI_MANAGER_PORT`, `KODI_MANAGER_TOKEN` | `8765`, empty | Optional Manager connection |
+| `NVIDIA_MCP_TOOL_PROFILE` | `standard` | Discovery: everyday tools plus configured Manager features; `full` adds file repair, Android diagnostics and APK tools. Reload server after changing; does not grant permissions or disable legacy calls |
 | `NVIDIA_MCP_ALLOW_WRITES` | `0` | Register and allow write/disruptive tools. With `0` they are not listed at all |
 | `NVIDIA_MCP_ALLOW_PLUGIN_BROWSE` | `0` | Allow executing directory previews |
 | `NVIDIA_MCP_ALLOW_INTERRUPT` | `0` | Honour the model-supplied `allow_during_playback` (remote) / `interrupt_other_app` (lifecycle: other apps only, never Kodi playback) flags. Without it those flags are refused |
-| `NVIDIA_MCP_ALLOW_OFFLINE_RECOVERY` | `0` | Honour `kodi_lifecycle`'s model-supplied `allow_offline_recovery` flag (stop/restart a Kodi whose HTTP server is unreachable). Without it the flag is refused |
+| `NVIDIA_MCP_ALLOW_OFFLINE_RECOVERY` | `0` | Honour `kodi_control_lifecycle`'s model-supplied `allow_offline_recovery` flag (stop/restart a Kodi whose HTTP server is unreachable). Without it the flag is refused |
 | `NVIDIA_MCP_EXTRA_LAUNCHERS` | empty | Comma-separated home-screen package names treated like the built-in launchers |
 | `NVIDIA_MCP_ALLOW_SETTINGS` | empty | Comma-separated **exact** protected Kodi setting ids that `kodi_set_setting` may change |
 | `NVIDIA_MCP_TRUSTED_SIGNERS` | empty | Comma-separated SHA-256 APK signer fingerprints trusted for **new** app installs |
@@ -42,7 +43,7 @@ filled configuration or print account credentials into diagnostic output.
 | `NVIDIA_MCP_KEEP_APK_BACKUPS` | `3` | Newest *verified* APK recovery bundles always kept. Bundles from attempts that failed before any APK was transferred are pruned after the retention window; a bundle whose install started but did not verify is never pruned |
 
 ADB authorization, Kodi HTTP credentials and the Manager bearer token are separate. Use
-`shield_connection` and `--doctor` as described in [agent setup](agent-setup.md) to check readiness.
+`shield_check_connection` and `--doctor` as described in [agent setup](agent-setup.md) to check readiness.
 
 `forward` is useful when the host application's LAN connection is blocked, including macOS Local
 Network permissions, or Manager is intentionally listening only on the TV's loopback interface.
@@ -89,11 +90,11 @@ Kodi reports playing or paused. Without HTTP the server cannot ask Kodi what it 
 decision rests on Android's media session and foreground app alone; that is why a person, not the
 model, has to enable it.
 The model-supplied override flags also need `NVIDIA_MCP_ALLOW_INTERRUPT=1`; get permission from the
-person viewing as well. `shield_remote`'s `allow_during_playback` skips the viewing checks (to pause
-or stop what is on screen). `kodi_lifecycle`'s `interrupt_other_app` only covers *another* app in
+person viewing as well. `shield_send_button`'s `allow_during_playback` skips the viewing checks (to pause
+or stop what is on screen). `kodi_control_lifecycle`'s `interrupt_other_app` only covers *another* app in
 front or playing: Kodi's own playback is always refused.
 
-The guard checks the TV once, just before the action. A skin-menu rebuild (`kodi_layout_rebuild`)
+The guard checks the TV once, just before the action. A skin-menu rebuild (`kodi_rebuild_layout`)
 reloads the skin a few seconds later, and an APK install can take minutes after its last check, so
 somebody who starts watching in that window can still be interrupted.
 
@@ -102,7 +103,7 @@ playing or paused, and HTTP may still answer with an error), so no tool flag wil
 viewer to close Kodi on the TV (Settings → Apps → Kodi → Force stop) or restart the Shield. This
 is deliberate: a frozen Kodi and a film somebody has paused look the same from here (audit R2-05).
 
-`kodi_lifecycle` stop/restart asks Kodi to quit over JSON-RPC (`Application.Quit`, so it saves its
+`kodi_control_lifecycle` stop/restart asks Kodi to quit over JSON-RPC (`Application.Quit`, so it saves its
 settings) and waits up to 30 seconds for the process to end. Kodi 22 on the Shield can hang after
 "Stopping all" for minutes. In that case the tool force-stops it only when the current `kodi.log`
 shows the whole save sequence ("Stopping the application...", "Saving settings", "Saving skin
@@ -126,15 +127,15 @@ on the TV. An advanced user who really wants an agent to change one can list its
 
 ### Plugin browsing
 
-`kodi_browse` refuses any `plugin://` route whose path segments, query parameter names or values
+`kodi_browse_directory` refuses any `plugin://` route whose path segments, query parameter names or values
 contain an action word such as play, resolve, toggle, refresh, clear, delete, remove, (un)install,
 settings, auth, sign in/out, logout, maintenance, manager, rescan, reset, update, input, keyboard,
 dialog or context. Ordinary listing routes (e.g. YouTube `/special/popular_right_now/`, Fen
 `mode=build_movie_list`) keep working. Display-only values (`name`, `title`, `label`, `plot`) are not
 treated as routing.
 
-For file repairs, read the original/checksum, preview exact replacements with `kodi_patch_preview`
-(it returns a redacted unified diff), stop Kodi, apply with `kodi_patch_apply`, restart and verify.
+For file repairs, read the original/checksum, preview exact replacements with `kodi_preview_file_patch`
+(it returns a redacted unified diff), stop Kodi, apply with `kodi_apply_file_patch`, restart and verify.
 `kodi_patch_file` remains as a deprecated alias that dispatches on `dry_run`. Patches that touch
 credential settings or values, and edits to add-on Python (`addons/**.py`), are refused. Writes to repair files/settings take private backups. Stale checksums and ambiguous
 anchors are rejected; unknown add-on versions need investigation. See [repairs](repairs.md).

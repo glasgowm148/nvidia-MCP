@@ -155,5 +155,5 @@ optional library wheel with the MCP release. Do not edit the bundled ZIP as a se
 
 Development Manager builds can advertise operation-record/support-bundle v1. See
 [operation diagnostics](operation-records.md) for correlation, redaction and ambiguous write
-outcomes. `shield_support_bundle` negotiates this capability; the pinned 0.7.23 companion remains
+outcomes. `shield_get_support_bundle` negotiates this capability; the pinned 0.7.23 companion remains
 supported for its existing APIs and does not provide this optional bundle.

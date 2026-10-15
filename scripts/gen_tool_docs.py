@@ -21,13 +21,22 @@ def hint(annotations, camel):
     return getattr(annotations, snake, None) if value is None else value
 
 
-async def listed_tools(writes=True):
+async def listed_tools(writes=True, profile="full", plugin_browse=True, **kwargs):
     sys.path.insert(0, str(ROOT / "src"))
     from nvidia_mcp.config import Config
     from nvidia_mcp.server import create_server
 
     with tempfile.TemporaryDirectory() as state:
-        mcp, ops = create_server(Config(host="127.0.0.1", state=Path(state), allow_writes=writes))
+        mcp, ops = create_server(
+            Config(
+                host="127.0.0.1",
+                state=Path(state),
+                allow_writes=writes,
+                tool_profile=profile,
+                allow_plugin_browse=plugin_browse,
+                **kwargs,
+            )
+        )
         try:
             result = await mcp.list_tools()
         finally:
@@ -47,7 +56,11 @@ def table(tools, read_only_names):
         elif hint(a, "readOnlyHint"):
             access = "read-only"
         else:
-            access = "no TV changes"
+            access = (
+                "device interaction"
+                if tool.name == "kodi_browse_directory" or tool.name == "shield_connect_adb"
+                else "private staging"
+            )
         description = " ".join((tool.description or "").split()).replace("|", "\\|")
         title = hint(a, "title") or tool.name
         rows.append(f"| `{tool.name}` | {title} | {access} | {description} |")

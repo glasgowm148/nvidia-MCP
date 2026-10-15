@@ -17,7 +17,7 @@
 | Layout writes | Reviewed Bingie 2.0.2 / Skin Shortcuts 2.0.3 source hashes | Other/forked/modified versions stay view-only |
 
 Start with [TV preparation](setup.md), then give your agent the IP for [computer setup](agent-setup.md).
-Use `shield_connection` to distinguish ADB authorization, Kodi HTTP and Manager readiness. A ready
+Use `shield_check_connection` to distinguish ADB authorization, Kodi HTTP and Manager readiness. A ready
 connection or foreground app name does not by itself establish that nobody is watching.
 
 Before broad promotion, use a spare/backed-up Shield to verify an authorized install, startup, both
@@ -26,3 +26,7 @@ merely to obtain a test result. Record model/Android/Kodi/skin versions and outc
 
 See [detailed verification](verification.md), [APK recovery](apk-upgrades.md),
 [file recovery](repairs.md) and [companion configuration recovery](https://github.com/glasgowm148/kodi-manager/blob/main/docs/recovery.md).
+
+The 0.5.11 tool catalogue uses canonical action names and standard/full discovery profiles.
+Synthetic stdio tests cover old-name calls, canonical calls and read-only refusals. Both route to
+the existing guarded implementations; the Python library API is unchanged. See [migration](tools.md).

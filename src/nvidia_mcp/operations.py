@@ -829,7 +829,7 @@ class Operations:
         ):
             raise ShieldError(
                 "Info labels or booleans that read or test add-on settings or credential-like "
-                "skin strings/window properties are refused; use kodi_addon_settings, which "
+                "skin strings/window properties are refused; use kodi_list_addon_settings, which "
                 "redacts credentials",
                 "secret_read",
             )
@@ -863,7 +863,7 @@ class Operations:
         if len(json.dumps(result)) > READ_MAX:
             raise ShieldError(
                 "Kodi returned more than 250 KB; request fewer properties or items "
-                "(use kodi_settings to search settings)",
+                "(use kodi_list_settings to search settings)",
                 "too_large",
             )
         return result

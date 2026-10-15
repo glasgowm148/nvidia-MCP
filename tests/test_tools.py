@@ -15,24 +15,31 @@ from nvidia_mcp.retention import prune_state
 from nvidia_mcp.server import create_server, progress_callback
 
 WRITE_TOOLS = {
-    "shield_apk_apply",
-    "shield_remote",
-    "kodi_lifecycle",
-    "kodi_patch_apply",
-    "kodi_patch_file",
+    "shield_apply_apk_upgrade",
+    "shield_send_button",
+    "kodi_control_lifecycle",
+    "kodi_apply_file_patch",
     "kodi_restore_file",
     "kodi_set_addon_setting",
     "kodi_set_setting",
-    "kodi_layout_apply",
-    "kodi_layout_rebuild",
-    "kodi_manager_widget_cache_refresh",
-    "kodi_configuration_backup",
-    "kodi_configuration_restore",
+    "kodi_apply_layout",
+    "kodi_rebuild_layout",
+    "kodi_refresh_widget_cache",
+    "kodi_create_configuration_backup",
+    "kodi_restore_configuration",
 }
 
 
 def tools(tmp_path, **kwargs):
-    mcp, ops = create_server(Config(host="127.0.0.1", state=tmp_path / "state", **kwargs))
+    mcp, ops = create_server(
+        Config(
+            host="127.0.0.1",
+            state=tmp_path / "state",
+            tool_profile="full",
+            allow_plugin_browse=True,
+            **kwargs,
+        )
+    )
     listed = asyncio.run(mcp.list_tools())
     ops.t.close()
     return {t.name: t.model_dump(by_alias=True) for t in getattr(listed, "tools", listed)}
@@ -49,21 +56,21 @@ def test_write_tools_registered_only_with_writes(tmp_path):
         assert hints["idempotentHint"] is not None
         if tool["name"] in WRITE_TOOLS:
             assert hints["readOnlyHint"] is False
-    preview = full["shield_apk_preview"]["annotations"]
+    preview = full["shield_preview_apk_upgrade"]["annotations"]
     assert preview["readOnlyHint"] is False and preview["destructiveHint"] is False
 
 
 def test_typed_schemas(tmp_path):
     full = tools(tmp_path, allow_writes=True)
-    method = full["kodi_read"]["inputSchema"]["properties"]["method"]
+    method = full["kodi_query_rpc"]["inputSchema"]["properties"]["method"]
     assert "Settings.GetSettingValue" in method["enum"] and "System.Shutdown" not in method["enum"]
-    for name in ("kodi_patch_preview", "kodi_patch_apply", "kodi_patch_file"):
+    for name in ("kodi_preview_file_patch", "kodi_apply_file_patch"):
         schema = full[name]["inputSchema"]
         assert schema["$defs"]["PatchEdit"]["required"] == ["before", "after"]
-    plan = full["kodi_layout_preview"]["inputSchema"]["$defs"]["LayoutPlan"]
+    plan = full["kodi_preview_layout"]["inputSchema"]["$defs"]["LayoutPlan"]
     assert {"section_id", "expected_revision", "rows"} <= set(plan["required"])
     assert plan["properties"]["rows"]["maxItems"] == 20
-    assert "ctx" not in full["shield_apk_apply"]["inputSchema"]["properties"]
+    assert "ctx" not in full["shield_apply_apk_upgrade"]["inputSchema"]["properties"]
 
 
 def test_patch_preview_returns_redacted_diff(ops):
@@ -349,7 +356,7 @@ def test_kodi_read_results_are_bounded(ops):
         ]
     }
     ops.t.rpc = lambda method, params=None: everything
-    with pytest.raises(ShieldError, match="kodi_settings"):
+    with pytest.raises(ShieldError, match="kodi_list_settings"):
         ops.rpc_read("Settings.GetSettings", {"level": "expert"})
     ops.t.rpc = lambda method, params=None: {"version": {"major": 21}}
     assert ops.rpc_read("Application.GetProperties", {"properties": ["version"]})

@@ -147,9 +147,13 @@ class Config:
     platform: str = "android"
     apple_credentials: Path | None = field(default=None, repr=False)
     apple_kodi_app_id: str = ""
+    tool_profile: str = "standard"
 
     @classmethod
     def from_env(cls):
+        tool_profile = os.environ.get("NVIDIA_MCP_TOOL_PROFILE", "standard")
+        if tool_profile not in ("standard", "full"):
+            raise ShieldError("NVIDIA_MCP_TOOL_PROFILE must be standard or full")
         platform = os.environ.get("NVIDIA_MCP_PLATFORM", "android")
         if platform not in ("android", "apple_tv"):
             raise ShieldError("NVIDIA_MCP_PLATFORM must be android or apple_tv")
@@ -181,6 +185,7 @@ class Config:
         mount = os.environ.get("KODI_MOUNT")
         return cls(
             host=host,
+            tool_profile=tool_profile,
             platform=platform,
             apple_credentials=Path(os.environ["APPLE_TV_CREDENTIALS_FILE"]).expanduser().resolve()
             if os.environ.get("APPLE_TV_CREDENTIALS_FILE")

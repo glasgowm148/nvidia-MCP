@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.11 — 2026-10-15 (prerelease)
+
+- Standard tool discovery starts with 10 everyday Android tools; optional Manager/provider tools follow configured capabilities. `NVIDIA_MCP_TOOL_PROFILE=full` exposes advanced file, Android and APK workflows after a client restart. Profiles do not change permissions.
+- Advertised tools use consistent action names, explicit parameter descriptions and clearer settings/file/backup/layout boundaries. Old names remain callable through the same validation and safety guards; the deprecated mixed patch tool is no longer advertised.
+- Add synthetic protocol and catalogue regression checks and document the migration. No new delete/uninstall operations or device access during tool discovery.
+
 ## 0.5.10 — 2026-10-15 (prerelease)
 
 - adb forwards that disappear (Shield sleep/reboot, adb server restart) are re-established instead of failing every Kodi/Manager call until restart; a request is resent only when the connection was refused before anything was sent. `adb connect` clears cached forwards.

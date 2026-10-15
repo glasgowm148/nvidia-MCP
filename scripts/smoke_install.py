@@ -5,6 +5,7 @@ import json
 import sys
 import tempfile
 import threading
+from datetime import timedelta
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from importlib.metadata import version
 from pathlib import Path
@@ -67,13 +68,28 @@ def main():
                     },
                 )
                 async with stdio_client(parameters) as (read, write):
-                    async with ClientSession(read, write) as client:
+                    async with ClientSession(
+                        read,
+                        write,
+                        read_timeout_seconds=(
+                            timedelta(seconds=45) if version("mcp").startswith("1.") else 45
+                        ),
+                    ) as client:
                         await client.initialize()
                         names = {t.name for t in (await client.list_tools()).tools}
-                        assert {"shield_connection", "shield_apk_preview", "kodi_status"} <= names
+                        assert {
+                            "shield_check_connection",
+                            "kodi_list_settings",
+                            "kodi_get_status",
+                        } <= names
+                        assert len(names) == 10
                         # Write tools are not registered without NVIDIA_MCP_ALLOW_WRITES=1.
-                        assert not names & {"shield_apk_apply", "shield_remote", "kodi_patch_apply"}
-                        result = await client.call_tool("kodi_status", {})
+                        assert not names & {
+                            "shield_apply_apk_upgrade",
+                            "shield_send_button",
+                            "kodi_apply_file_patch",
+                        }
+                        result = await client.call_tool("kodi_get_status", {})
                         assert not field(result, "is_error", "isError")
                         metadata = field(result, "structured_content", "structuredContent")[
                             "operation"
