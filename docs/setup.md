@@ -5,51 +5,56 @@ connects them. You do not need to open a terminal or edit configuration files yo
 
 Before starting:
 
-- Have **Kodi already installed** on the TV.
-- Connect the TV and computer to the **same home network**. Ethernet and Wi-Fi can be used together.
-- Finish watching first and keep the TV awake during setup.
-- Use an assistant that can run commands and edit files on your computer. A browser chat alone
-  cannot install this server.
+- **TV and network**
+  - Have **Kodi already installed**.
+  - Put the TV and computer on the **same home network**. Ethernet and Wi-Fi can be used together.
+  - Finish watching and keep the TV awake during setup.
+- **Computer assistant**
+  - Use an assistant that can run commands and edit files on your computer.
+  - A browser chat alone cannot install this server.
+- **A different setup?**
+  - Browser dashboard only: use [Kodi Manager setup](https://github.com/glasgowm148/kodi-manager/blob/main/docs/setup.md#1-add-the-download-source--inside-kodi).
+  - Apple TV: use [its separate guide](apple-tv.md).
 
-**Only want Kodi Manager's browser dashboard?** Follow
-[Kodi Manager setup](https://github.com/glasgowm148/kodi-manager/blob/main/docs/setup.md) instead.
-
-**Apple TV?** Follow [the Apple TV guide](apple-tv.md). The debugging steps below are for Android devices.
+If you want both nvidia-MCP and Kodi Manager, complete this setup first.
+Then ask the agent to [install and connect Kodi Manager](companion.md#ask-your-agent-to-install-kodi-manager).
 
 ## 1. Enable debugging on the TV
 
-Open the instructions for your device and complete **step 1** there:
-
-- [Fire TV / Firestick: enable ADB Debugging](android-tv.md#fire-tv--firestick-fire-os).
-- [NVIDIA Shield: enable Network debugging](android-tv.md#nvidia-shield).
-- [Android TV / Google TV: enable network or Wireless debugging](android-tv.md#android-tv--google-tv).
-
-**ADB** means Android Debug Bridge. Debugging lets your computer connect to the TV.
-Android-based Fire OS is supported; Vega OS is not.
+- **Choose your device and complete its step 1:**
+  - [Fire TV / Firestick: ADB Debugging](android-tv.md#fire-tv--firestick-fire-os).
+  - [NVIDIA Shield: Network debugging](android-tv.md#nvidia-shield).
+  - [Android TV / Google TV: network or Wireless debugging](android-tv.md#android-tv--google-tv).
+- **What this does:**
+  - ADB (Android Debug Bridge) lets your computer connect to the TV.
+  - Android-based Fire OS is supported; Vega OS is not.
 
 ## 2. Find the TV's IP address
 
-Complete **step 2** in [your device's instructions](android-tv.md).
-Write down the address shown on the TV. It looks like `192.168.1.50` or `10.0.0.50`;
-use your own address, rather than those examples or your computer's address.
-
-If the debugging screen shows a **port** (the number after a colon), write that down too.
-If it does not show a port, leave that detail for the assistant to check.
+- **Find the address.**
+  - Complete step 2 in [your device's instructions](android-tv.md).
+  - Write down the address shown on your TV, such as `192.168.1.50`.
+  - Use your own address, rather than that example or your computer's address.
+- **If a debugging port is shown:**
+  - Note the number after the colon, such as `37123` in `192.168.1.50:37123`.
+  - If no port is shown, leave that detail for the assistant to check.
 
 ## 3. Enable Kodi remote control
 
-These steps happen **inside Kodi**, using the TV remote:
+Use the TV remote inside Kodi:
 
-1. Open **Kodi** → **Settings** (gear icon) → **Services** → **Control**.
-2. If the options below are missing, select the settings level at the bottom left until it says
-   **Standard** or **Expert**.
-3. Turn on **Allow remote control via HTTP**.
-4. Keep **Require authentication** on, if shown. Set a **Username** and **Password** and keep them private.
-5. Write down **Port**, usually **8080**. Leave it as shown unless there is a reason to change it.
-6. Return to Kodi's home screen and leave Kodi open.
+- **Open the control settings.**
+  - Go to **Kodi → Settings** (gear icon) → **Services → Control**.
+  - If options are missing, change the bottom-left settings level to **Standard** or **Expert**.
+- **Enable access and authentication.**
+  - Turn on **Allow remote control via HTTP**.
+  - Keep **Require authentication** on, if shown.
+  - Set a **Username** and **Password**. Give them to the agent through private input when asked.
+- **Note the connection details.**
+  - Write down **Port**, usually **8080**. Leave it unchanged unless necessary.
+  - Return to Kodi's home screen and leave Kodi open.
 
-This password is for Kodi remote control. It is separate from your streaming accounts and
-Kodi Manager's access token. Give it to the assistant through private input when asked.
+This password is for Kodi remote control, separate from streaming accounts and Kodi Manager's token.
 [Kodi's settings reference](https://kodi.wiki/view/Settings/Services/Control).
 
 ## 4. Give this message to your assistant — on the computer
@@ -74,27 +79,28 @@ The assistant follows its [computer setup procedure](agent-setup.md).
 
 ## 5. Approve the connection — on the TV
 
-When the assistant asks, look for **Allow USB debugging?** or a similar prompt on the TV.
-Select **Allow** or **OK**. “USB” is normal wording even when connected over Wi-Fi.
-You can select **Always allow from this computer** for your own trusted computer.
-Tell the assistant when you have approved it.
-
-For **Wireless debugging**, the assistant may instead ask you to open **Pair device with pairing code**.
-Follow [the pairing steps](android-tv.md#configure-and-pair) and use private input for the code.
-Already approved or paired devices may not show another prompt.
-
-If nothing appears, keep the TV awake and tell the assistant. It should check the connection
-before asking you to change more settings. Your computer may also ask for Local Network permission
-or your assistant app may need a reload; the assistant will explain any necessary action.
+- **A debugging prompt appears:**
+  - Select **Allow** or **OK** when the assistant asks.
+  - It may say **Allow USB debugging?** even over Wi-Fi.
+  - For your own trusted computer, you can select **Always allow from this computer**.
+  - Tell the assistant once approved.
+- **Wireless debugging needs pairing:**
+  - Follow [the pairing steps](android-tv.md#configure-and-pair).
+  - Enter the code through private input when asked.
+  - Already approved or paired devices may not show another prompt.
+- **Nothing appears:**
+  - Keep the TV awake and tell the assistant; it checks the connection first.
+  - If a computer permission prompt or app reload is needed, the assistant explains that action.
 
 ## 6. Ask for your first check
 
-Wait for the assistant to confirm it can read the TV and Kodi. Then ask:
-
-> Read the Kodi repair playbook and audit Kodi without interrupting anything.
-
-Setup starts in read-only mode. To add the optional browser dashboard and live settings tools,
-follow [Kodi Manager companion setup](companion.md).
+- **Wait for connection checks.**
+  - The assistant should confirm it can read both the TV and Kodi.
+  - Setup starts in read-only mode.
+- **Add Kodi Manager, if wanted.**
+  - Now ask the agent to [install and connect it](companion.md#ask-your-agent-to-install-kodi-manager).
+- **Ask for your first audit.**
+  - **“Read the Kodi repair playbook and audit Kodi without interrupting anything.”**
 
 If the TV's IP changes later, repeat step 2 and ask the assistant to update the connection.
 For connection problems, see [troubleshooting](troubleshooting.md).

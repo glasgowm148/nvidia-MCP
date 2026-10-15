@@ -27,28 +27,32 @@ release does not make an unknown or modified skin writable, and does not install
 
 ## Prepare the TV
 
-1. Have Kodi installed on your Apple TV HD/4K. In Apple TV's **Settings → Network**, select
-   your connected Wi-Fi or Ethernet network and note its **IP Address**.
-2. Open Kodi. Enable authenticated remote control using [setup step 3](setup.md#3-enable-kodi-remote-control).
-3. For Manager features, follow [companion setup](companion.md#1-install-kodi-manager--on-the-tv)
-   to install from the Kodi repository, enable LAN access and display the token. Keep it private.
-4. Give your assistant the following message. Keep Kodi open while it connects:
+1. **Find the Apple TV's IP address.**
+   - Kodi must already be installed on Apple TV HD/4K.
+   - Open **Settings → Network**, select your connected network and note **IP Address**.
+2. **Enable Kodi remote control.**
+   - Open Kodi and follow [setup step 3](setup.md#3-enable-kodi-remote-control).
+3. **Ask your agent to set up nvidia-MCP first.**
+   - Keep Kodi open and send the message below.
+   - The agent handles dependencies, commands and configuration. No ADB debugging is needed.
 
    ```text
    Set up https://github.com/glasgowm148/nvidia-MCP for my Apple TV.
    TV IP address: YOUR_TV_IP
    Kodi is installed and HTTP remote control is enabled.
    Follow docs/apple-tv.md and handle the computer setup.
-   Ask privately for Kodi credentials and the Manager token if needed.
-   Preserve my other MCP servers and keep write mode off.
+   Ask privately for Kodi credentials. Preserve my other MCP servers and keep write mode off.
+   Once the base connection works, help me install and connect Kodi Manager if needed.
    ```
 
-5. When the assistant asks to pair, open Apple TV **Settings → Remotes and Devices →
-   Remote App and Devices**. Keep that screen open. Enter displayed PINs only through private
-   input or the hidden local terminal prompt. Return to Kodi afterward.
-
-The assistant handles dependencies, commands and configuration below. No ADB debugging is needed.
-Tokens belong to the active Kodi profile; after switching profiles, update the token privately.
+4. **Pair when asked.**
+   - Open **Settings → Remotes and Devices → Remote App and Devices** and leave it open.
+   - Enter displayed PINs only through private input or the hidden local terminal prompt.
+   - Return to Kodi afterward.
+5. **Add Kodi Manager if wanted.**
+   - Follow [agent-assisted companion setup](companion.md#ask-your-agent-to-install-kodi-manager).
+   - The agent may ask you to complete the Kodi repository screens and enter the token privately.
+   - Tokens belong to the active Kodi profile; update the token privately after switching.
 
 ## Computer setup (agent performs this)
 

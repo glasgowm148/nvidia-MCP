@@ -4,43 +4,92 @@
 You can use core TV/Kodi diagnostics without Manager. Add it when you want the browser dashboard,
 live add-on settings, playback pipeline or supported home-layout tools.
 
+## Ask your agent to install Kodi Manager
+
+For use with an assistant, set up **nvidia-MCP first**:
+
+- **Connect the TV and Kodi.**
+  - Complete [nvidia-MCP setup](setup.md).
+  - Wait for the agent to confirm read-only access works.
+- **Give the agent this request.**
+  - It handles preparation, supported TV navigation and connection checks.
+  - You may still need to select Kodi installer options or approve permission screens on the TV.
+
+```text
+Install Kodi Manager and connect it to my working nvidia-MCP setup.
+Follow docs/companion.md. Check for an existing installation and preserve customizations.
+Use the Kodi Manager repository and Kodi's native installer.
+Handle downloads and supported TV navigation; ask me only for TV steps you cannot complete.
+Obtain the active profile's token privately and verify read-only Manager access.
+Leave write mode and provider browsing off when finished. Do not interrupt playback.
+```
+
+Already have Kodi Manager? The agent should connect it and avoid replacing a working installation.
+If you only want the browser dashboard, use [the remote-control steps](https://github.com/glasgowm148/kodi-manager/blob/main/docs/setup.md#1-add-the-download-source--inside-kodi).
+
 ## 1. Install Kodi Manager — on the TV
 
-If Kodi Manager is already installed and working, keep it and continue at step 2.
-Back up private modifications before choosing to upgrade a customized installation.
+For manual installation, or any TV steps your agent asks you to complete:
 
-1. Open **Kodi → Settings → File manager → Add source**.
-2. Enter `https://glasgowm148.github.io/kodi-manager/` and name it **Kodi Manager**.
-3. Enable **Settings → System → Add-ons → Unknown sources** if needed.
-4. Return to **Add-ons**, open the **open-box icon**, then select **Install from zip file →
-   Kodi Manager → repository.kodi-manager.zip**. Wait for the repository-installed notice.
-5. Select **Install from repository → Kodi Manager Repository (preview) → Services → Kodi Manager → Install**.
+- **Add the source.**
+  - Open **Kodi → Settings → File manager → Add source**.
+  - **Address:** `https://glasgowm148.github.io/kodi-manager/`
+  - **Name:** `Kodi Manager`
+- **Install the repository.**
+  - Enable **Settings → System → Add-ons → Unknown sources** if needed.
+  - Open **Add-ons → open-box icon → Install from zip file**.
+  - Select **Kodi Manager → repository.kodi-manager.zip** and wait for the installed notice.
+- **Install Kodi Manager.**
+  - Select **Install from repository → Kodi Manager Repository (preview)**.
+  - Open **Services → Kodi Manager → Install**.
 
-See [the full Kodi Manager guide](https://github.com/glasgowm148/kodi-manager/blob/main/docs/setup.md)
-for every menu step. The repository supplies preview releases and uses Kodi's update settings.
-These steps also apply inside Kodi on Apple TV, where support remains experimental.
+The [full remote-control guide](https://github.com/glasgowm148/kodi-manager/blob/main/docs/setup.md)
+explains every screen. The repository supplies preview releases using Kodi's update settings.
+Apple TV uses the same Kodi installation steps; its support remains experimental.
 
 ## 2. Open the dashboard — on the TV, then your browser
 
-1. Open **Settings → Add-ons → My add-ons → Services → Kodi Manager → Configure → Dashboard**.
-2. Turn on **Allow LAN access**, leave **Enable writes** off, then select **OK**.
-3. Return to Kodi's home screen. Open **Add-ons → Video add-ons → Kodi Manager**.
-4. Select **Open the dashboard on another device**. The TV shows an address and access token.
-5. Open the address in a browser on your phone/computer and enter the token privately.
+- **Enable dashboard access.**
+  - Open **Settings → Add-ons → My add-ons → Services**.
+  - Select **Kodi Manager → Configure → Dashboard**.
+  - Turn on **Allow LAN access**, leave **Enable writes** off, then select **OK**.
+- **Display the address and token.**
+  - Return home. Open **Add-ons → Video add-ons → Kodi Manager**.
+  - Select **Open the dashboard on another device**.
+- **Sign in.**
+  - Open the displayed address in a browser on your phone or computer.
+  - Enter the token privately. Keep Kodi running.
 
-Keep Kodi running. If you only see Configure, use the
+If you only see Configure, use the
 [token fallback](https://github.com/glasgowm148/kodi-manager/blob/main/docs/setup.md#only-configure-is-available).
 
 ## 3. Connect it to your assistant — on the computer
 
-Complete [nvidia-MCP setup](setup.md) first, then tell your assistant:
+- **If the agent installed Manager:**
+  - It should complete the connection checks below as part of the same request.
+- **If Manager was already installed:**
+  - Ask: **“Connect my existing Kodi Manager to nvidia-MCP and verify read-only access.”**
+  - Give the token through private input if asked.
 
-```text
-Connect my existing Kodi Manager installation to nvidia-MCP.
-Follow docs/companion.md. Obtain the active profile's token privately,
-preserve my existing configuration and verify read-only Manager access.
-Keep write mode and provider browsing off.
-```
+### Agent installation procedure
+
+- **Inspect before installing.**
+  - Reuse a supported existing Manager. Back up customizations before any requested replacement.
+  - Check playback and foreground state before TV navigation; preserve the viewing guards.
+- **Use Kodi's repository installer.**
+  - Prefer the repository steps above so future updates stay inside Kodi.
+  - On Android, an agent with authorized terminal/ADB access can download the repository installer
+    from `https://glasgowm148.github.io/kodi-manager/repository.kodi-manager.zip` and stage it in
+    Kodi-accessible storage, such as Downloads. This avoids asking the user to transfer the file.
+  - Have Kodi install the repository ZIP, then install Manager from that repository. Use supported
+    guarded navigation where available; otherwise give the user the exact file/menu to select.
+  - Apple TV uses Kodi's network source; ADB transfer does not apply.
+  - Do not copy an unpacked add-on behind Kodi's database or claim installation from a file copy alone.
+- **Connect and verify.**
+  - Complete the connection procedure below and confirm the active profile/version.
+  - Only enable the write controls needed for authorized installation/navigation; leave write mode
+    and provider browsing off when finished, as requested in the setup prompt.
+  - Report any remaining TV action explicitly. Do not describe a staged ZIP as an installed service.
 
 ### Agent connection procedure
 

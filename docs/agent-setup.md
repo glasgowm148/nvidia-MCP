@@ -167,8 +167,9 @@ check. Do not mark full client setup complete until its registered connection ca
 
 Give the user a short result: installed location, configured client, ADB/Kodi/MCP connection status and
 any genuine remaining action. Include no credentials. The user can now ask for a focused Kodi audit.
-Set up the optional [Kodi Manager companion](companion.md) only when its extra functionality is wanted;
-reuse an existing supported installation instead of automatically replacing it.
+If the user wants both nvidia-MCP and [Kodi Manager](companion.md#ask-your-agent-to-install-kodi-manager),
+finish and verify the base connection first, then handle companion installation and connection.
+Reuse a supported existing installation; ask the user only for TV steps your available tools cannot complete.
 
 APK tooling is optional and is not part of ordinary onboarding. When the person requests an APK
 install/upgrade, follow [the agent APK workflow](apk-upgrades.md) and configure official SDK Build

@@ -43,21 +43,28 @@ You need a computer, an assistant app that supports **local MCP tools**, and a T
 home network. Your assistant needs permission to run commands and edit files on the computer;
 it installs Python 3.11+ and other tools if needed. A browser chat alone cannot do this setup.
 
-1. **Enable debugging on the TV.** Follow the remote-control steps for your
-   [Firestick / Fire TV](docs/android-tv.md#fire-tv--firestick-fire-os),
-   [NVIDIA Shield](docs/android-tv.md#nvidia-shield) or
-   [Android TV / Google TV](docs/android-tv.md#android-tv--google-tv).
-2. **Find the TV's IP address.** Its location is step 2 in the same device guide.
-3. **Enable Kodi remote control.** Follow [setup step 3](docs/setup.md#3-enable-kodi-remote-control).
-4. **Give your assistant the [setup message](docs/setup.md#4-give-this-message-to-your-assistant--on-the-computer).**
-   It installs the computer tools and connects them. You do not need to run commands yourself.
-5. **Approve the connection on the TV** when asked. Wait for the assistant to confirm it works, then ask:
-   **“Read the Kodi repair playbook and audit Kodi without interrupting anything.”**
+1. **Enable debugging.**
+   - Use the steps for your [Firestick / Fire TV](docs/android-tv.md#fire-tv--firestick-fire-os),
+     [NVIDIA Shield](docs/android-tv.md#nvidia-shield) or
+     [Android TV / Google TV](docs/android-tv.md#android-tv--google-tv).
+2. **Find the TV's IP address.**
+   - Follow step 2 in the same device guide and write down the address shown on your TV.
+3. **Enable Kodi remote control.**
+   - Follow [setup step 3](docs/setup.md#3-enable-kodi-remote-control).
+4. **Let your assistant set up the computer.**
+   - Send it the [setup message](docs/setup.md#4-give-this-message-to-your-assistant--on-the-computer).
+   - It installs the tools and connects them; you do not need to run commands yourself.
+5. **Approve the connection and finish setup.**
+   - Select **Allow** on the TV when asked, then wait for the assistant to confirm it works.
+   - Want Kodi Manager too? [Ask the agent to install and connect it next](docs/companion.md#ask-your-agent-to-install-kodi-manager).
+   - Then ask: **“Read the Kodi repair playbook and audit Kodi without interrupting anything.”**
 
-**[Start-to-finish setup guide](docs/setup.md)** · **[Apple TV setup](docs/apple-tv.md)** (experimental).
+- **Full instructions**
+  - [Start-to-finish setup](docs/setup.md).
+  - [Apple TV setup](docs/apple-tv.md), experimental.
+  - [Troubleshooting](docs/troubleshooting.md).
 
-For installation, authorization or missing-tool problems, see [troubleshooting](docs/troubleshooting.md).
-Vega OS Firesticks are outside Android support; check the [device guide](docs/android-tv.md).
+Vega OS Firesticks are unsupported; check the [device guide](docs/android-tv.md).
 
 ## How it connects
 
@@ -87,15 +94,16 @@ live add-on settings, playback pipeline inspection and supported Bingie layout e
 
 *Current optional companion UI, captured with synthetic demo data in view-only mode. The MCP server itself is a stdio service.*
 
-Install Kodi Manager directly in Kodi: add the source
-`https://glasgowm148.github.io/kodi-manager/`, install **repository.kodi-manager.zip**, then choose
-**Install from repository → Kodi Manager Repository (preview) → Services → Kodi Manager**.
-The [full remote-control steps](https://github.com/glasgowm148/kodi-manager/blob/main/docs/setup.md)
-explain every screen. No ZIP transfer is needed; updates follow Kodi's settings.
+- **Already using nvidia-MCP?**
+  - Ask your agent: **“Install Kodi Manager and connect it to nvidia-MCP.”**
+  - Follow [agent-assisted setup](docs/companion.md#ask-your-agent-to-install-kodi-manager).
+- **Only want the browser dashboard?**
+  - Follow [Kodi Manager's TV remote steps](https://github.com/glasgowm148/kodi-manager/blob/main/docs/setup.md#1-add-the-download-source--inside-kodi).
+  - Install from its Kodi repository; no computer file transfer is needed.
+- **Need an offline or pinned version?**
+  - Use the [bundled ZIP instructions](docs/companion.md#offline-or-pinned-zip-installation).
 
-Follow [companion setup](docs/companion.md) to connect it to your assistant.
-For offline/pinned installs, this distribution also includes the checksum-pinned **Manager 0.7.23** ZIP;
-`nvidia-mcp --export-manager ./companion` exports it on the computer.
+Repository installations receive preview updates through Kodi's update settings.
 
 ## Making changes
 
