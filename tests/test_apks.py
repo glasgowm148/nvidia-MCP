@@ -2,6 +2,7 @@ import io
 import json
 import re
 import tarfile
+import time
 from dataclasses import replace
 from pathlib import Path
 
@@ -233,7 +234,11 @@ def test_device_change_during_split_session_blocks_later_actions(apk_env, phase)
     device.shell = shell
     with pytest.raises(ShieldError) as caught:
         ops.apks.apply(plan["preview_id"])
-    assert caught.value.kind == "device_mismatch"
+    # Before the commit nothing changed: a refusal. After it the app may have changed on
+    # whichever device took the commit, so a different serial is not a refusal.
+    assert caught.value.kind == (
+        "outcome_unknown" if phase == "install-commit" else "device_mismatch"
+    )
     assert changed
 
 
@@ -517,7 +522,7 @@ def test_transfer_corruption_and_viewing_start_block_installation(apk_env, failu
         ops.apks.apply(preview["preview_id"])
     assert not any(call[:2] == ("pm", "install") for call in device.calls)
     assert any(call[:2] == ("rm", "-f") for call in device.calls)
-    assert ops.apks.backups()["backups"][0]["status"] == "failed_after_transfer"
+    assert ops.apks.backups()["backups"][0]["status"] == "failed_before_install"
 
 
 def test_failed_split_write_abandons_session_and_never_commits(apk_env):
@@ -682,3 +687,112 @@ def test_apk_push_timeout_scales_with_size(apk_env, monkeypatch):
     device.adb = recording
     ops.apks.apply(preview["preview_id"])
     assert timeouts == [600]
+
+
+def bundle_status(ops):
+    return ops.apks.backups()["backups"][0]["status"]
+
+
+def test_lost_serial_read_after_android_installed_is_outcome_unknown(apk_env):
+    # pm answered Success, then one getprop ro.serialno lost its reply: the app has changed,
+    # so this must not be recorded as a refusal (device_mismatch).
+    ops, device, candidate = apk_env
+    preview = ops.apks.preview([candidate()])
+    original, installed = device.shell, []
+
+    def shell(*args, **kwargs):
+        if installed == [1] and args == ("getprop", "ro.serialno"):
+            installed.append(2)
+            raise ShieldError("ADB timed out", "timeout")
+        result = original(*args, **kwargs)
+        if args[:2] == ("pm", "install"):
+            installed.append(1)
+        return result
+
+    device.shell = shell
+    with pytest.raises(ShieldError, match="could not be read") as caught:
+        ops.apks.apply(preview["preview_id"])
+    assert caught.value.kind == "outcome_unknown"
+    assert json.loads(next(iter(device.installed.values())))["version"] == 2
+    assert bundle_status(ops) == "failed_after_transfer"
+
+
+def test_lost_serial_read_before_any_install_command_is_a_refusal(apk_env):
+    ops, device, candidate = apk_env
+    preview = ops.apks.preview([candidate()])
+    original, pushed = device.shell, []
+
+    def shell(*args, **kwargs):
+        if pushed and args == ("getprop", "ro.serialno"):
+            raise ShieldError("ADB timed out", "timeout")
+        if args[0] == "sha256sum" and "/data/local/tmp/" in args[1]:
+            pushed.append(1)
+        return original(*args, **kwargs)
+
+    device.shell = shell
+    with pytest.raises(ShieldError, match="could not be read") as caught:
+        ops.apks.apply(preview["preview_id"])
+    assert caught.value.kind == "device_mismatch"
+    assert not any(call[:2] == ("pm", "install") for call in device.calls)
+    device.shell = original
+    assert bundle_status(ops) == "failed_before_install"
+
+
+def test_local_storage_failure_before_pm_is_not_outcome_unknown(apk_env, monkeypatch):
+    # The "installing" status could not be saved (a full disk): no pm command was sent.
+    ops, device, candidate = apk_env
+    preview = ops.apks.preview([candidate()])
+    original = apks.save_json
+
+    def save(path, value):
+        if value["status"] == "installing":
+            raise OSError(28, "No space left on device")
+        return original(path, value)
+
+    monkeypatch.setattr(apks, "save_json", save)
+    with pytest.raises(ShieldError) as caught:
+        ops.apks.apply(preview["preview_id"])
+    assert caught.value.kind != "outcome_unknown"
+    assert not any(call[0] == "pm" and call[1].startswith("install") for call in device.calls)
+    assert bundle_status(ops) == "failed_before_install"
+
+
+def test_playback_starting_during_split_staging_blocks_the_commit(apk_env):
+    ops, device, candidate = apk_env
+    preview = ops.apks.preview([candidate(), candidate(split="config.arm64", abi="arm64-v8a")])
+    original = device.shell
+
+    def shell(*args, **kwargs):
+        result = original(*args, **kwargs)
+        if args[:2] == ("pm", "install-write"):
+            device.foreground = "com.google.android.youtube.tv"
+        return result
+
+    device.shell = shell
+    with pytest.raises(ShieldError) as caught:
+        ops.apks.apply(preview["preview_id"])
+    assert caught.value.kind == "other_app_foreground"
+    assert not any(call[:2] == ("pm", "install-commit") for call in device.calls)
+    assert any(call[:2] == ("pm", "install-abandon") for call in device.calls)
+    assert json.loads(next(iter(device.installed.values())))["version"] == 1
+    assert bundle_status(ops) == "failed_before_install"
+
+
+def test_bundle_from_an_attempt_that_never_sent_an_install_is_pruned(apk_env):
+    from nvidia_mcp.retention import prune_state
+
+    ops, device, candidate = apk_env
+    preview = ops.apks.preview([candidate()])
+
+    def push(*args, **kwargs):
+        device.calls.append(args)
+        raise ShieldError("ADB device is offline", "offline")
+
+    device.adb = push
+    with pytest.raises(ShieldError):
+        ops.apks.apply(preview["preview_id"])
+    assert bundle_status(ops) == "failed_before_install"
+    later = time.time() + 400 * 86400
+    removed = prune_state(replace(ops.c, keep_apk_backups=0), now=later)
+    assert removed["apk_backups"] == 1
+    assert not list((ops.c.state / "apk_backups").iterdir())

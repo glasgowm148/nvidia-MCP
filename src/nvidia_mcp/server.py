@@ -587,7 +587,7 @@ def create_server(config: Config):
         ],
         value: SettingValue,
     ) -> dict[str, Any]:
-        """Change one ordinary Kodi core setting through its runtime API; returns readback and a guisettings.xml undo snapshot (on Android, restore it with kodi_restore_file). Takes effect on the TV immediately; requires idle Kodi/launcher. Refuses credentials and protected security/service, display, audio-device, refresh-rate and language settings. Use kodi_set_addon_setting for add-ons; text-file repair (kodi_apply_file_patch) is in the full tool profile."""
+        """Change one ordinary Kodi core setting through its runtime API; returns readback and a guisettings.xml undo snapshot (on Android, restore it with kodi_restore_file). Takes effect on the TV immediately but is saved to guisettings.xml only when Kodi next exits cleanly (a crash or force-stop first loses it); requires idle Kodi/launcher. Refuses credentials and protected security/service, display, audio-device, refresh-rate and language settings. Use kodi_set_addon_setting for add-ons; text-file repair (kodi_apply_file_patch) is in the full tool profile."""
         return ops.set_core_setting(setting, value)
 
     @tool("Browse Kodi folder", read_only=False, destructive=False, open_world=True)

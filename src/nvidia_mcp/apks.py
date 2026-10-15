@@ -21,11 +21,11 @@ MAX_BACKUP = 2_000_000_000
 # Regenerable caches. Thumbnails alone often exceed the backup limit on real libraries.
 SNAPSHOT_EXCLUDES = ("userdata/Thumbnails", "addons/packages", "addons/temp")
 TTL = 600
-# Failure kinds that keep their own kind once installation has started: the TV guard refused
-# before any pm command, Android/verification gave an explicit answer (``unknown``: "Android
-# rejected the install", a checksum mismatch), or a different device answered
-# (``device_mismatch``: nothing more is sent to it). Any other failure (a lost connection, adb
-# error, timeout ...) leaves the app state unknown.
+# Failure kinds that keep their own kind once an install command (pm install / install-commit)
+# was sent: Android/verification gave an explicit answer (``unknown``: "Android rejected the
+# install", a checksum mismatch). A guard refusal or ``device_mismatch`` can only come before
+# that command; after it, a different or unreadable device is ``outcome_unknown``. Any other
+# failure (a lost connection, adb error, timeout ...) leaves the app state unknown.
 INSTALL_REFUSALS = frozenset(
     {
         "unknown",
@@ -254,10 +254,31 @@ class ApkOperations:
     def guard(self, package):
         return self.ops.guard_tv("apk", package=package)
 
-    def verify_identity(self, identity):
-        if not self.ops.files.owns(identity):
+    def verify_identity(self, identity, after_install=False):
+        """Refuse (``device_mismatch``) unless the configured Shield still answers. After an
+        install command was sent the app may already have changed, so any doubt about the
+        device is ``outcome_unknown`` rather than a refusal."""
+        try:
+            current = self.ops.files.device_id(strict=True)
+        except ShieldError as exc:
+            if after_install:
+                raise ShieldError(
+                    f"{exc.message} after the install command; the app may have changed",
+                    "outcome_unknown",
+                ) from None
             raise ShieldError(
-                "Android device identity changed or is unavailable; reconnect and preview again",
+                f"{exc.message}; nothing more was sent. Reconnect and preview again",
+                "device_mismatch",
+            ) from None
+        if not self.ops.files.owns(identity, current):
+            if after_install:
+                raise ShieldError(
+                    "A different Android device answered after the install command; the app on "
+                    "the configured Shield or on that device may have changed",
+                    "outcome_unknown",
+                )
+            raise ShieldError(
+                "Android device identity changed; reconnect and preview again",
                 "device_mismatch",
             )
 
@@ -410,6 +431,8 @@ class ApkOperations:
             }
             remotes = []
             attempted = False
+            # Set just before pm install / pm install-commit: only then can the app change.
+            sent = {"install": False}
             try:
                 report(0, 6, "Saving original APKs to the recovery bundle")
                 for index, source in enumerate(plan["originals"]):
@@ -444,11 +467,14 @@ class ApkOperations:
                 self.verify_identity(plan["identity"])
                 if self.installed(plan["package"]) != plan["installed"]:
                     raise ShieldError("Installed app changed before installation")
+                # In memory only once saved: a local write failure here is before any pm command.
+                save_json(backup / "manifest.json", dict(manifest, status="installing"))
                 manifest["status"] = "installing"
-                save_json(backup / "manifest.json", manifest)
                 report(3, 6, "Installing")
-                output = self.install_remote(remotes, items, plan["package"], plan["identity"])
-                self.verify_identity(plan["identity"])
+                output = self.install_remote(
+                    remotes, items, plan["package"], plan["identity"], sent
+                )
+                self.verify_identity(plan["identity"], after_install=True)
                 if not re.search(r"^Success\s*$", output, re.M):
                     raise ShieldError(
                         "Android rejected the install; inspect backup/status, no automatic uninstall or retry"
@@ -476,9 +502,14 @@ class ApkOperations:
                     "note": "App remains stopped. Verify its startup/functionality separately. Recovery bundle is not a guarantee Android permits a downgrade.",
                 }
             except Exception as exc:
-                installing = manifest["status"] == "installing"
+                # failed_before_install: APKs reached /data/local/tmp but no install command
+                # was sent, so the app is unchanged (retention may prune it).
                 manifest["status"] = (
-                    "failed_after_transfer" if attempted else "failed_before_transfer"
+                    "failed_after_transfer"
+                    if sent["install"]
+                    else "failed_before_install"
+                    if attempted
+                    else "failed_before_transfer"
                 )
                 reason = (
                     exc.message
@@ -493,7 +524,7 @@ class ApkOperations:
                         "not changed; the partial recovery bundle was removed.",
                         kind,
                     ) from None
-                if installing and (
+                if sent["install"] and (
                     not isinstance(exc, ShieldError) or kind not in INSTALL_REFUSALS
                 ):
                     # pm keeps going after its caller gives up, and a lost connection does not
@@ -529,14 +560,20 @@ class ApkOperations:
                 if metadata_failed:
                     raise ShieldError(
                         f"Recovery bundle {backup_id}: could not save its latest status. "
-                        "The app may have changed; inspect current app state and private recovery "
-                        "files before any retry. Temporary files were cleaned up where device identity matched.",
+                        + (
+                            "The app may have changed; inspect current app state and private "
+                            "recovery files before any retry."
+                            if sent["install"]
+                            else "No install command was sent, so the app was not changed."
+                        )
+                        + " Temporary files were cleaned up where device identity matched.",
                         "local_storage_error",
                     ) from None
 
-    def install_remote(self, remotes, items, package, identity):
+    def install_remote(self, remotes, items, package, identity, sent):
         self.verify_identity(identity)
         if len(remotes) == 1:
+            sent["install"] = True
             return self.t.shell("pm", "install", "-r", remotes[0], timeout=300, limit=16000)
         result = self.t.shell(
             "pm",
@@ -569,6 +606,7 @@ class ApkOperations:
                     raise ShieldError("Android could not stage an APK split")
             self.guard(package)
             self.verify_identity(identity)
+            sent["install"] = True
             return self.t.shell("pm", "install-commit", session, timeout=300, limit=16000)
         finally:
             try:

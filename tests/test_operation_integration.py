@@ -12,6 +12,7 @@ from types import SimpleNamespace
 
 import httpx
 import pytest
+from conftest import manager_checkout
 
 from nvidia_mcp.config import Config, ShieldError
 from nvidia_mcp.diagnostics import support_bundle
@@ -22,9 +23,7 @@ from nvidia_mcp.transport import Transport
 
 def test_vendored_contract_matches_optional_manager_checkout():
     root = Path(__file__).resolve().parents[1]
-    source = root.parent / "kodi-manager/src/kodi_manager/operation_records.py"
-    if not source.exists():
-        pytest.skip("Optional sibling Manager checkout is unavailable")
+    source = manager_checkout() / "src/kodi_manager/operation_records.py"
     assert source.read_bytes() == (root / "src/nvidia_mcp/operation_records.py").read_bytes()
 
 
@@ -77,10 +76,7 @@ def test_read_only_manager_post_timeout_is_not_an_unknown_write(tmp_path):
 def test_read_only_posts_match_optional_manager_checkout():
     from nvidia_mcp.transport import MANAGER_READ_POSTS
 
-    root = Path(__file__).resolve().parents[1]
-    source = root.parent / "kodi-manager/src/kodi_manager/server.py"
-    if not source.exists():
-        pytest.skip("Optional sibling Manager checkout is unavailable")
+    source = manager_checkout() / "src/kodi_manager/server.py"
     import re
 
     reads = set(re.findall(r'\("POST", r"(/api/[^"]+)", "\w+", False,', source.read_text()))
@@ -148,9 +144,7 @@ def test_bundle_negotiates_old_manager_and_projects_private_metadata(ops):
 
 
 def manager_module():
-    path = Path(__file__).resolve().parents[2] / "kodi-manager/src"
-    if not path.exists():
-        pytest.skip("Optional sibling Manager checkout is unavailable")
+    path = manager_checkout() / "src"
     sys.path.insert(0, str(path))
     return importlib.import_module("kodi_manager.server")
 

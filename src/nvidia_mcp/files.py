@@ -61,18 +61,31 @@ class Files:
         self.c = transport.c
         self.backups = self.c.state / "backups"
 
-    def device_id(self):
+    def device_id(self, strict=False):
         """The Shield's hardware serial (``ro.serialno``), or None when ADB cannot report it.
 
         Private backups are tied to it, so a new DHCP address (and an updated SHIELD_HOST) does
         not orphan earlier snapshots. ``host:port`` stays the fallback for older manifests.
+        ``strict=True`` raises ShieldError(``device_identity_unknown``) instead of returning
+        None, so callers can tell an unreadable identity from a different device.
         """
         # Recheck each operation: an address can be reassigned or ADB can reconnect.
         try:
             value = str(self.t.shell("getprop", "ro.serialno")).strip()
-        except ShieldError:
+        except ShieldError as exc:
+            if strict:
+                raise ShieldError(
+                    f"Android device identity could not be read ({exc.message})",
+                    "device_identity_unknown",
+                ) from None
             value = ""
-        return hardware_identity(value)
+        identity = hardware_identity(value)
+        if strict and not identity:
+            raise ShieldError(
+                "Android device identity could not be read (no hardware serial)",
+                "device_identity_unknown",
+            )
+        return identity
 
     def owner(self):
         """Ownership fields for a new local backup manifest."""
@@ -177,6 +190,9 @@ class Files:
         return backup_id
 
     def write(self, path, data, expected):
+        """Replace a Kodi file after re-checking ``expected``. A failure once the file may have
+        been replaced (the move into place, its cleanup or the readback) raises
+        ``outcome_unknown``; callers add the backup ID that undoes it."""
         target = self.location(path)
         if digest(self.read(path)) != expected:
             raise ShieldError("File changed since inspection; read it again before applying")
@@ -209,9 +225,17 @@ class Files:
                 staging.write_bytes(data)
                 staging.chmod(0o600)
                 push_atomic(self.t, staging, target, mode=mode, before_commit=unchanged)
-        if digest(self.read(path)) != digest(data):
+        try:
+            written = self.read(path)
+        except ShieldError as exc:
             raise ShieldError(
-                "Write verification failed; restore the returned backup before restarting Kodi"
+                f"The file was replaced but could not be read back ({exc.message})",
+                "outcome_unknown",
+            ) from None
+        if digest(written) != digest(data):
+            raise ShieldError(
+                "Write verification failed: the file does not match what was written",
+                "outcome_unknown",
             )
 
     def list_backups(self, limit=50):

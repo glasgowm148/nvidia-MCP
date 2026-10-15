@@ -529,10 +529,14 @@ def push_atomic(transport, source, remote, *, mode=None, before_commit=None, tim
     """Push ``source`` beside ``remote`` under a unique temporary name, optionally chmod it, run
     ``before_commit(temp)`` (which may raise to abandon the push), then ``mv -f`` it into place.
     The temporary file is always removed. Readback of the result is the caller's job.
-    ``timeout`` bounds the push itself; by default it scales with the file size."""
+    ``timeout`` bounds the push itself; by default it scales with the file size.
+
+    Once ``mv`` has been sent, a failure raises ``outcome_unknown``: the move may have
+    replaced ``remote`` even when its reply was lost."""
     if mode is not None and not REMOTE_MODE.fullmatch(mode):
         raise ShieldError("File mode must be octal digits such as 644", "invalid_request")
     temp = str(remote) + ".nvidia-mcp-" + uuid.uuid4().hex
+    committing = False
     try:
         transport.adb(
             "push", str(source), temp, timeout=push_timeout(source) if timeout is None else timeout
@@ -541,9 +545,24 @@ def push_atomic(transport, source, remote, *, mode=None, before_commit=None, tim
             transport.shell("chmod", mode, temp)
         if before_commit is not None:
             before_commit(temp)
+        committing = True
         transport.shell("mv", "-f", temp, str(remote))
+    except ShieldError as exc:
+        if not committing:
+            raise
+        raise ShieldError(
+            f"Moving the uploaded file into place did not confirm ({exc.message}); "
+            "the device file may have been replaced",
+            "outcome_unknown",
+        ) from None
     finally:
-        transport.shell("rm", "-f", temp)
+        try:
+            transport.shell("rm", "-f", temp)
+        except ShieldError:
+            # After a sent mv the temporary file is normally gone, and the outcome is already
+            # reported; before it, the cleanup failure is the error to report.
+            if not committing:
+                raise
 
 
 def remote_sha256(transport, path):

@@ -937,7 +937,18 @@ class Operations:
                     self.force_stop(action)
                     result["stopped_by"] = "force-stop (Kodi HTTP unreachable)"
             if action in ("start", "restart"):
-                self.t.shell("am", "start", "-n", "org.xbmc.kodi/.Splash")
+                try:
+                    self.t.shell("am", "start", "-n", "org.xbmc.kodi/.Splash")
+                except ShieldError as exc:
+                    if action != "restart":
+                        raise
+                    # Kodi is already stopped: this is not a failure with nothing changed.
+                    raise ShieldError(
+                        f"Kodi was stopped ({result.get('stopped_by', 'stopped')}), but starting "
+                        f"it again did not confirm ({exc.message}); it may still be stopped. "
+                        "Check shield_get_status, then start it with kodi_control_lifecycle(action='start')",
+                        "outcome_unknown",
+                    ) from None
                 self.audit("kodi_start", KODI)
             result["note"] = (
                 "Run kodi_get_status to verify startup; launching an activity does not confirm "
@@ -1035,11 +1046,18 @@ class Operations:
         grace = min(self.respawn_grace, self.quit_wait)
         if grace > 0:
             time.sleep(grace)
-        current = self.kodi_pids()
+        not_started = "; it was not started again" if action == "restart" else ""
+        try:
+            current = self.kodi_pids()
+        except ShieldError as exc:
+            raise ShieldError(
+                f"Kodi exited after Application.Quit, but whether Android started it again could "
+                f"not be checked ({exc.message}){not_started}. Check shield_get_status",
+                "stop_unconfirmed",
+            ) from None
         if not current:
             return {}
         new = sorted(current - pids)
-        not_started = "; it was not started again" if action == "restart" else ""
         try:
             _screen, package = foreground_state(self.t)
         except ShieldError as exc:
@@ -1222,7 +1240,13 @@ class Operations:
             backup = self.files.snapshot(path, before)
             try:
                 self.files.write(path, data, expected_sha256)
-            except Exception:
+            except Exception as exc:
+                if getattr(exc, "kind", None) == "outcome_unknown":
+                    raise ShieldError(
+                        f"Patch outcome unknown: {exc.message}. Original backup is {backup}; "
+                        "inspect the current file before restoring",
+                        "outcome_unknown",
+                    ) from None
                 raise ShieldError(
                     "Patch failed; original backup is "
                     + backup
@@ -1242,6 +1266,19 @@ class Operations:
             return self.patch_preview(path, expected_sha256, edits)
         return self.patch_apply(path, expected_sha256, edits)
 
+    def write_with_undo(self, path, data, expected, backup, label):
+        """files.write, naming the undo snapshot when the file may already have changed."""
+        try:
+            self.files.write(path, data, expected)
+        except ShieldError as exc:
+            if exc.kind != "outcome_unknown":
+                raise
+            raise ShieldError(
+                f"{label} outcome unknown: {exc.message}. Undo backup is {backup}; "
+                "inspect the current file before restoring",
+                "outcome_unknown",
+            ) from None
+
     def restore_file(self, backup_id, expected_current_sha256):
         self.writes()
         with self.lock:
@@ -1251,7 +1288,7 @@ class Operations:
             if digest(current) != expected_current_sha256:
                 raise ShieldError("Current checksum differs; restore cancelled")
             safety = self.files.snapshot(path, current)
-            self.files.write(path, data, expected_current_sha256)
+            self.write_with_undo(path, data, expected_current_sha256, safety, "Restore")
             self.audit("restore_file", path, safety)
             return {"path": path, "sha256": digest(data), "undo_backup_id": safety}
 
@@ -1350,7 +1387,17 @@ class Operations:
                 raise ShieldError("Kodi did not confirm the new setting; backup is " + backup)
             self.audit("set_core_setting", setting, backup)
             return self.safe(
-                {"setting": setting, "previous": old, "current": new, "backup_id": backup}
+                {
+                    "setting": setting,
+                    "previous": old,
+                    "current": new,
+                    "backup_id": backup,
+                    # Settings.SetSettingValue changes Kodi's in-memory settings only.
+                    "persisted": False,
+                    "note": "Live in Kodi now. Kodi saves it to guisettings.xml when it next "
+                    "exits cleanly (kodi_control_lifecycle stop/restart or Quit on the TV); a crash, "
+                    "force-stop or power loss before then loses the change.",
+                }
             )
 
     def manager_read(self, area, addon_id=None):
@@ -1584,7 +1631,7 @@ class Operations:
             node.attrib.pop("default", None)
             data = ET.tostring(root, encoding="utf-8", xml_declaration=True)
             backup = self.files.snapshot(path, before)
-            self.files.write(path, data, digest(before))
+            self.write_with_undo(path, data, digest(before), backup, "Setting change")
             self.audit("set_addon_setting", addon_id + ":" + setting, backup)
             return {"changed_count": 1, "backup_id": backup, "restart_required": True}
 

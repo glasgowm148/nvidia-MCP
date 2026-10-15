@@ -40,7 +40,7 @@ filled configuration or print account credentials into diagnostic output.
 | `NVIDIA_MCP_STATE_DIR` | OS user app-data directory | Private snapshots and value-free audit records. Snapshots are tied to the Shield's `ro.serialno` (older ones, or ones taken without ADB, to `SHIELD_HOST:SHIELD_ADB_PORT`), so a new DHCP address keeps them usable |
 | `NVIDIA_MCP_RETENTION_DAYS` | `90` | On start, prune backups older than this beyond the kept count; `0` disables pruning |
 | `NVIDIA_MCP_KEEP_FILE_BACKUPS` | `50` | Newest per-file snapshots always kept |
-| `NVIDIA_MCP_KEEP_APK_BACKUPS` | `3` | Newest *verified* APK recovery bundles always kept. Bundles from attempts that failed before any APK was transferred are pruned after the retention window; a bundle whose install started but did not verify is never pruned |
+| `NVIDIA_MCP_KEEP_APK_BACKUPS` | `3` | Newest *verified* APK recovery bundles always kept. Bundles from attempts that failed before any install command was sent are pruned after the retention window; a bundle whose install command was (or may have been) sent but did not verify is never pruned |
 
 ADB authorization, Kodi HTTP credentials and the Manager bearer token are separate. Use
 `shield_check_connection` and `--doctor` as described in [agent setup](agent-setup.md) to check readiness.

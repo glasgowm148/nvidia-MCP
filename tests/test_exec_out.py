@@ -121,6 +121,21 @@ def test_status_trailer_parsing(tmp_path):
     assert not target.exists()
 
 
+def test_status_trailer_edges(tmp_path):
+    _script, token = checked_script(["cat", "/x"])
+    # A command with no output still prints the newline before the token.
+    assert split_status(b"\n" + token.encode() + b"0\n", token) == (b"", 0)
+    target = tmp_path / "download.bin"
+    for cut in (b"", b"\n", b"1x\n", b"-1\n"):
+        # A stream cut right after the token (or a garbled status) is not a status.
+        with pytest.raises(ShieldError, match="status is unknown"):
+            split_status(b"data\n" + token.encode() + cut, token)
+        target.write_bytes(b"partial\n" + token.encode() + cut)
+        with pytest.raises(ShieldError, match="status is unknown"):
+            strip_status(target, token)
+        assert not target.exists()
+
+
 @pytest.mark.skipif(os.name != "posix" or not shutil.which("sh"), reason="needs a POSIX shell")
 @pytest.mark.parametrize(
     "command,payload,code",

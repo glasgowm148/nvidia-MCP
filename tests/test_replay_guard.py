@@ -3,11 +3,14 @@
 the TV sees: which refusal text comes back, whether Kodi was asked to quit, force-stopped,
 started or sent a key."""
 
+import shlex
+
 import pytest
 from replay import KODI_ROOT, SCENARIOS, ReplayShield, capture, config
 
 from nvidia_mcp.config import ShieldError
 from nvidia_mcp.diagnostics import readiness
+from nvidia_mcp.files import digest
 from nvidia_mcp.operations import Operations
 
 KODI_PLAYING = "Kodi is playing. Wait until viewing has finished"
@@ -221,3 +224,89 @@ def test_connection_check_separates_adb_from_a_killed_kodi(tmp_path):
 def test_kodi_logs_show_where_the_exit_stopped(tmp_path):
     result = tv(tmp_path, "exit_hang").logs(lines=5)
     assert result["lines"].splitlines()[-2].endswith("Stopping all")
+
+
+GUI = f"{KODI_ROOT}/userdata/guisettings.xml"
+ORIGINAL = b'<settings version="2"><setting id="a">1</setting></settings>'
+PATCHED = ORIGINAL.replace(b">1<", b">2<")
+EDIT = [{"before": ">1<", "after": ">2<"}]
+
+
+class LostReply(ReplayShield):
+    """The command runs on the TV, then ADB loses its reply (``fail`` picks the command)."""
+
+    fail = None
+
+    def adb(self, *args, **kwargs):
+        out = super().adb(*args, **kwargs)
+        if self.fail and args[0] == "shell":
+            kind = self.fail(shlex.split(args[1]))
+            if kind:
+                raise ShieldError("ADB lost the reply", kind)
+        return out
+
+
+def after_move(command, kind):
+    """Fail the first ``command`` once ``mv -f`` was sent (the mv itself for "mv")."""
+    state = {"moved": False, "done": False}
+
+    def fail(argv):
+        if state["done"]:
+            return None
+        if argv[:2] == ["mv", "-f"]:
+            state["moved"] = True
+            if command != "mv":
+                return None
+        if state["moved"] and argv[0] == command:
+            state["done"] = True
+            return kind
+        return None
+
+    return fail
+
+
+def stopped_kodi(tmp_path):
+    shield = LostReply(config(tmp_path), "low_memory_kill")
+    shield.kodi_running = False  # File writes need Kodi stopped.
+    shield.files[GUI] = ORIGINAL
+    return Operations(shield), shield
+
+
+@pytest.mark.parametrize(
+    "command,kind",
+    [("mv", "timeout"), ("mv", "offline"), ("readlink", "device_error"), ("readlink", "timeout")],
+)
+def test_a_lost_reply_once_the_file_was_moved_is_outcome_unknown(tmp_path, command, kind):
+    # The file is replaced on the TV: a plain failure (or a not_found refusal) would say
+    # nothing changed. The message names the snapshot that undoes it.
+    ops, shield = stopped_kodi(tmp_path)
+    shield.fail = after_move(command, kind)
+    with pytest.raises(ShieldError) as patch:
+        ops.patch_apply("userdata/guisettings.xml", digest(ORIGINAL), EDIT)
+    assert shield.files[GUI] == PATCHED
+    assert patch.value.kind == "outcome_unknown"
+    backup = ops.files.list_backups()[0]["backup_id"]
+    assert backup in patch.value.message
+
+    shield.fail = after_move(command, kind)
+    with pytest.raises(ShieldError) as restore:
+        ops.restore_file(backup, digest(PATCHED))
+    assert shield.files[GUI] == ORIGINAL
+    assert restore.value.kind == "outcome_unknown"
+    undo = ops.files.list_backups()[0]["backup_id"]
+    assert undo != backup and f"Undo backup is {undo}" in restore.value.message
+
+
+def test_a_lost_cleanup_reply_after_the_move_does_not_fail_the_write(tmp_path):
+    ops, shield = stopped_kodi(tmp_path)
+    shield.fail = after_move("rm", "timeout")
+    result = ops.patch_apply("userdata/guisettings.xml", digest(ORIGINAL), EDIT)
+    assert shield.files[GUI] == PATCHED and result["sha256"] == digest(PATCHED)
+
+
+def test_a_failure_before_the_move_is_still_a_plain_failure(tmp_path):
+    ops, shield = stopped_kodi(tmp_path)
+    shield.fail = lambda argv: "offline" if argv[0] == "chmod" else None
+    with pytest.raises(ShieldError) as error:
+        ops.patch_apply("userdata/guisettings.xml", digest(ORIGINAL), EDIT)
+    assert shield.files[GUI] == ORIGINAL and error.value.kind != "outcome_unknown"

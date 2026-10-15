@@ -216,3 +216,54 @@ def test_the_same_process_still_running_is_still_a_hung_exit(ops):
         ops.lifecycle("stop")
     assert error.value.kind == "exit_hung"
     assert not shell_calls(ops, "am", "force-stop")
+
+
+def test_a_lost_probe_after_the_exit_is_unconfirmed_not_a_plain_failure(ops):
+    # Kodi has exited; only the check for an Android-started replacement lost its reply.
+    shield(ops, exits=True)
+    quit_shell, probes = ops.t.shell, []
+
+    def shell(*args, **kwargs):
+        if args[:2] == ("sh", "-c") and quits(ops):
+            probes.append(args)
+            if len(probes) == 2:  # wait_for_exit saw the exit; this is stop_respawned's probe.
+                raise ShieldError("ADB timed out; check the TV connection", "timeout")
+        return quit_shell(*args, **kwargs)
+
+    ops.t.shell = shell
+    with pytest.raises(ShieldError, match="Kodi exited") as error:
+        ops.lifecycle("restart")
+    assert error.value.kind == "stop_unconfirmed"
+    assert "not started again" in error.value.message
+    assert not ops.t.running and not shell_calls(ops, "am", "start")
+
+
+@pytest.mark.parametrize("kind", ["offline", "timeout"])
+def test_a_failed_start_after_a_restart_quit_says_kodi_was_stopped(ops, kind):
+    shield(ops, exits=True)
+    quit_shell = ops.t.shell
+
+    def shell(*args, **kwargs):
+        if args[:2] == ("am", "start"):
+            raise ShieldError("ADB lost the reply", kind)
+        return quit_shell(*args, **kwargs)
+
+    ops.t.shell = shell
+    with pytest.raises(ShieldError, match="Kodi was stopped") as error:
+        ops.lifecycle("restart")
+    assert error.value.kind == "outcome_unknown"
+    assert quits(ops) and not ops.t.running
+
+
+def test_a_failed_plain_start_keeps_its_own_kind(ops):
+    quit_shell = ops.t.shell
+
+    def shell(*args, **kwargs):
+        if args[:2] == ("am", "start"):
+            raise ShieldError("ADB device is offline", "offline")
+        return quit_shell(*args, **kwargs)
+
+    ops.t.shell = shell
+    with pytest.raises(ShieldError) as error:
+        ops.lifecycle("start")
+    assert error.value.kind == "offline"

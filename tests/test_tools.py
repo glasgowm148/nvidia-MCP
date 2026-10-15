@@ -162,6 +162,18 @@ def test_video_library_reads_get_default_limits(ops):
     assert calls[1]["limits"] == {"start": 10, "end": 510}
 
 
+def test_core_setting_result_says_it_is_saved_only_on_a_clean_exit(ops):
+    # Kodi's Settings.SetSettingValue changes the in-memory value; guisettings.xml is written
+    # when Kodi exits cleanly, so a force-stop or crash before then loses the change.
+    ops.t.running = True
+    guisettings = ops.c.mount / "userdata/guisettings.xml"
+    before = guisettings.read_bytes()
+    result = ops.set_core_setting("audiooutput.passthrough", True)
+    assert result["current"] is True and result["persisted"] is False
+    assert "next exits cleanly" in result["note"] and "force-stop" in result["note"]
+    assert guisettings.read_bytes() == before  # Never written while Kodi runs.
+
+
 def test_missing_rpc_fields_are_friendly(ops):
     ops.t.rpc = lambda method, params=None: [] if method == "Player.GetActivePlayers" else {}
     with pytest.raises(ShieldError, match="returned no 'value'"):
@@ -294,6 +306,7 @@ def test_retention_prunes_stale_bundles_only_while_the_tv_was_untouched(tmp_path
         "failed_before_transfer",
         "preparing",
         "prepared",
+        "failed_before_install",  # APKs pushed, no install command sent.
         "installing",
         "failed_after_transfer",
         "something_new",
@@ -312,9 +325,25 @@ def test_retention_prunes_stale_bundles_only_while_the_tv_was_untouched(tmp_path
     (orphan / "0.apk").write_bytes(b"partial")
     os.utime(orphan, (old, old))
     removed = prune_state(config)
-    assert removed["apk_backups"] == 4
+    assert removed["apk_backups"] == 5
     kept = sorted(p.name for p in bundles.iterdir())
-    assert kept == sorted([f"{3:032x}", f"{4:032x}", f"{5:032x}", recent.name])
+    assert kept == sorted([f"{4:032x}", f"{5:032x}", f"{6:032x}", recent.name])
+
+
+def test_secret_fields_find_nested_json_credentials():
+    content = json.dumps(
+        {
+            "services": [{"name": "trakt", "auth": {"token": "synthetic"}}],
+            "settings": [
+                {"id": "debrid.apikey", "value": "synthetic-key"},
+                {"id": "limit", "value": 20},
+            ],
+        }
+    )
+    found = privacy.secret_fields(content, ".json")
+    assert (("services", 0), "auth", '{"token": "synthetic"}') in found
+    assert (("settings", 0), "value", '"synthetic-key"') in found
+    assert not any(path == ("settings", 1) for path, *_ in found)
 
 
 def test_secret_helpers():

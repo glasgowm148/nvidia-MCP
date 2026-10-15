@@ -12,8 +12,12 @@ import shutil
 import time
 
 PREVIEW_TTL = 600
-# Written before any APK reaches the Shield's installer: the app on the TV is unchanged.
-UNUSED_BUNDLE_STATES = frozenset({"preparing", "prepared", "failed_before_transfer"})
+# Written before any install command reached the Shield's installer: the app on the TV is
+# unchanged. failed_after_transfer (an install command was, or may have been, sent) and
+# installing are kept; so is any status this list does not know.
+UNUSED_BUNDLE_STATES = frozenset(
+    {"preparing", "prepared", "failed_before_transfer", "failed_before_install"}
+)
 
 
 def _age_days(path, now):

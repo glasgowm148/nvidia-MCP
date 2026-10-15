@@ -1,9 +1,29 @@
 import json
+import os
+from pathlib import Path
 
 import pytest
 
 from nvidia_mcp.config import Config, ShieldError
 from nvidia_mcp.operations import Operations
+
+REPO = Path(__file__).resolve().parents[1]
+
+
+def manager_checkout():
+    """The Kodi Manager checkout for parity/integration tests: NVIDIA_MCP_MANAGER_CHECKOUT,
+    else a sibling ../kodi-manager, else ./kodi-manager (where CI checks it out). Skips when
+    none exists, but fails when NVIDIA_MCP_REQUIRE_MANAGER=1 (the CI parity job)."""
+    configured = os.environ.get("NVIDIA_MCP_MANAGER_CHECKOUT")
+    candidates = (
+        [Path(configured)] if configured else [REPO.parent / "kodi-manager", REPO / "kodi-manager"]
+    )
+    for path in candidates:
+        if (path / "src/kodi_manager").is_dir():
+            return path
+    if os.environ.get("NVIDIA_MCP_REQUIRE_MANAGER") == "1":
+        pytest.fail(f"Kodi Manager checkout is required but missing: {candidates}")
+    pytest.skip("Optional sibling Manager checkout is unavailable")
 
 
 class FakeTransport:

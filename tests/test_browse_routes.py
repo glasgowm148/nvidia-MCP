@@ -3,6 +3,7 @@
 from pathlib import Path
 
 import pytest
+from conftest import manager_checkout
 
 from nvidia_mcp.config import ShieldError
 from nvidia_mcp.operations import unsafe_plugin_route
@@ -120,7 +121,5 @@ def test_known_addon_non_folder_items_are_refused(ops):
 
 def test_vendored_route_guard_matches_optional_manager_checkout():
     root = Path(__file__).resolve().parents[1]
-    source = root.parent / "kodi-manager/src/kodi_manager/route_guard.py"
-    if not source.exists():
-        pytest.skip("Optional sibling Manager checkout is unavailable")
+    source = manager_checkout() / "src/kodi_manager/route_guard.py"
     assert source.read_bytes() == (root / "src/nvidia_mcp/route_guard.py").read_bytes()

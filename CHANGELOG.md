@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.5.12 — 2026-10-15 (prerelease)
+
+- An APK install that completed is never recorded as a refusal: an unreadable or changed serial after the install command is `outcome_unknown`; failures before any install command get the prunable `failed_before_install` status; the "installing" status is saved before any pm command.
+- File writes that fail after the device-side move (patch apply, restore, direct add-on settings) are `outcome_unknown` and name the undo backup.
+- Kodi stop/restart report "stopped, not started again" truthfully when a post-exit probe or the start fails.
+- `kodi_set_setting` says the change is live now and persists when Kodi next exits cleanly (Kodi's JSON-RPC does not save settings).
+- CI runs the byte-parity and Manager integration tests against a kodi-manager checkout.
+
 ## 0.5.11 — 2026-10-15 (prerelease)
 
 - Privacy: key-like words inside one quoted value no longer leak the next value (0.5.10 regression); empty values are not secrets; LWP cookie jars are withheld and `Set-Cookie3` values redacted; quadratic redaction patterns are linear.
