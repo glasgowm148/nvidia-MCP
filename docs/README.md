@@ -18,7 +18,7 @@ experimental [Apple TV guide](apple-tv.md). Kodi must already be installed on Ap
 | --- | --- |
 | [Tool reference](tools.md) | Generated tool catalogue, access modes and platform differences |
 | [Configuration](configuration.md) | Environment variables, private storage, playback guards and opt-ins |
-| [Kodi Manager companion](companion.md) | Bundled ZIP, live settings/dashboard, profile tokens and capability boundaries |
+| [Kodi Manager companion](companion.md) | Repository installation, live settings/dashboard, profile tokens and capability boundaries |
 | [Repair workflows](repairs.md) | Diagnose, preview, apply, verify and undo configuration changes |
 | [APK upgrades and recovery](apk-upgrades.md) | SDK tooling, signer checks, previews and recovery bundles |
 | [Compatibility](compatibility.md) | Tested devices/versions and remaining hardware checks |
@@ -32,3 +32,5 @@ experimental [Apple TV guide](apple-tv.md). Kodi must already be installed on Ap
 - [Changelog](../CHANGELOG.md) · [Security and private reports](../SECURITY.md).
 
 [Back to the project](../README.md).
+
+Agent reference: [Android connection commands and limits](android-tv-connection.md).

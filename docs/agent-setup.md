@@ -78,7 +78,7 @@ pairing dialog. Run the installed **absolute MCP executable** with `--pair-adb P
 before pairing; a separately downloaded ADB need not be on PATH. Send the six-digit code plus newline via private stdin. A
 local terminal can use the hidden prompt. Never put the code in arguments, logs, saved config or
 an MCP tool call. Then `adb connect` the connection port; do not use the pairing port for normal
-commands. See [Android TV / Fire TV setup](android-tv.md).
+commands. See [Android connection reference](android-tv-connection.md).
 
 If `get-state` already returns `device`, reuse that authorization without asking again. When a new
 authorization is needed, tell the user to select **Allow** on the TV, wait for their reply and verify

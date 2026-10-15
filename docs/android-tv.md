@@ -1,86 +1,129 @@
-# Android TV, Google TV and Fire TV
+# Set up your Fire TV, Shield or Android TV
 
-nvidia-MCP uses **public Android ADB and Kodi JSON-RPC**, not an NVIDIA connector. The
-server runs on your computer and targets one explicitly configured device. The repository,
-package, command, `shield_*` MCP tool names and `nvidia://` resources keep their existing names
-so current clients continue to work. Python users can import `AndroidTV` or the original `Shield`.
+These steps let an assistant on your computer connect to your TV using **ADB**
+(Android Debug Bridge). You use the TV remote; the assistant handles the computer commands.
+Kodi must already be installed. Put the TV and computer on the same home network.
 
-| Device | Connection | Support boundary |
-| --- | --- | --- |
-| NVIDIA Shield | Network debugging, normally port 5555 | Reference device tested live |
-| Android TV / Google TV boxes | Vendor network debugging or Android Wireless debugging | Synthetic protocol/guard tests; hardware validation still needed |
-| Android-based Fire TV / Firestick (Fire OS) | ADB Debugging, normally port 5555 | Fire launcher, legacy foreground and older process probes covered by synthetic tests |
-| Vega OS Fire TV / Firestick | Different OS and developer tooling | Unsupported by this Android/ADB server; no Kodi Android APK compatibility claim |
+**Only want the Kodi Manager browser dashboard?** Use
+[its installation guide](https://github.com/glasgowm148/kodi-manager/blob/main/docs/setup.md).
+You can skip debugging and this page entirely.
 
-Check the OS rather than relying on the product name. Amazon lists both Android-based Fire OS
-and Vega devices in its [official device/OS table](https://developer.amazon.com/docs/fire-tv/fire-os-overview.html).
-This release does not implement a Vega connector or port Kodi to Vega.
+Choose your device:
 
-## Prepare your device
+- [Fire TV / Firestick](#fire-tv--firestick-fire-os)
+- [NVIDIA Shield](#nvidia-shield)
+- [Android TV / Google TV](#android-tv--google-tv)
+- [Apple TV](apple-tv.md) has a separate setup.
 
-Use the [TV setup guide](setup.md) for the shared Kodi HTTP settings and these device-specific steps.
+## Fire TV / Firestick (Fire OS)
 
-**Fire OS:** find the IP under **Settings → My Fire TV → About → Network** (some models call
-the menu Device). Open **My Fire TV → Developer Options → ADB Debugging**. If Developer Options
-is hidden, select the device entry under About seven times. Approve the computer's debugging
-dialog on the TV after connecting. Unknown-source app installation is only needed when installing
-an APK; it is not required for read-only ADB diagnostics. See
-[Amazon's ADB guide](https://developer.amazon.com/docs/fire-tv/connecting-adb-to-device.html).
+These steps are for **Android-based Fire OS**. Devices using **Vega OS** are unsupported.
+If unsure, check your model in [Amazon's device list](https://developer.amazon.com/docs/fire-tv/fire-os-overview.html).
 
-**Android TV / Google TV:** find the IP in About/Status or the connected Network & Internet
-entry. Unlock Developer options with seven presses on Build (often **System → About →
-Android TV OS build**). Menu names vary by vendor. If a vendor offers **Network debugging**,
-use its displayed port; enabling USB debugging alone does not necessarily open port 5555.
+### 1. Enable ADB Debugging
 
-If **Wireless debugging → Pair device with pairing code** is available, keep that dialog open.
-Android documents wireless debugging for Android 13+ TV devices; vendors can differ. It shows
-a six-digit secret and a **pairing port**. The main Wireless debugging screen shows a separate
-**connection port**. Use current [Google Platform Tools and ADB instructions](https://developer.android.com/tools/adb).
+1. Press **Home** on the remote and open **Settings** (gear icon).
+2. Open **My Fire TV** → **Developer Options**. Some models call My Fire TV **Device**.
+3. If Developer Options is missing, open **My Fire TV** → **About**, highlight your device's name
+   and press the remote's centre/select button **seven times**. Press **Back**; Developer Options should appear.
+4. Open **Developer Options** and turn **ADB Debugging** **On**.
 
-## Configure and pair
+You do not need to change Android's **Install unknown apps** setting for this connection.
 
-Set `ANDROID_TV_HOST` to the device's private IP and `ANDROID_TV_ADB_PORT` to its **connection
-port** (5555 for typical Fire OS/vendor network debugging). The legacy `SHIELD_HOST` and
-`SHIELD_ADB_PORT` work on every supported Android device too. If both names are set, they must
-agree; conflicting targets are rejected. Preserve the remaining [configuration](configuration.md).
-Set `ADB_PATH` to the installed ADB executable. Run the CLI using its virtual environment's absolute
-`nvidia-mcp` path (`nvidia-mcp.exe` on Windows); neither executable needs a global PATH edit.
-Pass these environment values to the CLI too: it does not load `.env` or your MCP client's config.
+### 2. Find the IP address
 
-For code-based Wireless debugging, first run the installed executable with:
+1. Open **Settings** → **My Fire TV** → **About** → **Network**.
+2. Write down **IP Address**. It looks like `192.168.1.50`; use the numbers on your TV.
 
-```text
-nvidia-mcp --pair-adb PAIRING_PORT
-```
+Use the Network page **inside About**, rather than the main Settings → Network page.
+Keep the TV awake. When the assistant connects later, approve **Allow USB debugging**;
+the wording can say USB even over Wi-Fi.
 
-Replace `PAIRING_PORT` with the port from the open pairing dialog. A local terminal prompts for
-the code without echoing it. An agent with a private input mechanism can instead send the code
-plus a newline through subprocess **stdin**. Never put it in a command argument, MCP call, chat
-transcript or saved configuration. Pairing is a computer setup CLI action, not an MCP tool; it
-works with write mode off and does not launch or restart Kodi.
+### 3. Continue with Kodi
 
-Then connect ADB to **IP:CONNECTION_PORT**, verify targeted `get-state` returns `device`, and run
-`nvidia-mcp --doctor`. Pairing success alone is not connection readiness. Wireless debugging
-ports can change after a reboot/toggle; update the connection port and reconnect. Re-pair only
-if authorization was revoked. Do not use discovery or connect to additional devices.
+Go to [step 3: enable Kodi remote control](setup.md#3-enable-kodi-remote-control).
+Fire OS usually uses ADB port **5555**; the assistant checks this.
 
-## Limits and troubleshooting
+## NVIDIA Shield
 
-- Official Android Kodi uses package `org.xbmc.kodi`. Forks such as SPMC or vendor-renamed
-  packages are not supported by the file/lifecycle tools. Do not point the storage root at a fork
-  and expect those tools to target it.
-- File tools need authorized ADB access to Kodi's shared storage, or an explicitly configured
-  mounted path. Firmware storage restrictions may still block access; HTTP diagnostics can work
-  independently. No root or permission bypass is attempted.
-- Known Fire/Google/Android home launchers are recognized. A custom launcher needs its exact
-  package in `NVIDIA_MCP_EXTRA_LAUNCHERS`; do not allowlist a video app as a launcher. Unknown
-  foreground, process or active media state blocks disruptive work. Paused/background audio
-  blocks it too.
-- APK previews check the device's reported SDK, ABIs and signer. A 64-bit CPU can still run a
-  32-bit Android userspace, so CPU marketing alone does not choose the APK. Firmware install
-  restrictions remain possible; live Fire TV APK install/recovery is unverified.
-- Shield-specific profile relaunch patches in `contrib/` are not general Android/Fire TV setup.
-  Kodi Manager's NVIDIA exit workaround remains disabled without NVIDIA's driver.
-- On low-memory sticks, start with a few cached rows/pages and manual refresh in Manager.
-  Background provider refreshes still use CPU, memory and network; hardware performance is
-  unverified. See [compatibility evidence](compatibility.md) and [troubleshooting](troubleshooting.md).
+### 1. Enable Network debugging
+
+1. Press **Home** and open **Settings** → **Device Preferences** → **About**.
+   Older firmware may put About directly under Settings.
+2. Highlight **Build** and press the remote's centre/select button **seven times**,
+   until a message says developer mode is enabled.
+3. Press **Back** and open **Developer options** under Device Preferences.
+4. Scroll to **Debugging** and turn on **Network debugging**. Accept its confirmation.
+
+Choose **Build**, rather than Android version or Kernel version. No USB cable is needed.
+
+### 2. Find the IP address
+
+1. Open **Settings** → **Device Preferences** → **About** → **Status**.
+2. Write down **IP address**: four numbers separated by dots, such as `192.168.1.50`.
+
+If your menu differs, check **Settings** → **Network & Internet** → your connected network.
+Note the debugging port if one is shown; otherwise the assistant starts with **5555**.
+
+### 3. Continue with Kodi
+
+Go to [step 3: enable Kodi remote control](setup.md#3-enable-kodi-remote-control).
+Keep the TV awake so you can approve the computer's connection later.
+
+## Android TV / Google TV
+
+Menus vary between manufacturers. These are the usual names; if a named option is missing,
+tell the assistant your model and the options you can see.
+
+### 1. Enable network or Wireless debugging
+
+1. Press **Home** and open **Settings** → **System** → **About**.
+   Some TVs use **Device Preferences** → **About** instead.
+2. Highlight **Android TV OS build** (sometimes **Build**) and press the remote's centre/select
+   button **seven times**, until developer mode is enabled.
+3. Press **Back** and open **Developer options** under System or Device Preferences.
+4. If you see **Network debugging** or **ADB over network**, turn it on and note any displayed port.
+5. Otherwise, if you see **Wireless debugging**, open it, turn it on and accept the network prompt.
+   Write down its **IP address & port**. In `192.168.1.50:37123`, the IP is `192.168.1.50`
+   and the connection port is `37123`.
+
+**Only USB debugging is available?** Enabling it alone may not allow a network connection.
+Stop here and tell the assistant your model and menu options; do not assume port 5555 works.
+
+### 2. Find the IP address
+
+1. Open **Settings** → **Network & Internet** → your connected Wi-Fi or Ethernet network.
+2. Write down **IP address**. If it is missing, look under **System** → **About** → **Status**.
+   Some TVs use **Device Preferences** → **About** → **Status**.
+
+If Wireless debugging already showed an IP, use that address. Prefer the address with four
+numbers separated by dots rather than a longer address with colons.
+
+### 3. Continue with Kodi, then pair if asked
+
+Go to [step 3: enable Kodi remote control](setup.md#3-enable-kodi-remote-control).
+Tell the assistant whether you enabled Network debugging or Wireless debugging and give it
+the connection port, if shown.
+
+<a id="configure-and-pair"></a>
+
+If pairing is needed, the assistant will ask you to return to **Developer options** →
+**Wireless debugging** → **Pair device with pairing code**. Leave that screen open.
+It shows a six-digit code and a **pairing port**, different from the connection port.
+Enter the code only through the assistant's private input or hidden local terminal prompt.
+The assistant handles pairing and connecting; you do not need to run commands.
+
+## If something does not work
+
+- **No debugging prompt:** keep the TV awake and tell the assistant. It checks the address/port first.
+- **IP changed after restarting:** find it again using your device's step 2 and give the assistant the new value.
+- **Wireless debugging port changed:** give the assistant the new connection port; this can happen after a restart.
+- **Cannot find a menu:** give the assistant the model and exact options shown; avoid changing unrelated settings.
+
+Shield is the live-tested reference device. Fire OS and other Android/Google TV devices still need
+hardware validation; see [compatibility](compatibility.md). For agent commands, storage restrictions
+and connection details, see the [Android connection reference](android-tv-connection.md).
+
+Official references: [Amazon Fire TV ADB](https://developer.amazon.com/docs/fire-tv/connecting-adb-to-device.html),
+[Android Wireless debugging](https://developer.android.com/tools/adb),
+[NVIDIA Shield settings](https://www.nvidia.com/en-us/shield/support/shield-tv-pro/).

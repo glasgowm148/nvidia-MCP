@@ -27,19 +27,28 @@ release does not make an unknown or modified skin writable, and does not install
 
 ## Prepare the TV
 
-1. Have a working tvOS Kodi installation. Find its private LAN IP; open Kodi and leave it active.
-2. Enable Kodi's authenticated HTTP remote control (normally port 8080).
-3. Install the exported Manager ZIP through Kodi's **Install from zip file**, using a private
-   network share/source Kodi can read. No ADB push or Android storage path is used. The computer
-   agent can prepare/export the ZIP; initial installation and security settings use Kodi's UI.
-4. In Manager's Kodi settings, enable **Allow LAN access** (normally port 8765). Apple TV requires
-   direct HTTP; loopback forwarding is unavailable. Enter Manager's token privately into the
-   computer configuration using **Video add-ons → Kodi Manager → Open the dashboard on another device**
-   in Kodi. This shows the full token; the settings field may be masked. The redacted file tool cannot
-   recover that token. Tokens belong to the active profile; update privately after switching.
-5. When ready for paired controls, keep **Settings → Remotes and Devices → Remote App and Devices**
-   open if pairing needs it. Enter each displayed PIN through the agent's private input/hidden
-   terminal. Never paste PINs, credentials or an Apple ID into a public log or an MCP tool call.
+1. Have Kodi installed on your Apple TV HD/4K. In Apple TV's **Settings → Network**, select
+   your connected Wi-Fi or Ethernet network and note its **IP Address**.
+2. Open Kodi. Enable authenticated remote control using [setup step 3](setup.md#3-enable-kodi-remote-control).
+3. For Manager features, follow [companion setup](companion.md#1-install-kodi-manager--on-the-tv)
+   to install from the Kodi repository, enable LAN access and display the token. Keep it private.
+4. Give your assistant the following message. Keep Kodi open while it connects:
+
+   ```text
+   Set up https://github.com/glasgowm148/nvidia-MCP for my Apple TV.
+   TV IP address: YOUR_TV_IP
+   Kodi is installed and HTTP remote control is enabled.
+   Follow docs/apple-tv.md and handle the computer setup.
+   Ask privately for Kodi credentials and the Manager token if needed.
+   Preserve my other MCP servers and keep write mode off.
+   ```
+
+5. When the assistant asks to pair, open Apple TV **Settings → Remotes and Devices →
+   Remote App and Devices**. Keep that screen open. Enter displayed PINs only through private
+   input or the hidden local terminal prompt. Return to Kodi afterward.
+
+The assistant handles dependencies, commands and configuration below. No ADB debugging is needed.
+Tokens belong to the active Kodi profile; after switching profiles, update the token privately.
 
 ## Computer setup (agent performs this)
 

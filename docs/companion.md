@@ -1,48 +1,72 @@
 # Optional Kodi Manager companion
 
-## Two runtimes
+**Kodi Manager is the optional dashboard inside Kodi. nvidia-MCP runs on your computer.**
+You can use core TV/Kodi diagnostics without Manager. Add it when you want the browser dashboard,
+live add-on settings, playback pipeline or supported home-layout tools.
 
-**nvidia-MCP runs on your computer** and offers bounded tools to your assistant. **Kodi Manager runs
-inside Kodi** and supplies the live profile, settings, pipeline and skin APIs. Core MCP diagnostics and
-offline repairs do not require it. Kodi Manager also has a Python client/parser library for applications
-that want these APIs without MCP.
+## 1. Install Kodi Manager — on the TV
 
-The bundled version is **0.7.23** (MCP tools support Kodi Manager 0.4+; widget-cache tools need 0.6+), from the
-[Kodi Manager repository](https://github.com/glasgowm148/kodi-manager). Its ZIP is present in the MCP
-wheel/source distribution and can be exported as a separate ZIP. `--export-manager DIRECTORY` checks the
-pinned SHA-256, refuses to overwrite a different existing file and never connects to the TV.
+If Kodi Manager is already installed and working, keep it and continue at step 2.
+Back up private modifications before choosing to upgrade a customized installation.
 
-Apple TV requires **0.7.17+**. Its initial ZIP installation uses a Kodi-readable network source and Kodi's UI; the token is entered privately from Kodi settings, not extracted through ADB. Follow the [Apple TV guide](apple-tv.md). The setup below describes Android file transfer; forwarding is Android-only.
+1. Open **Kodi → Settings → File manager → Add source**.
+2. Enter `https://glasgowm148.github.io/kodi-manager/` and name it **Kodi Manager**.
+3. Enable **Settings → System → Add-ons → Unknown sources** if needed.
+4. Return to **Add-ons**, open the **open-box icon**, then select **Install from zip file →
+   Kodi Manager → repository.kodi-manager.zip**. Wait for the repository-installed notice.
+5. Select **Install from repository → Kodi Manager Repository (preview) → Services → Kodi Manager → Install**.
 
-## Setup
+See [the full Kodi Manager guide](https://github.com/glasgowm148/kodi-manager/blob/main/docs/setup.md)
+for every menu step. The repository supplies preview releases and uses Kodi's update settings.
+These steps also apply inside Kodi on Apple TV, where support remains experimental.
 
-Complete [TV preparation](setup.md) and [agent computer setup](agent-setup.md) first. The agent handles
-the computer work below; the user only needs TV actions the agent cannot perform through its tools.
+## 2. Open the dashboard — on the TV, then your browser
 
-1. **Agent:** check for an existing supported Manager before proposing installation/replacement. Back
-   up a previous customized installation if an upgrade is requested. Export with the installed server's
-   `--export-manager` command, or download/verify the release ZIP and checksum.
-2. **Agent:** transfer the ZIP to Kodi-accessible storage, using the configured TV's authorized ADB
-   or mounted share. Tell the user its exact location/name on the TV.
-3. **TV:** use **Add-ons → Install from zip file** and select the transferred ZIP. Enable Unknown
-   sources in Kodi's add-on settings if required. Do this while the TV is free. Use Kodi's native
-   installer; copying an unpacked add-on behind Kodi's database is not the installation procedure.
-4. **TV:** in **My add-ons → Services → Kodi Manager → Configure**, enable **Allow LAN access** for
-   direct HTTP/browser access; port defaults to `8765`. No host edit is needed. With
-   `KODI_HTTP_ROUTE=forward`, Manager can remain loopback-only for MCP access. Write mode starts off.
-   The agent can perform TV navigation only when its tools
-   permit it and the user has authorized that interaction.
-5. **Agent:** settings apply immediately; a restart is unnecessary for LAN/write-mode changes. Privately
-   read `auth_token` from the active profile's `addon_data/service.kodi.addonadmin/settings.xml` using
-   available file access. Capture/parse it in a local process without printing it in tool output, then
-   write it to private client configuration. It differs from Kodi HTTP credentials; MCP's redacted
-   file-read output intentionally cannot supply its raw value.
-   If file access is blocked, use **Video add-ons → Kodi Manager → Open the dashboard on another device**
-   on the TV and enter the displayed token through private input. Do not bypass Android storage permissions.
-6. **Agent:** merge `KODI_MANAGER_TOKEN` and optionally `KODI_MANAGER_PORT` into the private MCP client
-   configuration, reload the connection and verify layout/pipeline reads. No user JSON editing is needed.
-7. For requested changes, enable both the Manager service's write mode and `NVIDIA_MCP_ALLOW_WRITES=1`.
-   Inspect a layout preview before applying its immutable preview ID. Plugin browsing has its own opt-in.
+1. Open **Settings → Add-ons → My add-ons → Services → Kodi Manager → Configure → Dashboard**.
+2. Turn on **Allow LAN access**, leave **Enable writes** off, then select **OK**.
+3. Return to Kodi's home screen. Open **Add-ons → Video add-ons → Kodi Manager**.
+4. Select **Open the dashboard on another device**. The TV shows an address and access token.
+5. Open the address in a browser on your phone/computer and enter the token privately.
+
+Keep Kodi running. If you only see Configure, use the
+[token fallback](https://github.com/glasgowm148/kodi-manager/blob/main/docs/setup.md#only-configure-is-available).
+
+## 3. Connect it to your assistant — on the computer
+
+Complete [nvidia-MCP setup](setup.md) first, then tell your assistant:
+
+```text
+Connect my existing Kodi Manager installation to nvidia-MCP.
+Follow docs/companion.md. Obtain the active profile's token privately,
+preserve my existing configuration and verify read-only Manager access.
+Keep write mode and provider browsing off.
+```
+
+### Agent connection procedure
+
+1. Reuse an existing supported Manager. MCP supports Manager 0.4+; widget-cache tools need 0.6+;
+   Apple TV needs 0.7.17+. An older bundled ZIP is not an instruction to downgrade a working install.
+2. Privately read `auth_token` from the active profile's
+   `addon_data/service.kodi.addonadmin/settings.xml` through authorized storage access, without
+   printing it. If unavailable, use the displayed token via private input. The redacted file tool
+   cannot supply the raw token. Do not bypass Android storage permissions.
+3. Merge `KODI_MANAGER_TOKEN` and, if changed, `KODI_MANAGER_PORT` into private client configuration.
+   The default Manager port is `8765`. Preserve other servers/settings and reload the connection.
+4. Verify read-only layout/pipeline access. LAN access changes apply without a Kodi restart.
+   Android's `KODI_HTTP_ROUTE=forward` can keep Manager loopback-only for MCP access;
+   Apple TV needs direct LAN access. A browser on another device needs LAN access enabled.
+5. For requested writes, enable both Manager's **Enable writes** and `NVIDIA_MCP_ALLOW_WRITES=1`.
+   Preview layouts before applying; provider browsing has its own opt-in.
+
+## Offline or pinned ZIP installation
+
+The MCP distribution bundles **Manager 0.7.23**, verified against its pinned SHA-256.
+`nvidia-mcp --export-manager DIRECTORY` exports it on the computer without contacting the TV
+and refuses to overwrite a different file. The agent can transfer it using authorized ADB
+(Android only) or a Kodi-readable share, then identify the exact file for the TV installer.
+Use **Add-ons → Install from zip file** to install it. Apple TV uses a network source.
+Do not copy unpacked add-on files behind Kodi's database. Standalone ZIP updates are manual
+unless the user also adds the repository; keep auto-update off when deliberately pinning a version.
 
 Manager's token and write mode belong to the active Kodi profile. After switching profiles on the TV,
 read that profile's token privately, update the client configuration and reload if necessary. A valid
