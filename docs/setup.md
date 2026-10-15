@@ -16,8 +16,11 @@ Before starting:
   - Browser dashboard only: use [Kodi Manager setup](https://github.com/glasgowm148/kodi-manager/blob/main/docs/setup.md#1-add-the-download-source--inside-kodi).
   - Apple TV: use [its separate guide](apple-tv.md).
 
-Want both? The prompt in step 4 covers the complete setup: nvidia-MCP first, then Kodi Manager.
-You can also give it to your agent before these TV steps; it will guide you through them.
+For guided setup, **[copy the prompt in step 4](#4-give-this-message-to-your-assistant--on-the-computer) first**.
+You do not need to know the IP or finish the TV steps beforehand. The agent asks your TV model,
+gives the matching menu instructions and waits for your answers. It then sets up nvidia-MCP and Manager.
+
+The steps below are a reference if you prefer to prepare the TV yourself.
 
 ## 1. Enable debugging on the TV
 
@@ -59,32 +62,44 @@ This password is for Kodi remote control, separate from streaming accounts and K
 
 ## 4. Give this message to your assistant — on the computer
 
-Copy the whole prompt below. No editing is needed. The agent asks for any missing details,
-sets up nvidia-MCP, then installs and connects Kodi Manager as part of the same request.
+Copy the whole prompt below. **No editing or IP address is needed before you send it.**
+This starts a guided conversation: the agent asks which TV you have, explains where to find the IP
+and how to change the relevant settings, then waits for your reply after each TV step.
+Once preparation is complete, it sets up nvidia-MCP, then installs and connects Kodi Manager.
 
 ```text
-Set up nvidia-MCP and Kodi Manager for my TV:
+Help me set up nvidia-MCP on this computer, then install and connect
+Kodi Manager on my TV:
 https://github.com/glasgowm148/nvidia-MCP
 https://github.com/glasgowm148/kodi-manager
 
 Read nvidia-MCP's docs/agent-setup.md and docs/companion.md first.
-Ask for missing device/connection details and guide me through any TV preparation.
+If not already known, first ask which TV/device I use. Do not assume I
+know its IP address or have enabled debugging. Ask one short question
+at a time. Explain the exact menus for my device, what to select and
+what information to read back. Guide my device's TV preparation, including
+debugging where applicable, finding its IP and enabling Kodi HTTP control.
+For Apple TV, use the separate tvOS instructions. If a menu differs,
+ask what I see. Wait for my reply before moving to the next TV step.
+Do not invent connection details or scan my network.
 
-1. Install and configure nvidia-MCP on this computer. Verify the actual MCP
-   connection can read my TV and Kodi before continuing.
+Once TV preparation is ready:
+1. Install and configure nvidia-MCP. Verify the actual MCP connection
+   can read my TV and Kodi before continuing.
 2. Install Kodi Manager from https://glasgowm148.github.io/kodi-manager/
-   using Kodi's native installer. Reuse supported existing installations and
-   back up customizations before any replacement.
-3. Connect the active profile's Manager token privately. Enable dashboard LAN
-   access, give me its browser address, and verify read-only Manager access.
+   using Kodi's native installer. Reuse supported existing installations
+   and back up customizations before any replacement.
+3. Connect the active profile's Manager token privately. Enable dashboard
+   LAN access, give me its browser address and verify read-only Manager access.
 
 Handle computer commands, downloads and supported TV navigation yourself.
-Ask me only for private credentials, pairing/permission prompts or TV steps
-that your tools cannot complete. Keep passwords, tokens and pairing codes private.
-Preserve my other MCP servers and settings. Target only my specified TV and
-never interrupt playback. Enable only writes needed for setup; finish with
-write mode and provider browsing off.
-Complete both stages without asking me to send a second setup prompt.
+Ask me for details or TV actions your tools cannot obtain or complete.
+Request passwords, tokens and pairing codes only through private input.
+Preserve my other MCP servers and settings. Target only my specified TV
+and never interrupt playback. Enable only writes needed for setup;
+finish with write mode and provider browsing off.
+Continue both setup stages in this conversation, waiting for my replies
+whenever information or permission is needed.
 ```
 
 You do not need to know Python, ADB commands or the MCP configuration format.

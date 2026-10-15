@@ -11,6 +11,7 @@
 
 <p align="center">
   <a href="#quick-start">Quick start</a> ·
+  <a href="#one-prompt-for-both">Agent setup prompt</a> ·
   <a href="#what-you-can-do">Features</a> ·
   <a href="#optional-kodi-manager-companion">Kodi Manager</a> ·
   <a href="#documentation">Documentation</a>
@@ -20,6 +21,9 @@
 assistant inspect Kodi, diagnose playback problems, preview repairs and apply changes with backups.
 It uses public ADB and Kodi HTTP interfaces on NVIDIA Shield, Android TV, Google TV and Android-based
 Fire TV. Apple TV support is experimental. No cloud account is required for the server.
+
+**Start here:** [Copy the guided setup prompt](#one-prompt-for-both).
+You do not need the TV's IP yet; the agent explains where to find it.
 
 > [!NOTE]
 > **0.5.10 prerelease.** Read-only by default. Live evidence comes from one customized Shield;
@@ -45,55 +49,74 @@ it installs Python 3.11+ and other tools if needed. A browser chat alone cannot 
 
 1. **Give your agent one prompt.**
    - Copy the [complete setup request](#one-prompt-for-both) below.
-   - It covers nvidia-MCP and Kodi Manager, including missing tools and connection checks.
-2. **Follow any TV preparation steps it asks for.**
-   - Enable debugging using the [Firestick / Fire TV](docs/android-tv.md#fire-tv--firestick-fire-os),
-     [NVIDIA Shield](docs/android-tv.md#nvidia-shield) or
-     [Android TV / Google TV](docs/android-tv.md#android-tv--google-tv) guide.
-   - Find the TV's IP address using step 2 in that same guide.
-   - Enable [Kodi remote control](docs/setup.md#3-enable-kodi-remote-control).
+   - No IP address or technical checklist is needed before you start.
+2. **Answer the agent's questions.**
+   - It asks which TV/device you use and gives the matching menu steps.
+   - It explains how to find the IP, enable debugging where applicable, and enable Kodi remote control.
+   - Reply after each step; the agent waits before continuing.
 3. **Approve the connection and let setup finish.**
-   - Select **Allow** on the TV when asked, or enter a pairing code privately.
+   - Select **Allow** on the TV when asked, or enter a pairing code through private input.
    - The agent verifies nvidia-MCP, then installs and connects Kodi Manager.
    - Once it confirms both work, ask: **“Read the Kodi repair playbook and audit Kodi without interrupting anything.”**
 
 ### One prompt for both
 
-Copy this into an agent that can run commands and edit files on your computer.
-No editing is needed; it asks for missing TV details and walks you through any TV prompts.
+Use an assistant that can run commands, edit files and use local MCP tools on your computer.
+Have Kodi installed, keep your TV remote handy, and connect the TV and computer to the same home network.
+
+- **Copy and paste.**
+  - Expand **Show the setup prompt to copy** below and copy the whole text box into your agent.
+  - No editing is needed. **You do not need to know the TV's IP address yet.**
+- **Follow the conversation.**
+  - The agent asks which TV you have, then explains the relevant settings and IP-address menus.
+  - Reply after each step. It waits for missing details and permission prompts before continuing.
+  - One prompt starts the setup; you will still answer questions and use the TV remote when needed.
 
 <details>
-<summary><strong>Copy the complete setup prompt</strong></summary>
+<summary><strong>Show the setup prompt to copy</strong></summary>
 
 ```text
-Set up nvidia-MCP and Kodi Manager for my TV:
+Help me set up nvidia-MCP on this computer, then install and connect
+Kodi Manager on my TV:
 https://github.com/glasgowm148/nvidia-MCP
 https://github.com/glasgowm148/kodi-manager
 
 Read nvidia-MCP's docs/agent-setup.md and docs/companion.md first.
-Ask for missing device/connection details and guide me through any TV preparation.
+If not already known, first ask which TV/device I use. Do not assume I
+know its IP address or have enabled debugging. Ask one short question
+at a time. Explain the exact menus for my device, what to select and
+what information to read back. Guide my device's TV preparation, including
+debugging where applicable, finding its IP and enabling Kodi HTTP control.
+For Apple TV, use the separate tvOS instructions. If a menu differs,
+ask what I see. Wait for my reply before moving to the next TV step.
+Do not invent connection details or scan my network.
 
-1. Install and configure nvidia-MCP on this computer. Verify the actual MCP
-   connection can read my TV and Kodi before continuing.
+Once TV preparation is ready:
+1. Install and configure nvidia-MCP. Verify the actual MCP connection
+   can read my TV and Kodi before continuing.
 2. Install Kodi Manager from https://glasgowm148.github.io/kodi-manager/
-   using Kodi's native installer. Reuse supported existing installations and
-   back up customizations before any replacement.
-3. Connect the active profile's Manager token privately. Enable dashboard LAN
-   access, give me its browser address, and verify read-only Manager access.
+   using Kodi's native installer. Reuse supported existing installations
+   and back up customizations before any replacement.
+3. Connect the active profile's Manager token privately. Enable dashboard
+   LAN access, give me its browser address and verify read-only Manager access.
 
 Handle computer commands, downloads and supported TV navigation yourself.
-Ask me only for private credentials, pairing/permission prompts or TV steps
-that your tools cannot complete. Keep passwords, tokens and pairing codes private.
-Preserve my other MCP servers and settings. Target only my specified TV and
-never interrupt playback. Enable only writes needed for setup; finish with
-write mode and provider browsing off.
-Complete both stages without asking me to send a second setup prompt.
+Ask me for details or TV actions your tools cannot obtain or complete.
+Request passwords, tokens and pairing codes only through private input.
+Preserve my other MCP servers and settings. Target only my specified TV
+and never interrupt playback. Enable only writes needed for setup;
+finish with write mode and provider browsing off.
+Continue both setup stages in this conversation, waiting for my replies
+whenever information or permission is needed.
 ```
 
 </details>
 
 - **Full instructions**
-  - [Start-to-finish setup](docs/setup.md).
+  - [TV menu steps](docs/setup.md), if you prefer to prepare the TV yourself.
+  - [Firestick / Fire TV](docs/android-tv.md#fire-tv--firestick-fire-os),
+    [Shield](docs/android-tv.md#nvidia-shield) and
+    [Android TV / Google TV](docs/android-tv.md#android-tv--google-tv).
   - [Apple TV setup](docs/apple-tv.md), experimental.
   - [Troubleshooting](docs/troubleshooting.md).
 

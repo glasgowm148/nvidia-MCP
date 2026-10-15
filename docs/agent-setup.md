@@ -1,9 +1,29 @@
 # Agent setup procedure
 
-These instructions are **for the agent on the computer**. The user completes [TV preparation](setup.md)
-first. Handle downloads, installation, commands, paths, client configuration and verification yourself;
-do not give the user a terminal/JSON checklist. You need local file/terminal access and network access.
-Ask for missing information or an unavoidable TV/OS/client interaction, then continue the remaining work.
+These instructions are **for the agent on the computer**. The combined prompt starts a guided
+conversation; the user may not know the TV's IP or have completed [TV preparation](setup.md).
+Guide those TV steps first where needed. Handle computer downloads, installation, commands,
+paths, client configuration and verification yourself; do not hand the user a terminal/JSON checklist.
+You need local file/terminal access and network access.
+
+## Guide the user before connecting
+
+- **Start with the device.**
+  - Reuse details already supplied. Otherwise ask one short question: “Which TV or streaming device are you using?”
+  - Identify the model/OS before choosing [Fire TV, Shield or Android TV menus](android-tv.md).
+  - Follow the separate Apple TV route below where applicable; Vega OS is unsupported.
+- **Walk through TV preparation one step at a time.**
+  - Give the exact menu path for that device, what to select and what to report back.
+  - On Android/Fire OS, guide enabling the appropriate debugging option, then finding the TV's IP and any displayed port.
+  - Apple TV uses its separate preparation route and has no ADB debugging step.
+  - For example, on Fire OS: “Open Settings → My Fire TV → About → Network. What IP Address is shown?”
+  - Then guide Kodi's HTTP control settings. Request credentials only through private input.
+  - Do not ask the user to supply an IP, ADB mode and ports as an unexplained technical checklist.
+- **Wait for the answer.**
+  - Do not connect using guessed details or continue past an unapproved pairing/permission prompt.
+  - If a menu differs, ask what options are visible and adapt; do not keep repeating the same path.
+  - You can check existing computer tools while waiting, but dependent steps must wait for the user's reply.
+  - Continue in this conversation once they reply; asking a question does not end the combined setup.
 
 For **Apple TV**, follow [Apple TV computer setup](apple-tv.md#computer-setup-agent-performs-this) instead of the ADB steps below. Preserve an existing Shield server entry; configure Apple TV as a separate instance. Install the optional dependency, pair both protocols privately, merge credentials and verify read-only tools. The user handles Kodi installation/security settings and private PIN/token entry.
 
@@ -11,7 +31,8 @@ For **Apple TV**, follow [Apple TV computer setup](apple-tv.md#computer-setup-ag
 
 - Identify the OS/architecture, the MCP client to configure and its existing installation/configuration.
   Use the current client if known; ask which client only if it cannot be determined.
-- Obtain the device model/OS, ADB mode/connection port and private LAN IP and Kodi HTTP port from the user. Request Kodi credentials through
+- Gather the device model/OS, ADB mode/connection port, private LAN IP and Kodi HTTP port through
+  the guided questions above. Do not ask again for confirmed details. Request Kodi credentials through
   the client's private/secret mechanism where available. Do not log, echo or commit credentials.
 - Check existing Python, Git and ADB installations before downloading replacements. Use Python **3.11+**
   and a dedicated virtual environment; preserve the user's system Python and other projects.
