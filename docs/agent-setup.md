@@ -14,11 +14,18 @@ You need local file/terminal access and network access.
   - Follow the separate Apple TV route below where applicable; Vega OS is unsupported.
 - **Walk through TV preparation one step at a time.**
   - Give the exact menu path for that device, what to select and what to report back.
-  - On Android/Fire OS, guide enabling the appropriate debugging option, then finding the TV's IP and any displayed port.
+  - On Android/Fire OS, guide enabling the appropriate debugging option, then finding the TV's IP.
   - Apple TV uses its separate preparation route and has no ADB debugging step.
   - For example, on Fire OS: “Open Settings → My Fire TV → About → Network. What IP Address is shown?”
   - Then guide Kodi's HTTP control settings. Request credentials only through private input.
   - Do not ask the user to supply an IP, ADB mode and ports as an unexplained technical checklist.
+- **Separate connection questions.**
+  - Ask for the TV's IP address alone, then wait for the answer before asking about a required port.
+  - Do not append an optional port question to the IP question, or ask for an unexplained IP:port pair.
+  - Explain the relevant menu when asking about the port. If no port is shown, use the documented
+    device-specific default where appropriate; do not invent one.
+  - Ask about the ADB connection port, Wireless debugging pairing port and Kodi HTTP port in separate replies.
+  - Reuse details already supplied instead of asking again.
 - **Wait for the answer.**
   - Do not connect using guessed details or continue past an unapproved pairing/permission prompt.
   - If a menu differs, ask what options are visible and adapt; do not keep repeating the same path.
