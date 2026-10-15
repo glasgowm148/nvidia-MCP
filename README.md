@@ -160,7 +160,7 @@ live add-on settings, playback pipeline inspection and supported Bingie layout e
 
 ![Captioned Kodi Manager walkthrough: search for quality, open the matching add-on and compare the saved value with its default](https://raw.githubusercontent.com/glasgowm148/kodi-manager/main/docs/media/settings-demo.gif)
 
-[Download the shareable MP4](https://github.com/glasgowm148/kodi-manager/blob/main/docs/media/settings-demo.mp4) · [Text walkthrough and captions](https://github.com/glasgowm148/kodi-manager/blob/main/docs/demo.md)
+[Download the shareable MP4](https://github.com/glasgowm148/kodi-manager/raw/refs/heads/main/docs/media/settings-demo.mp4) · [Text walkthrough and captions](https://github.com/glasgowm148/kodi-manager/blob/main/docs/demo.md)
 
 *This shows the optional browser dashboard. Silent, edited capture with synthetic data in view-only mode; no TV was connected.*
 
