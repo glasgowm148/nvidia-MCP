@@ -222,7 +222,7 @@ def test_retry_through_a_new_forward_happens_only_once(tmp_path):
 
 
 @pytest.mark.parametrize(
-    "failure,manager,dropped",
+    "failure,manager,unreachable",
     [
         # The request may have been delivered: never resend it.
         (httpx.RemoteProtocolError, False, True),
@@ -232,7 +232,7 @@ def test_retry_through_a_new_forward_happens_only_once(tmp_path):
         (httpx.WriteError, True, False),
     ],
 )
-def test_failure_after_connect_is_never_retried(tmp_path, failure, manager, dropped):
+def test_failure_after_connect_is_never_retried(tmp_path, failure, manager, unreachable):
     attempts = []
 
     def fail(message, request):
@@ -250,10 +250,11 @@ def test_failure_after_connect_is_never_retried(tmp_path, failure, manager, drop
             else:
                 transport.rpc("Player.Stop", {"playerid": 1})
         assert attempts == [41234]
-        assert (error.value.kind == "unreachable") is dropped
-        if dropped:  # An unreachable forward is still dropped for the next call.
-            assert transport.rpc("JSONRPC.Ping") == "pong"
-            assert sent == [(41235, "POST", "/jsonrpc")]
+        assert (error.value.kind == "unreachable") is unreachable
+        # The forward accepted the connection, so it works (Kodi/Manager is down behind it):
+        # it is kept rather than torn down and recreated.
+        assert transport.forward_port == 41234 or transport.manager_forward_port == 41234
+        assert not [c for c in calls if c[:2] == ("forward", "--remove")]
     finally:
         transport.close()
 
@@ -585,3 +586,27 @@ def test_widget_cache_only_reports_old_manager_for_missing_routes(ops):
         ops.t.manager = transport.manager
         with pytest.raises(ShieldError, match=expected):
             ops.widget_cache()
+
+
+def test_stale_forward_is_removed_outside_the_route_lock(tmp_path):
+    dead = set()
+    transport, calls, sent = reforwarding_transport(tmp_path, dead)
+    adb, held = transport.adb, []
+
+    def checking_adb(*args, **kwargs):
+        if args[:2] == ("forward", "--remove"):
+            free = transport._route_lock.acquire(blocking=False)
+            held.append(not free)
+            if free:
+                transport._route_lock.release()
+        return adb(*args, **kwargs)
+
+    transport.adb = checking_adb
+    try:
+        transport.rpc("JSONRPC.Ping")
+        dead.add(41234)
+        assert transport.rpc("JSONRPC.Ping") == "pong"
+        assert held == [False]
+    finally:
+        transport.adb = adb
+        transport.close()

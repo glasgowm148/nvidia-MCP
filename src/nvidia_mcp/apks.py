@@ -15,12 +15,30 @@ from pathlib import Path, PurePosixPath
 
 from .android_tools import inspect_set, sha256_file
 from .config import ShieldError, fingerprint
-from .transport import TRAILER, checked_script, strip_status
+from .transport import TRAILER, checked_script, push_timeout, strip_status
 
 MAX_BACKUP = 2_000_000_000
 # Regenerable caches. Thumbnails alone often exceed the backup limit on real libraries.
 SNAPSHOT_EXCLUDES = ("userdata/Thumbnails", "addons/packages", "addons/temp")
 TTL = 600
+# Failure kinds that keep their own kind once installation has started: the TV guard refused
+# before any pm command, Android/verification gave an explicit answer (``unknown``: "Android
+# rejected the install", a checksum mismatch), or a different device answered
+# (``device_mismatch``: nothing more is sent to it). Any other failure (a lost connection, adb
+# error, timeout ...) leaves the app state unknown.
+INSTALL_REFUSALS = frozenset(
+    {
+        "unknown",
+        "playing",
+        "other_app_playing",
+        "other_app_foreground",
+        "app_running",
+        "asleep",
+        "kodi_stopped",
+        "playback_unknown",
+        "device_mismatch",
+    }
+)
 
 
 def private_dir(path):
@@ -417,7 +435,8 @@ class ApkOperations:
                     remote = f"/data/local/tmp/nvidia-mcp-{preview_id}-{index}.apk"
                     remotes.append(remote)
                     attempted = True
-                    self.t.adb("push", source, remote, timeout=180)
+                    # Scales with the APK size; never below the former fixed three minutes.
+                    self.t.adb("push", source, remote, timeout=max(180, push_timeout(source)))
                     actual = self.t.shell("sha256sum", remote).split()
                     if not actual or actual[0].lower() != plan["items"][index]["sha256"]:
                         raise ShieldError("Transferred APK checksum failed")
@@ -474,10 +493,17 @@ class ApkOperations:
                         "not changed; the partial recovery bundle was removed.",
                         kind,
                     ) from None
-                if installing and kind in ("timeout", "response_timeout"):
-                    # pm keeps going after its caller gives up: the app may still be replaced.
+                if installing and (
+                    not isinstance(exc, ShieldError) or kind not in INSTALL_REFUSALS
+                ):
+                    # pm keeps going after its caller gives up, and a lost connection does not
+                    # say whether it ran: the app may have been, or may still be, replaced.
+                    reason += (
+                        " (the installation may still complete)"
+                        if kind in ("timeout", "response_timeout")
+                        else " (the installation may have completed)"
+                    )
                     kind = "outcome_unknown"
-                    reason += " (the installation may still complete)"
                 raise ShieldError(
                     f"APK change failed: {reason}. Recovery bundle {backup_id}. Inspect current app state before recovery; no automatic retry or uninstall.",
                     kind,

@@ -525,13 +525,14 @@ def test_start_offline_still_requires_both_opt_ins(apple, kind):
     assert ops.lifecycle("start", interrupt_other_app=True)["state"] == "launch_requested"
 
 
+@pytest.mark.parametrize("quit_kind", ["response_timeout", "invalid_response"])
 @pytest.mark.parametrize("action", ["stop", "restart"])
-def test_kodi_stalling_while_it_exits_is_not_a_refused_quit(apple, action):
+def test_kodi_stalling_while_it_exits_is_not_a_refused_quit(apple, action, quit_kind):
     ops, transport = apple
     ops.quit_poll = 0
     # A response_timeout means Kodi accepted the connection, then stalled while exiting.
     stalls = {
-        "Application.Quit": ["response_timeout"],
+        "Application.Quit": [quit_kind],
         "JSONRPC.Version": ["response_timeout", "unreachable"],
     }
     rpc = transport.rpc

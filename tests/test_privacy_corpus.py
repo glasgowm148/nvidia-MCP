@@ -2,6 +2,7 @@
 
 import json
 import re
+import time
 from pathlib import Path
 
 import pytest
@@ -296,3 +297,107 @@ def test_personal_api_keys_are_secret(setting):
 def test_cookie_files_are_withheld():
     jar = "# Netscape HTTP Cookie File\n.example.com\tTRUE\t/\tTRUE\t1999999999\tsid\tFAKE16\n"
     assert "FAKE16" not in privacy.file_text(jar)
+
+
+# A key-like word inside one quoted value must not pair with the next value's opening quote.
+@pytest.mark.parametrize(
+    "raw,redacted",
+    [
+        ('prompt="Enter PIN:" pin="1234"', 'prompt="Enter PIN:" pin="[redacted]"'),
+        (
+            'DEBUG: dialog heading="Trakt token:" token="abcd1234efgh"',
+            'DEBUG: dialog heading="Trakt token:" token="[redacted]"',
+        ),
+        ("label='API key:' api_key='sk-123456'", "label='API key:' api_key='[redacted]'"),
+        ('msg="user=" password="hunter2"', 'msg="user=" password="[redacted]"'),
+        (
+            '<x heading="Password:" password="hunter2"/>',
+            '<x heading="Password:" password="[redacted]"/>',
+        ),
+        ('token="abc def"', 'token="[redacted]"'),
+        ('auth: "Bearer x" foo', 'auth: "[redacted]" foo'),
+        ('{"x": "key: \\"abc def\\""}', '{"x": "key: \\"[redacted]\\""}'),
+        ('\\"password\\":\\"abc\\\\\\"def\\"', '\\"password\\":\\"[redacted]\\"'),
+        ('Debug: user=" Some Movie (2020)" played', 'Debug: user="[redacted]" played'),
+    ],
+)
+def test_quoted_values_do_not_pair_across_values(raw, redacted):
+    assert privacy.text(raw) == redacted
+    assert privacy.text(redacted) == redacted
+
+
+@pytest.mark.parametrize(
+    "raw",
+    [
+        '{"label": "Password:", "value": "visible", "other": "keep me"}',
+        '{"label": "Trakt account: ", "id": "x"}',
+        '{"help": "Set token=", "enabled": true, "name": "Fen"}',
+        '<string id="30001">Username:</string><string id="30002">"Server"</string>',
+        'msg="Enter pin: " title="Kodi Movies" year="2020"',
+        '{"label": "API key: ", "path": "/storage/a b", "name": "z"}',
+    ],
+)
+def test_labels_mentioning_secrets_are_kept(raw):
+    assert privacy.text(raw) == raw
+    assert not privacy.contains_secret(raw)
+
+
+@pytest.mark.parametrize(
+    "line", ["password = ''", 'password=""', "pin=''", '"password": ""', "{'token': ''}"]
+)
+def test_empty_secret_values_are_not_secrets(line):
+    # Patches that only touch an empty default must not be refused as secret edits.
+    assert not privacy.contains_secret(line)
+    assert privacy.text(line) == line
+
+
+def test_empty_value_does_not_hide_the_next_secret():
+    assert privacy.text('password="" token="abc"') == 'password="" token="[redacted]"'
+
+
+ADVERSARIAL = {
+    "quotes": '"' * 100_000,
+    "backslash_quotes": '\\"' * 50_000,
+    "unclosed_token": 'token="\\x' * 11_000,
+    "escaped_pairs": '\\"a\\":\\"' * 11_000,
+    "key_runs": "token" * 20_000,
+    "segment_runs": "a.pin" * 20_000,
+    "label_runs": 'x="Enter PIN:" ' * 6_500,
+    "mixed": 'password="a b\\" ' * 6_000,
+}
+
+
+@pytest.mark.parametrize("name", sorted(ADVERSARIAL))
+def test_redaction_is_linear_on_adversarial_input(name):
+    sample = ADVERSARIAL[name]
+    start = time.perf_counter()
+    privacy.text(sample)
+    privacy.file_text(sample)
+    assert time.perf_counter() - start < 5.0
+
+
+LWP_JAR = (
+    "#LWP-Cookies-2.0\n"
+    'Set-Cookie3: ckns_atkn="SECRETVALUE/abc+def=="; path="/"; domain=.bbc.co.uk; path_spec;'
+    ' domain_dot; secure; expires="2026-10-15 14:28:40Z"; version=0\n'
+    'Set-Cookie3: ckns_id=IDTOKENSECRET123; path="/"; domain=.bbc.co.uk; version=0\n'
+)
+
+
+def test_lwp_cookie_files_are_withheld():
+    assert privacy.file_text(LWP_JAR) == "[Cookie file; contents withheld]"
+
+
+@pytest.mark.parametrize(
+    "line,secret",
+    [
+        ('Set-Cookie3: session="abc/def+ghi="; path="/"', "abc/def+ghi="),
+        ('Set-Cookie3: ckns_rtkn="r3fr3sh/T0KEN=="; domain=.bbc.co.uk', "r3fr3sh/T0KEN=="),
+        ("Set-Cookie3: ckns_id=IDTOKENSECRET123; path=/", "IDTOKENSECRET123"),
+        ("Set-Cookie: sid=abc123def; Path=/", "abc123def"),
+    ],
+)
+def test_set_cookie_values_are_redacted(line, secret):
+    for clean in (privacy.text(line), privacy.file_text(line), privacy.text(LWP_JAR)):
+        assert secret not in clean
+    assert privacy.text(privacy.text(line)) == privacy.text(line)

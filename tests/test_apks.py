@@ -637,3 +637,48 @@ def test_push_timeout_keeps_timeout_kind(apk_env):
     with pytest.raises(ShieldError, match="Recovery bundle") as caught:
         ops.apks.apply(preview["preview_id"])
     assert caught.value.kind == "timeout"
+
+
+@pytest.mark.parametrize(
+    "kind", ["unreachable", "offline", "device_error", "invalid_response", "storage_error"]
+)
+def test_any_connection_failure_once_installing_is_outcome_unknown(apk_env, kind):
+    ops, device, candidate = apk_env
+    preview = ops.apks.preview([candidate()])
+    original = device.shell
+
+    def shell(*args, **kwargs):
+        if args[:2] == ("pm", "install"):
+            raise ShieldError("ADB connection lost", kind)
+        return original(*args, **kwargs)
+
+    device.shell = shell
+    with pytest.raises(ShieldError, match="may have completed") as caught:
+        ops.apks.apply(preview["preview_id"])
+    assert caught.value.kind == "outcome_unknown"
+
+
+def test_android_rejecting_the_install_keeps_its_outcome(apk_env):
+    ops, device, candidate = apk_env
+    preview = ops.apks.preview([candidate()])
+    device.install_result = "Failure [INSTALL_FAILED_VERSION_DOWNGRADE]"
+    with pytest.raises(ShieldError, match="Android rejected the install") as caught:
+        ops.apks.apply(preview["preview_id"])
+    assert caught.value.kind != "outcome_unknown"
+
+
+def test_apk_push_timeout_scales_with_size(apk_env, monkeypatch):
+    ops, device, candidate = apk_env
+    preview = ops.apks.preview([candidate()])
+    monkeypatch.setattr(apks, "push_timeout", lambda source: 600)
+    timeouts = []
+    adb = device.adb
+
+    def recording(*args, **kwargs):
+        if args[0] == "push":
+            timeouts.append(kwargs.get("timeout"))
+        return adb(*args, **kwargs)
+
+    device.adb = recording
+    ops.apks.apply(preview["preview_id"])
+    assert timeouts == [600]

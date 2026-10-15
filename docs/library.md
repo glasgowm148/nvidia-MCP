@@ -21,7 +21,7 @@ checksum-verified file push are the same code, not re-implementations.
 ```python
 from nvidia_mcp import AndroidTV, Config, ShieldError
 
-config = Config(host="192.168.1.50", password="...", allow_writes=True)
+config = Config(host="192.168.1.50", username="kodi", password="...", allow_writes=True)
 with AndroidTV(config, kodi_route="auto") as tv:
     state = tv.viewing_state()
     if state["verdict"] in ("idle", "screensaver", "asleep"):

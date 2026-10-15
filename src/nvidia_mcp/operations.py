@@ -14,7 +14,7 @@ from urllib.parse import parse_qs, unquote, urlsplit
 
 from defusedxml.ElementTree import fromstring
 
-from . import privacy
+from . import privacy, route_guard
 from .apks import ApkOperations
 from .config import ShieldError
 from .files import MAX_FILE, Files, digest, relative
@@ -169,7 +169,15 @@ def unsafe_words(value):
 
 
 def unsafe_plugin_route(url):
-    """Words in a plugin:// path or query that suggest playback, auth or a mutating utility."""
+    """Words in a plugin:// path or query that suggest playback, auth or a mutating utility.
+
+    Add-ons Kodi Manager knows (POV, Fen, TMDb Helper, BBC iPlayer ...) are checked by the
+    vendored ``route_guard`` against an allowlist of their listing routes instead: their action
+    routes are numbered or named in ways no word list catches (iPlayer ``mode=119`` signs out).
+    """
+    if urlsplit(url).netloc.lower() in route_guard.KNOWN_ROUTES:
+        reason = route_guard.blocked_reason(url)
+        return [reason] if reason else []
     p = urlsplit(url)
     found = unsafe_words(p.path)
     for key, values in parse_qs(p.query, keep_blank_values=True).items():
@@ -557,8 +565,8 @@ class Operations:
         Offline file edits need a stopped Kodi (``stopped``) instead.
 
         Overrides are model-controlled, so they are honoured only with
-        NVIDIA_MCP_ALLOW_INTERRUPT=1 (``allow_offline`` with NVIDIA_MCP_ALLOW_OFFLINE_RECOVERY=1). ``allow_playback`` (shield_remote's
-        allow_during_playback) skips every viewing check. ``allow_other_app`` (kodi_lifecycle's
+        NVIDIA_MCP_ALLOW_INTERRUPT=1 (``allow_offline`` with NVIDIA_MCP_ALLOW_OFFLINE_RECOVERY=1). ``allow_playback`` (shield_send_button's
+        allow_during_playback) skips every viewing check. ``allow_other_app`` (kodi_control_lifecycle's
         interrupt_other_app) skips only the checks for other apps: Kodi's own playback is still
         refused. ``override_flag`` names the tool's flag for error messages, if it has one.
         ``check_http=False`` is only for a Kodi that is already exiting (its HTTP server is
@@ -932,7 +940,7 @@ class Operations:
                 self.t.shell("am", "start", "-n", "org.xbmc.kodi/.Splash")
                 self.audit("kodi_start", KODI)
             result["note"] = (
-                "Run kodi_status to verify startup; launching an activity does not confirm "
+                "Run kodi_get_status to verify startup; launching an activity does not confirm "
                 "Kodi is ready."
                 if action != "stop"
                 else "Kodi has exited."
@@ -954,7 +962,7 @@ class Operations:
                 raise ShieldError(
                     f"Kodi was asked to quit but its state could not be confirmed ({exc})"
                     + ("; it was not started again" if action == "restart" else "")
-                    + ". Check shield_status before trying again",
+                    + ". Check shield_get_status before trying again",
                     "stop_unconfirmed",
                 ) from None
             if time.monotonic() >= deadline:
@@ -1007,7 +1015,7 @@ class Operations:
             raise ShieldError(
                 f"Kodi did not exit within {self.quit_wait} s of Application.Quit and was left "
                 f"as it is ({reason}){not_started}. Its HTTP server is usually closed by now. "
-                "Check kodi_logs and shield_status; if it stays stuck, ask the person at the TV "
+                "Check kodi_read_logs and shield_get_status; if it stays stuck, ask the person at the TV "
                 "to force-stop Kodi (Settings > Apps > Kodi > Force stop)",
                 "exit_hung",
             )
@@ -1038,7 +1046,7 @@ class Operations:
             raise ShieldError(
                 f"Kodi exited after Application.Quit, but a new Kodi process ({', '.join(new)}) "
                 f"started and the app in front could not be checked ({exc.message}); it was left "
-                f"running{not_started}. Check shield_status",
+                f"running{not_started}. Check shield_get_status",
                 "respawned",
             ) from None
         if package == KODI:
@@ -1059,14 +1067,14 @@ class Operations:
             raise ShieldError(
                 f"Kodi was force-stopped but its state could not be confirmed ({exc})"
                 + ("; it was not started again" if action == "restart" else "")
-                + ". Check shield_status before trying again",
+                + ". Check shield_get_status before trying again",
                 "stop_unconfirmed",
             ) from None
         if still_running:
             raise ShieldError(
                 "Kodi was still running after force-stop"
                 + ("; restart abandoned" if action == "restart" else "")
-                + ". Check kodi_status and shield_status",
+                + ". Check kodi_get_status and shield_get_status",
                 "stop_failed",
             )
 
@@ -1203,7 +1211,7 @@ class Operations:
             "edits": count,
             "changed": before != data,
             "diff": "\n".join(diff[:400]) + ("\n... (diff truncated)" if len(diff) > 400 else ""),
-            "note": "Diff is redacted. Apply with kodi_patch_apply using the same arguments.",
+            "note": "Diff is redacted. Apply with kodi_apply_file_patch using the same arguments.",
         }
 
     def patch_apply(self, path, expected_sha256, edits):
@@ -1261,6 +1269,8 @@ class Operations:
             if not p.netloc.startswith("plugin.video."):
                 raise ShieldError("Only video add-on directories can be previewed")
             words = unsafe_plugin_route(path)
+            if words == ["not a folder"]:
+                raise ShieldError("This item is not a browseable folder", "unsafe_route")
             if words:
                 raise ShieldError(
                     "Interactive/playback/utility action cannot be previewed (route contains: "

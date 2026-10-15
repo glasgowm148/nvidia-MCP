@@ -324,8 +324,14 @@ class AppleOperations(Operations):
             try:
                 self.t.rpc("Application.Quit")
             except ShieldError as exc:
-                # As on Android: no answer still means the quit request was sent.
-                if exc.kind not in ("unreachable", "timeout", "response_timeout"):
+                # As on Android: no answer, or a reply cut short, still means the quit request
+                # was sent.
+                if exc.kind not in (
+                    "unreachable",
+                    "timeout",
+                    "response_timeout",
+                    "invalid_response",
+                ):
                     raise
             end = time.monotonic() + self.quit_wait
             while time.monotonic() < end:

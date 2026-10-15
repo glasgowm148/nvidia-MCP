@@ -115,29 +115,35 @@ class Transport:
         attr, port_attr = (
             ("_manager_url", "manager_forward_port") if manager else ("_kodi_url", "forward_port")
         )
+        stale = None
         with self._route_lock:
             if getattr(self, attr) == base:
                 stale = getattr(self, port_attr)
                 setattr(self, attr, None)
                 setattr(self, port_attr, None)
-                if stale is not None:
-                    try:
-                        self.adb("forward", "--remove", f"tcp:{stale}", timeout=15)
-                    except ShieldError:
-                        pass  # Usually already gone with the old adb server or connection.
+        # Outside the lock: a slow adb must not stall every other request for up to 15 s.
+        if stale is not None:
+            try:
+                self.adb("forward", "--remove", f"tcp:{stale}", timeout=15)
+            except ShieldError:
+                pass  # Usually already gone with the old adb server or connection.
         return True
 
     def routed(self, path, manager=False, **kwargs):
-        """``request`` to ``path`` on Kodi or Kodi Manager under the chosen route. A forward that
-        stopped answering is dropped; the request is retried once through a fresh forward only
-        when the connection itself was refused, so nothing reached the device."""
+        """``request`` to ``path`` on Kodi or Kodi Manager under the chosen route. A forward whose
+        local port refused the connection (the adb server restarted or the device connection
+        dropped, taking the forward with it) is dropped and the request retried once through a
+        fresh forward: nothing reached the device. A forward that accepted the connection but got
+        no answer still works (Kodi or Kodi Manager is down behind it), so it is kept."""
         base = self.service_url(manager)
         try:
             return self.request(base + path, manager=manager, **kwargs)
         except ShieldError as exc:
-            if not (exc.kind == "unreachable" and self._drop_forward(manager, base)):
-                raise
-            if not getattr(exc, "connect_failed", False):
+            if not (
+                exc.kind == "unreachable"
+                and getattr(exc, "connect_failed", False)
+                and self._drop_forward(manager, base)
+            ):
                 raise
         return self.request(self.service_url(manager) + path, manager=manager, **kwargs)
 

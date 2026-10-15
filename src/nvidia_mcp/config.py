@@ -151,9 +151,16 @@ class Config:
 
     @classmethod
     def from_env(cls):
-        tool_profile = os.environ.get("NVIDIA_MCP_TOOL_PROFILE", "standard")
+        # Discovery only, never a permission: a typo must not stop the server.
+        raw_profile = os.environ.get("NVIDIA_MCP_TOOL_PROFILE", "")
+        tool_profile = raw_profile.strip().lower() or "standard"
         if tool_profile not in ("standard", "full"):
-            raise ShieldError("NVIDIA_MCP_TOOL_PROFILE must be standard or full")
+            print(
+                f"nvidia-mcp: NVIDIA_MCP_TOOL_PROFILE={raw_profile.strip()[:40]!r} is not standard "
+                "or full; using the standard tool profile",
+                file=sys.stderr,
+            )
+            tool_profile = "standard"
         platform = os.environ.get("NVIDIA_MCP_PLATFORM", "android")
         if platform not in ("android", "apple_tv"):
             raise ShieldError("NVIDIA_MCP_PLATFORM must be android or apple_tv")

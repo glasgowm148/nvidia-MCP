@@ -54,6 +54,7 @@ Apple TV uses the same Kodi installation steps; its support remains experimental
   - Open **Settings → Add-ons → My add-ons → Services**.
   - Select **Kodi Manager → Configure → Dashboard**.
   - Turn on **Allow LAN access**, leave **Enable writes** off, then select **OK**.
+  - Do this yourself: your agent cannot change Kodi Manager's own settings.
 - **Display the address and token.**
   - Return home. Open **Add-ons → Video add-ons → Kodi Manager**.
   - Select **Open the dashboard on another device**.
@@ -104,8 +105,10 @@ If you only see Configure, use the
    The default Manager port is `8765`. Preserve other servers/settings and reload the connection.
 4. Verify read-only layout/pipeline access. LAN access changes apply without a Kodi restart.
    Android's `KODI_HTTP_ROUTE=forward` can keep Manager loopback-only for MCP access;
-   Apple TV needs direct LAN access. A browser on another device needs LAN access enabled.
-5. For requested writes, enable both Manager's **Enable writes** and `NVIDIA_MCP_ALLOW_WRITES=1`.
+   Apple TV needs direct LAN access. A browser on another device needs the user to turn on
+   **Allow LAN access**.
+5. For requested writes, ask the user to turn on Manager's **Enable writes** (the agent cannot change
+   Manager's own settings), then set `NVIDIA_MCP_ALLOW_WRITES=1`.
    Preview layouts before applying; provider browsing has its own opt-in.
 
 ## Offline or pinned ZIP installation

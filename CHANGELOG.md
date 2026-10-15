@@ -2,6 +2,10 @@
 
 ## 0.5.11 — 2026-10-15 (prerelease)
 
+- Privacy: key-like words inside one quoted value no longer leak the next value (0.5.10 regression); empty values are not secrets; LWP cookie jars are withheld and `Set-Cookie3` values redacted; quadratic redaction patterns are linear.
+- `kodi_browse` uses Kodi Manager's route guard (vendored, byte-identical) for known add-ons, refusing POV/iPlayer action routes such as bookmark erase, sign-out and playback.
+- Standard profile with writes (Android) lists the file-backup list/read/restore tools needed to undo setting changes; messages name current tools; an empty or differently-cased `NVIDIA_MCP_TOOL_PROFILE` falls back to standard instead of stopping the server.
+- Forwards are dropped only when the connection was refused (not when Kodi is merely down), outside the route lock; Apple TV treats a cut-off Quit reply as sent; any failure after an APK install started is `outcome_unknown`; APK pushes use a size-scaled timeout; file-backup timeouts are plain failures.
 - Standard tool discovery starts with 10 everyday Android tools; optional Manager/provider tools follow configured capabilities. `NVIDIA_MCP_TOOL_PROFILE=full` exposes advanced file, Android and APK workflows after a client restart. Profiles do not change permissions.
 - Advertised tools use consistent action names, explicit parameter descriptions and clearer settings/file/backup/layout boundaries. Old names remain callable through the same validation and safety guards; the deprecated mixed patch tool is no longer advertised.
 - Add synthetic protocol and catalogue regression checks and document the migration. No new delete/uninstall operations or device access during tool discovery.

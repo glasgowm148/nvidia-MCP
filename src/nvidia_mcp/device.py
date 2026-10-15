@@ -102,7 +102,7 @@ class Shield:
     # Lifecycle (needs Config.allow_writes) ---------------------------------------------------
 
     def quit_kodi(self, wait: float = 30) -> dict:
-        """Quit Kodi exactly as ``kodi_lifecycle stop`` does: refuse unless nobody is watching,
+        """Quit Kodi exactly as ``kodi_control_lifecycle stop`` does: refuse unless nobody is watching,
         send ``Application.Quit``, wait up to ``wait`` seconds, and force-stop only a hung exit
         whose kodi.log proves settings were saved while the guard still passes. Otherwise raises
         ShieldError with kind ``exit_hung`` and leaves Kodi alone. Apple TV never force-stops;
@@ -120,7 +120,7 @@ class Shield:
                 ops.quit_wait = previous
 
     def start_kodi(self, wait: float = 0, *, interrupt_other_app: bool = False) -> dict:
-        """Start Kodi under the TV guard, as ``kodi_lifecycle start``. With ``wait`` > 0, also
+        """Start Kodi under the TV guard, as ``kodi_control_lifecycle start``. With ``wait`` > 0, also
         wait up to that many seconds for Kodi's JSON-RPC to answer (``ready``)."""
         result = self.operations.lifecycle("start", interrupt_other_app=interrupt_other_app)
         if wait > 0:

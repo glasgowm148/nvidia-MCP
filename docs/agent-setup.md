@@ -45,7 +45,7 @@ For **Apple TV**, follow [Apple TV computer setup](apple-tv.md#computer-setup-ag
   and a dedicated virtual environment; preserve the user's system Python and other projects.
 - Reuse an existing suitable nvidia-MCP checkout. Inspect its state before updating; preserve local
   changes. Otherwise clone this repo to an appropriate user-owned workspace.
-  For a released install, prefer tag **v0.5.10** (or a newer reviewed release) rather than an
+  For a released install, prefer tag **v0.5.11** (or a newer reviewed release) rather than an
   unreviewed moving `main`. Downloading GitHub's Source code ZIP alone does not register an MCP server.
 
 Use the [official Python downloads](https://www.python.org/downloads/),
@@ -61,7 +61,7 @@ Run from the checkout. Resolve the commands to the actual installed Python/execu
 For a fresh installation, clone the reviewed release first (these Git commands work on all three OSes):
 
 ```sh
-git clone --branch v0.5.10 https://github.com/glasgowm148/nvidia-MCP.git
+git clone --branch v0.5.11 https://github.com/glasgowm148/nvidia-MCP.git
 cd nvidia-MCP
 ```
 
@@ -212,5 +212,4 @@ Keep the default `standard` profile for everyday diagnostics/settings. A configu
 adds its inspection tools after a server reload. For advanced file repair, screenshots, Android
 logs/app inventory or APK operations, set `NVIDIA_MCP_TOOL_PROFILE=full` in the existing private
 server environment and reload. This changes which tools the agent sees, not write permissions.
-See [tool profiles and name migration](tools.md). The 0.5.11 catalogue is available in this checkout;
-the v0.5.10 release uses the previous names/catalogue until a new release is published.
+See [tool profiles and name migration](tools.md).

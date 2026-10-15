@@ -8,7 +8,8 @@ Redaction is defence in depth, not a guarantee. Rules, applied in order:
 * Header rules (``Authorization:``, ``Cookie:``, ``Bearer``/``Basic`` values).
 * JSON/Python-style quoted pairs (``"access_token": "abc"``, ``'pin': 1234``).
 * ``key=value`` / ``key: value`` pairs, including quoted keys.
-* Netscape ``cookies.txt`` lines (cookie files are withheld entirely by ``file_text``).
+* Netscape ``cookies.txt`` lines and ``Set-Cookie``/LWP ``Set-Cookie3`` values (Netscape and
+  LWP cookie files are withheld entirely by ``file_text``).
 * URL userinfo (``smb://user:pass@host``) and secret query parameters for any scheme;
   http(s)/smb/ftp URLs are withheld entirely because signed stream URLs are common.
 * The same rules on percent-encoded (``https%3A%2F%2F...``, ``token%3D...``) and JSON-escaped
@@ -39,15 +40,21 @@ SECRET = re.compile(rf"{_SUBSTRING}|(?:^|[._-])(?:{_SEGMENT_WORDS})$", re.I)
 XML_SECRET_EXEMPT = {"key"}
 
 URL = re.compile(r"(?:https?|smb|ftp)://[^\s<>\"']+", re.I)
-USERINFO = re.compile(r"(?i)\b([a-z][a-z0-9+.-]*://)[^\s/@<>\"':]+(?::[^\s/<>\"']*)?@")
+USERINFO = re.compile(
+    r"(?i)(?<![a-z0-9+.-])([a-z][a-z0-9+.-]*+://)[^\s/@<>\"':]+(?::[^\s/<>\"']*)?@"
+)
 QUERY = re.compile(
     r"(?i)([?&;](?:access_token|refresh_token|id_token|token|api[_-]?key|apikey|key|password"
     r"|pass|passwd|pin|auth|authorization|signature|sig|secret|client_secret|code|session"
     r"|sessionid|sid|cookie|user|username)=)[^&\s\"'<>#]+"
 )
 HEADER = re.compile(
-    r"(?im)\b((?:proxy-)?authorization|cookie|set-cookie|x-api-key|x-auth-token|api-key)"
+    r"(?im)\b((?:proxy-)?authorization|cookie|set-cookie\d*|x-api-key|x-auth-token|api-key)"
     r"(\s*:\s*)[^\r\n,}\"']+"
+)
+# ``Set-Cookie:`` / LWP ``Set-Cookie3:`` name=value, including a quoted value (``"a/b=="``).
+SET_COOKIE = re.compile(
+    r"""(?im)\b(set-cookie\d*\s*:\s*[^=;\s"']+=)(?:"(?:[^"\\\r\n]|\\.)*"|[^;\r\n"]*)"""
 )
 BEARER = re.compile(r"(?i)\b(Bearer|Basic|Token)\s+[A-Za-z0-9._~+/=-]{4,}")
 # Also JSON-escaped pairs inside a string (``{\"password\":\"abc\"}``): a backslash may precede
@@ -55,29 +62,37 @@ BEARER = re.compile(r"(?i)\b(Bearer|Basic|Token)\s+[A-Za-z0-9._~+/=-]{4,}")
 QUOTED_PAIR = re.compile(
     r"""(?x)
     (?P<q>\\?["'])(?P<key>[^"'\\\s]{1,80})(?P=q)\s*:\s*
-    (?P<value>\\"(?:[^"\\]|\\[^"])*\\"|\\'(?:[^'\\]|\\[^'])*\\'
+    (?P<value>\\"(?:[^"\\]|\\\\\\"|\\[^"])*\\"|\\'(?:[^'\\]|\\[^'])*\\'
       |[uUbBrR]?"(?:[^"\\]|\\.)*"|[uUbBrR]?'(?:[^'\\]|\\.)*'|-?\d[\d.]*)
     """
 )
-PAIR = re.compile(
-    rf"""(?ix)
-    ((?<![A-Za-z0-9])["']?
-      (?:[A-Za-z0-9_.-]*?(?:{_SUBSTRING})[A-Za-z0-9_]*
-        |(?:[A-Za-z0-9_.-]*[._-])?(?:{_SEGMENT_WORDS}))
-     ["']?\s*[=:]\s*)
-    (?:(?P<q>["'])(?P<quoted>(?:(?!(?P=q))[^\\\n]|\\.)*)(?P=q)
-      |(?P<open>["']?)(?!\[redacted\])(?P<bare>[^\s,;"'&}}<>]+))
+# ``key=value`` / ``key: value``. A candidate key is a whole identifier run (matched
+# possessively, so scanning stays linear); ``PAIR_SECRET`` then decides whether it is secret.
+PAIR_KEY = re.compile(r"""(?<![A-Za-z0-9_.-])["']?(?P<key>[A-Za-z0-9_.-]++)["']?\s*+[=:]\s*+""")
+PAIR_SECRET = re.compile(
+    rf"(?i)[A-Za-z0-9_.-]*?(?:{_SUBSTRING})[A-Za-z0-9_]*"
+    rf"|(?:[A-Za-z0-9_.-]*[._-])?(?:{_SEGMENT_WORDS})"
+)
+# A quoted value must be non-empty and its closing quote must end the value (be followed by a
+# delimiter), so a key-like word inside one quoted value (``prompt="Enter PIN:" pin="1"``)
+# cannot pair with the opening quote of the next value.
+PAIR_VALUE = re.compile(
+    r"""(?x)
+    (?P<q>["'])(?:(?!(?P=q))[^\\\n]|\\.)+(?P=q)(?![^\s,;&}<>)\]/])
+    |(?P<eq>\\")(?:[^"\\\n]|\\[^"\n])+\\"(?![^\s,;&}<>)\]/\\"])
+    |(?P<open>["']?)(?!\[redacted\])[^\s,;"'&}<>]+
     """
 )
 # Netscape cookies.txt: domain, flag, path, secure, expiry, name, then the value.
 COOKIE_JAR_LINE = re.compile(
     r"(?im)^(\S+\t(?:TRUE|FALSE)\t[^\t\n]*\t(?:TRUE|FALSE)\t\d+\t[^\t\n]*\t)[^\n]+$"
 )
-COOKIE_JAR = re.compile(r"^\s*#\s*(?:Netscape )?HTTP Cookie File", re.I)
+# Netscape (``# HTTP Cookie File``) and LWP (``#LWP-Cookies-2.0``) jars, withheld whole.
+COOKIE_JAR = re.compile(r"^\s*#\s*(?:(?:Netscape )?HTTP Cookie File|LWP-Cookies-)", re.I)
 # Runs between literal URL delimiters (so ``mode=play&url=https%3A...`` keeps ``mode=play``).
 # Runs holding percent-encoded or JSON-escaped characters are decoded and checked.
 ENCODED = re.compile(r"[^\s<>\"'?&=,;]+")
-MAIL = re.compile(r"\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b", re.I)
+MAIL = re.compile(r"(?<![A-Z0-9._%+-])[A-Z0-9._%+-]++@[A-Z0-9.-]+\.[A-Z]{2,}\b", re.I)
 # Plain-text XML rules for logs/snippets that are not a parseable document.
 XML_OPEN = re.compile(r"<(?P<tag>[A-Za-z_][\w.-]*)(?P<attrs>\s[^<>]*?)?(?P<end>/?)>")
 XML_ATTR = re.compile(r"""(?P<name>[A-Za-z_][\w.:-]*)(?P<eq>\s*=\s*)(?P<value>"[^"]*"|'[^']*')""")
@@ -90,14 +105,28 @@ def _quoted(match):
     if not SECRET.search(match["key"]):
         return match[0]
     quote = re.match(r"[uUbBrR]?(\\?[\"']|)", match["value"])[1]
+    if quote and len(match["value"].lstrip("uUbBrR")) == 2 * len(quote):
+        return match[0]  # An empty value (``"password": ""``) holds no secret.
     return match[0][: match.start("value") - match.start()] + f"{quote}[redacted]{quote}"
 
 
-def _pair(match):
-    """A quoted value is redacted up to its closing quote, spaces included."""
-    if match["q"]:
-        return f"{match[1]}{match['q']}[redacted]{match['q']}"
-    return f"{match[1]}{match['open']}[redacted]"
+def _pairs(value: str) -> str:
+    """Redact secret ``key=value`` pairs. A quoted value is redacted up to its closing quote,
+    spaces included."""
+    out, done, pos = [], 0, 0
+    while key := PAIR_KEY.search(value, pos):
+        pos = key.end()
+        if not PAIR_SECRET.fullmatch(key["key"]) or not (match := PAIR_VALUE.match(value, pos)):
+            continue
+        if match["q"]:
+            redacted = f"{match['q']}[redacted]{match['q']}"
+        elif match["eq"]:
+            redacted = '\\"[redacted]\\"'
+        else:
+            redacted = f"{match['open']}[redacted]"
+        out += [value[done:pos], redacted]
+        done = pos = match.end()
+    return "".join(out) + value[done:]
 
 
 def _xml_id(attrs) -> str:
@@ -164,10 +193,11 @@ def _credential_rules(value: str) -> str:
     value = XML_OPEN.sub(_xml_open, value)
     value = USERINFO.sub(r"\1[redacted]@", value)
     value = QUERY.sub(r"\1[redacted]", value)
+    value = SET_COOKIE.sub(r"\1[redacted]", value)
     value = HEADER.sub(r"\1\2[redacted]", value)
     value = BEARER.sub(r"\1 [redacted]", value)
     value = QUOTED_PAIR.sub(_quoted, value)
-    return PAIR.sub(_pair, value)
+    return _pairs(value)
 
 
 def text(value: str, known=()) -> str:

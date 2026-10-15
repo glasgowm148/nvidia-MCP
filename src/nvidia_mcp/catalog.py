@@ -58,6 +58,7 @@ CORE_TOOLS = {
     "kodi_set_setting",
     "apple_tv_power",
 }
+UNDO_TOOLS = {"kodi_backups", "kodi_read_file", "kodi_restore_file"}
 MANAGER_TOOLS = {
     "kodi_manager_inspect",
     "kodi_manager_widget_cache",
@@ -83,6 +84,10 @@ def advertised_names(config):
         selected = set(CORE_TOOLS)
         if config.manager_token:
             selected |= MANAGER_TOOLS
+        if config.allow_writes and config.platform != "apple_tv":
+            # The undo path for the everyday setting writes: find the per-file snapshot, read
+            # the current hash, restore it. kodi_restore_file is Android-only.
+            selected |= UNDO_TOOLS
     if config.allow_plugin_browse:
         selected.add("kodi_browse")
     else:

@@ -39,8 +39,8 @@ You do not need the TV's IP yet; the agent explains where to find it.
   cached rows, configuration checkpoints and reviewed Bingie layouts.
 
 The `nvidia://playbook` resource and `audit_kodi` prompt guide focused audits.
-The default profile shows 10 everyday tools. Your agent can enable the full profile for advanced
-file/APK repair; see the [tool reference](docs/tools.md) for profiles, permissions and limits.
+The default profile shows 10 everyday tools (9 on Apple TV, which has no ADB). Your agent can
+enable the full profile for advanced file/APK repair; see the [tool reference](docs/tools.md) for profiles, permissions and limits.
 
 ## Quick start
 
@@ -103,8 +103,10 @@ Once TV preparation is ready:
 2. Install Kodi Manager from https://glasgowm148.github.io/kodi-manager/
    using Kodi's native installer. Reuse supported existing installations
    and back up customizations before any replacement.
-3. Connect the active profile's Manager token privately. Enable dashboard
-   LAN access, give me its browser address and verify read-only Manager access.
+3. Connect the active profile's Manager token privately. You cannot change
+   Kodi Manager's own settings, so ask me to turn on Allow LAN access under
+   Kodi Manager → Configure → Dashboard. Then give me its browser address
+   and verify read-only Manager access.
 
 Handle computer commands, downloads and supported TV navigation yourself.
 Ask me for details or TV actions your tools cannot obtain or complete.

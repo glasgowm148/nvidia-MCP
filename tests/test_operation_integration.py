@@ -267,3 +267,33 @@ def test_context_does_not_leak_between_calls(ops):
     ops.audit("set_core_setting", "personal value", "c" * 32)
     assert ops.history.selected()[0]["backup_refs"] == ["c" * 32]
     assert clean(ops.history.selected()[0]) is not None
+
+
+@pytest.mark.parametrize(
+    "name,method,arguments,outcome",
+    [
+        # A local snapshot only reads the TV: a late reply cannot leave a change behind.
+        ("kodi_create_file_backup", "backup_file", {"path": "userdata/x.xml"}, "failed"),
+        (
+            "kodi_set_setting",
+            "set_core_setting",
+            {"setting": "videolibrary.showunwatched", "value": True},
+            "unknown",
+        ),
+    ],
+)
+def test_response_timeout_is_unknown_only_for_tools_that_write_the_tv(
+    tmp_path, name, method, arguments, outcome
+):
+    mcp, ops = create_server(Config(host="127.0.0.1", state=tmp_path, allow_writes=True))
+
+    def stalled(*args, **kwargs):
+        raise ShieldError("Device HTTP response deadline exceeded", "response_timeout")
+
+    setattr(ops, method, stalled)
+    try:
+        with pytest.raises(Exception, match="response_timeout"):
+            asyncio.run(mcp.call_tool(name, arguments))
+        assert ops.history.selected()[0]["outcome"] == outcome
+    finally:
+        ops.t.close()

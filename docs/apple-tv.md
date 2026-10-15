@@ -62,7 +62,7 @@ Use Python **3.11+**, Git and a stdio-capable MCP client on the computer. Inspec
 checkout/environment without discarding local changes. For a fresh installation, clone the reviewed release:
 
 ```sh
-git clone --branch v0.5.6 https://github.com/glasgowm148/nvidia-MCP.git
+git clone --branch v0.5.11 https://github.com/glasgowm148/nvidia-MCP.git
 cd nvidia-MCP
 ```
 

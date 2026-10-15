@@ -193,8 +193,10 @@ def create_server(config: Config):
     mcp.advertised_tools = advertised_names(config)
     writes = config.allow_writes
 
-    def tool(title, **hints):
-        read_only = hints["read_only"]
+    def tool(title, writes_tv=None, **hints):
+        # Whether the tool can change TV state. A late reply to one that cannot (a read, or a
+        # local snapshot of a TV file) cannot leave a change behind, so it is a plain failure.
+        writes_tv = not hints["read_only"] if writes_tv is None else writes_tv
         android_only = {
             "shield_apk_preview",
             "shield_apk_apply",
@@ -239,7 +241,7 @@ def create_server(config: Config):
                         code in ("outcome_unknown", "stop_unconfirmed")
                         # A late reply to a read cannot leave a change behind.
                         or code == "response_timeout"
-                        and not read_only
+                        and writes_tv
                         or getattr(exc, "kind", "") == "outcome_unknown"
                     ):
                         outcome = "unknown"
@@ -458,7 +460,7 @@ def create_server(config: Config):
             ),
         ] = False,
     ) -> dict[str, Any]:
-        """List installed Kodi add-on IDs, versions and enabled states. Use kodi_list_addon_settings for their settings or shield_list_apps for TV apps. Enabled is not proof of use/authentication; this tool does not install or remove add-ons."""
+        """List installed Kodi add-on IDs, versions and enabled states. Use kodi_list_addon_settings for their settings; TV apps are listed by shield_list_apps in the full tool profile. Enabled is not proof of use/authentication; this tool does not install or remove add-ons."""
         return ops.addons(enabled_only)
 
     @tool("Kodi JSON-RPC read", read_only=True, idempotent=True)
@@ -487,7 +489,7 @@ def create_server(config: Config):
         ] = False,
         lines: Annotated[int, Field(description="Number of recent Kodi log lines, 1–1000")] = 250,
     ) -> dict[str, Any]:
-        """Read a bounded Kodi log tail with crash/stream/storage signals. Use shield_read_logs for Android/native crashes. Safe while viewing; redaction is best effort and logs remain private, untrusted data."""
+        """Read a bounded Kodi log tail with crash/stream/storage signals. Android/native crashes are read by shield_read_logs in the full tool profile. Safe while viewing; redaction is best effort and logs remain private, untrusted data."""
         return ops.logs(previous, lines)
 
     @tool("Read Kodi file", read_only=True, idempotent=True)
@@ -495,14 +497,14 @@ def create_server(config: Config):
         """Read one Kodi-relative text file (600 KB max), returning redacted text and original SHA-256 for patch checks. Use kodi_list_settings or kodi_list_addon_settings for structured settings; this does not save a backup."""
         return ops.read_file(path)
 
-    @tool("Back up Kodi file", read_only=False, destructive=False)
+    @tool("Back up Kodi file", read_only=False, destructive=False, writes_tv=False)
     def kodi_backup_file(path: KodiPath) -> dict[str, Any]:
         """Create a private local snapshot of one Kodi file; returns backup_id, SHA-256 and byte count. Use kodi_list_file_backups to find existing snapshots and kodi_restore_file to restore one. No TV write; saved bytes can contain credentials. For a whole configuration use kodi_create_configuration_backup."""
         return ops.backup_file(path)
 
     @tool("Kodi file backups", read_only=True, idempotent=True)
     def kodi_backups() -> dict[str, Any]:
-        """List the latest 50 private per-file snapshot records, including backup IDs, without file contents. Use kodi_create_file_backup to create one and kodi_restore_file to restore one. Manager configuration checkpoints are listed by kodi_inspect_manager(area='backups')."""
+        """List the latest 50 private per-file snapshot records, including backup IDs, without file contents. kodi_set_setting, file patches and restores save one automatically (kodi_create_file_backup in the full tool profile saves one on demand); restore one with kodi_restore_file. Manager configuration checkpoints are listed by kodi_inspect_manager(area='backups')."""
         return {"backups": ops.files.list_backups()}
 
     @tool("Preview Kodi file patch", read_only=True, idempotent=True)
@@ -572,7 +574,7 @@ def create_server(config: Config):
         ],
         value: SettingValue,
     ) -> dict[str, Any]:
-        """Change one add-on setting found with kodi_list_addon_settings; returns backup and verification details. Checks installed version, refuses credentials and backs up first. Manager requires idle Kodi; without Manager, stop Kodi first. Use kodi_set_setting for core settings, kodi_apply_file_patch only for text-file repair."""
+        """Change one add-on setting found with kodi_list_addon_settings; returns backup and verification details. Checks installed version, refuses credentials and backs up first. Manager requires idle Kodi; without Manager, stop Kodi first. Use kodi_set_setting for core settings; text-file repair (kodi_apply_file_patch) is in the full tool profile."""
         return ops.set_addon_setting(addon_id, expected_version, setting, value)
 
     @write_tool("Change Kodi setting", idempotent=True)
@@ -585,7 +587,7 @@ def create_server(config: Config):
         ],
         value: SettingValue,
     ) -> dict[str, Any]:
-        """Change one ordinary Kodi core setting through its runtime API; returns readback and a guisettings.xml undo snapshot. Takes effect on the TV immediately; requires idle Kodi/launcher. Refuses credentials and protected security/service, display, audio-device, refresh-rate and language settings. Use kodi_set_addon_setting for add-ons, kodi_apply_file_patch for text-file repair."""
+        """Change one ordinary Kodi core setting through its runtime API; returns readback and a guisettings.xml undo snapshot (on Android, restore it with kodi_restore_file). Takes effect on the TV immediately; requires idle Kodi/launcher. Refuses credentials and protected security/service, display, audio-device, refresh-rate and language settings. Use kodi_set_addon_setting for add-ons; text-file repair (kodi_apply_file_patch) is in the full tool profile."""
         return ops.set_core_setting(setting, value)
 
     @tool("Browse Kodi folder", read_only=False, destructive=False, open_world=True)
@@ -601,7 +603,7 @@ def create_server(config: Config):
             int, Field(description="Maximum directory items to return on this page, 1–48")
         ] = 24,
     ) -> dict[str, Any]:
-        """Preview one page of actual provider/library folders; opt-in, idle-only. Runs the add-on's own code, which contacts its provider and can show notifications or dialogs on the TV. Routes with play/auth/settings/maintenance verbs are refused."""
+        """Preview one page of actual provider/library folders; opt-in, idle-only. Runs the add-on's own code, which contacts its provider and can show notifications or dialogs on the TV. Routes with play/auth/settings/maintenance verbs are refused; for add-ons Kodi Manager knows (POV, Fen, TMDb Helper, BBC iPlayer) only their listing routes are allowed."""
         return ops.directory(path, start, limit)
 
     @tool("Kodi Manager inspect", read_only=True, idempotent=True)
@@ -619,7 +621,7 @@ def create_server(config: Config):
             ),
         ] = None,
     ) -> dict[str, Any]:
-        """Read one Kodi Manager report for layout planning, diagnostics or checkpoint discovery; requires a configured Manager token. Returns the selected report without changes. Use kodi_get_widget_cache for cache rows, kodi_list_file_backups for local file snapshots, kodi_list_addon_settings for individual setting values."""
+        """Read one Kodi Manager report for layout planning, diagnostics or checkpoint discovery; requires a configured Manager token. Returns the selected report without changes. Use kodi_get_widget_cache for cache rows, kodi_list_file_backups (listed with writes or the full tool profile) for local file snapshots, kodi_list_addon_settings for individual setting values."""
         return ops.manager_read(area, addon_id)
 
     @tool("Kodi Manager widget cache", read_only=True, idempotent=True)
@@ -670,7 +672,7 @@ def create_server(config: Config):
             ),
         ] = None,
     ) -> dict[str, Any]:
-        """Create a Kodi Manager configuration checkpoint for detected skin/helpers/players, or one add-on; returns Manager backup metadata. Idle TV required; private backups may contain credentials. List checkpoints with kodi_inspect_manager(area='backups'), restore with kodi_restore_configuration. For one local file snapshot use kodi_create_file_backup."""
+        """Create a Kodi Manager configuration checkpoint for detected skin/helpers/players, or one add-on; returns Manager backup metadata. Idle TV required; private backups may contain credentials. List checkpoints with kodi_inspect_manager(area='backups'), restore with kodi_restore_configuration. For one local file snapshot use kodi_create_file_backup (full tool profile)."""
         return ops.configuration_backup(addon_id)
 
     @write_tool("Restore Kodi configuration")
@@ -688,7 +690,7 @@ def create_server(config: Config):
             ),
         ] = None,
     ) -> dict[str, Any]:
-        """Restore a Kodi Manager configuration checkpoint while idle, returning restore/undo metadata. Match the scope used with kodi_inspect_manager(area='backups'); retains undo backups. Use kodi_restore_file for local per-file snapshots. No forced restore, APK downgrade or system recovery."""
+        """Restore a Kodi Manager configuration checkpoint while idle, returning restore/undo metadata. Match the scope used with kodi_inspect_manager(area='backups'); retains undo backups. Local per-file snapshots are restored by kodi_restore_file on Android. No forced restore, APK downgrade or system recovery."""
         return ops.configuration_restore(backup_id, addon_id)
 
     @write_tool("Apple TV power")

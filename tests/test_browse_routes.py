@@ -1,5 +1,7 @@
 """H4: kodi_browse checks path segments and every query parameter for action verbs."""
 
+from pathlib import Path
+
 import pytest
 
 from nvidia_mcp.config import ShieldError
@@ -70,3 +72,55 @@ def test_browse_needs_running_idle_kodi(ops):
     ops.t.players = [{"playerid": 1}]
     with pytest.raises(ShieldError, match="playing"):
         ops.directory(path)
+
+
+# Known add-ons are checked against Kodi Manager's allowlist of their listing routes
+# (vendored route_guard): these action routes contain no action verb.
+KNOWN_BLOCKED = [
+    # Erases the resume point (and Trakt playback progress).
+    "plugin://plugin.video.pov/?mode=watched_unwatched_erase_bookmark&media_type=movie&tmdb_id=603",
+    "plugin://plugin.video.pov/?mode=options_menu_choice&tmdb_id=603",
+    "plugin://plugin.video.fen/?mode=extras_menu_choice&tmdb_id=603",
+    "plugin://plugin.video.iplayerwww/?mode=119&url=x",  # sign out
+    "plugin://plugin.video.iplayerwww/?mode=1&url=x",  # toggle kids mode
+    "plugin://plugin.video.iplayerwww/?mode=201&url=x",  # play
+    "plugin://plugin.video.iplayerwww/?mode=301&url=x",  # remove
+    "plugin://plugin.video.iplayerwww/?mode=101&url=x&mo?de=119",
+    "plugin://plugin.video.POV/?mode=play_media&tmdb_id=603",
+]
+KNOWN_ALLOWED = [
+    "plugin://plugin.video.pov/",
+    "plugin://plugin.video.pov/?mode=build_tvshow_list&action=trakt_tv_trending",
+    "plugin://plugin.video.iplayerwww/?mode=101&url=x",
+    "plugin://plugin.video.iplayerwww/?mode=124&url=https://www.bbc.co.uk/iplayer/categories/comedy",
+]
+
+
+@pytest.mark.parametrize("path", KNOWN_BLOCKED)
+def test_known_addon_action_routes_are_refused(ops, path):
+    ops.t.running = True
+    with pytest.raises(ShieldError, match="cannot be previewed") as exc:
+        ops.directory(path)
+    assert exc.value.kind == "unsafe_route"
+    assert not any(c[0] == "Files.GetDirectory" for c in ops.t.calls)
+
+
+@pytest.mark.parametrize("path", KNOWN_ALLOWED)
+def test_known_addon_listing_routes_are_allowed(ops, path):
+    ops.t.running = True
+    ops.directory(path)
+    assert any(c[0] == "Files.GetDirectory" for c in ops.t.calls)
+
+
+def test_known_addon_non_folder_items_are_refused(ops):
+    ops.t.running = True
+    with pytest.raises(ShieldError, match="not a browseable folder"):
+        ops.directory("plugin://plugin.video.pov/?mode=build_movie_list&isFolder=false")
+
+
+def test_vendored_route_guard_matches_optional_manager_checkout():
+    root = Path(__file__).resolve().parents[1]
+    source = root.parent / "kodi-manager/src/kodi_manager/route_guard.py"
+    if not source.exists():
+        pytest.skip("Optional sibling Manager checkout is unavailable")
+    assert source.read_bytes() == (root / "src/nvidia_mcp/route_guard.py").read_bytes()
