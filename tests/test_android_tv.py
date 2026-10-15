@@ -306,3 +306,21 @@ def test_pairing_targets_ipv6_host(monkeypatch):
         assert commands == [("pair", "[fd00::80]:37001")]
     finally:
         transport.close()
+
+
+@pytest.mark.parametrize(
+    "failure,kind",
+    [
+        (FileNotFoundError, "missing_dependency"),
+        (PermissionError, "permission_denied"),
+        (OSError, "missing_dependency"),  # Exec format error: wrong OS/architecture.
+    ],
+)
+def test_sdk_tool_start_failures_are_actionable(monkeypatch, failure, kind):
+    def run(command, **kwargs):
+        raise failure(8, "synthetic start failure", command[0])
+
+    monkeypatch.setattr(subprocess, "run", run)
+    with pytest.raises(ShieldError) as error:
+        android_tools.run_tool(["/private/sdk/aapt2", "dump", "badging", "x.apk"])
+    assert error.value.kind == kind and "/private/sdk" not in str(error.value)

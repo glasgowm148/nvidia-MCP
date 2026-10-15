@@ -40,6 +40,27 @@ def test_config_rejects_invalid_ports(monkeypatch):
         Config.from_env()
 
 
+@pytest.mark.parametrize("platform", ["linux", "win32"])
+def test_empty_state_environment_never_means_the_working_directory(monkeypatch, tmp_path, platform):
+    from nvidia_mcp import config
+
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(config.sys, "platform", platform)
+    monkeypatch.setattr(config.Path, "home", lambda: tmp_path / "home")
+    monkeypatch.setenv("SHIELD_HOST", "192.168.1.50")
+    for name in ("NVIDIA_MCP_STATE_DIR", "XDG_DATA_HOME", "LOCALAPPDATA"):
+        monkeypatch.setenv(name, "")
+    state = Config.from_env().state
+    assert state.is_relative_to(tmp_path / "home") and state.name == "nvidia-mcp"
+    monkeypatch.setenv("XDG_DATA_HOME", "relative")
+    assert config.state_path().is_relative_to(tmp_path / "home")
+    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "data"))
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path / "data"))
+    assert config.state_path() == tmp_path / "data" / "nvidia-mcp"
+    monkeypatch.setenv("NVIDIA_MCP_STATE_DIR", str(tmp_path / "chosen"))
+    assert Config.from_env().state == (tmp_path / "chosen").resolve()
+
+
 def test_nested_xml_json_privacy_retains_status_flags():
     xml = '<settings><setting id="password"><default>private-nested-value</default></setting><connection username="private-user"/></settings>'
     assert "private-nested-value" not in file_text(xml) and "private-user" not in file_text(xml)

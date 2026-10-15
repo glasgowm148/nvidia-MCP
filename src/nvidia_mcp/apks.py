@@ -457,6 +457,7 @@ class ApkOperations:
                     "note": "App remains stopped. Verify its startup/functionality separately. Recovery bundle is not a guarantee Android permits a downgrade.",
                 }
             except Exception as exc:
+                installing = manifest["status"] == "installing"
                 manifest["status"] = (
                     "failed_after_transfer" if attempted else "failed_before_transfer"
                 )
@@ -465,16 +466,31 @@ class ApkOperations:
                     if isinstance(exc, ShieldError)
                     else "Check private storage and bounded device diagnostics"
                 )
+                kind = exc.kind if isinstance(exc, ShieldError) else "unknown"
+                if not attempted:
+                    # Nothing reached the TV: the partial bundle (up to GBs) is removed below.
+                    raise ShieldError(
+                        f"APK change failed: {reason}. No APK was transferred and the app was "
+                        "not changed; the partial recovery bundle was removed.",
+                        kind,
+                    ) from None
+                if installing and kind in ("timeout", "response_timeout"):
+                    # pm keeps going after its caller gives up: the app may still be replaced.
+                    kind = "outcome_unknown"
+                    reason += " (the installation may still complete)"
                 raise ShieldError(
                     f"APK change failed: {reason}. Recovery bundle {backup_id}. Inspect current app state before recovery; no automatic retry or uninstall.",
-                    exc.kind if isinstance(exc, ShieldError) else "unknown",
+                    kind,
                 ) from None
             finally:
                 metadata_failed = False
-                try:
-                    save_json(backup / "manifest.json", manifest)
-                except OSError:
-                    metadata_failed = True
+                if manifest["status"] == "failed_before_transfer":
+                    shutil.rmtree(backup, ignore_errors=True)
+                else:
+                    try:
+                        save_json(backup / "manifest.json", manifest)
+                    except OSError:
+                        metadata_failed = True
                 for remote in remotes:
                     try:
                         self.verify_identity(plan["identity"])

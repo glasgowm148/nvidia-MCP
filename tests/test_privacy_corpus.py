@@ -128,11 +128,35 @@ def test_non_secret_setting_ids(setting):
         ("plugin://plugin.video.x/?token=tok3n&mode=list", "tok3n"),
         ("trakt.refresh=r3fresh", "r3fresh"),
         ("{'pin': 4321}", "4321"),
+        ('password="hunter 2 with space"', "2 with space"),
+        ("password = 'hunter 2 with space'", "with space"),
+        ('"token" = "abc def"', "def"),
+        ('{\\"password\\":\\"hunter2secret\\"}', "hunter2secret"),
+        ('log: {\\"access_token\\": \\"abc 123\\", \\"mode\\": 1}', "abc 123"),
     ],
 )
 def test_text_rules(raw, secret):
     assert secret not in privacy.text(raw)
     assert secret not in privacy.file_text(raw)
+
+
+@pytest.mark.parametrize(
+    "raw,redacted",
+    [
+        # A quoted value is redacted to its closing quote, spaces included.
+        ('password="hunter 2 with space" mode=1', 'password="[redacted]" mode=1'),
+        ('password = "hunter 2 with space"', 'password = "[redacted]"'),
+        ("pass='a b', user=bob", "pass='[redacted]', user=[redacted]"),
+        ('token=abc"', 'token=[redacted]"'),
+        # JSON escaped inside a string (a log line quoting a request body).
+        ('{\\"password\\":\\"hunter2secret\\"}', '{\\"password\\":\\"[redacted]\\"}'),
+        ('{\\"mode\\":\\"play\\",\\"pin\\":1234}', '{\\"mode\\":\\"play\\",\\"pin\\":[redacted]}'),
+        ('{"password": "[redacted]"}', '{"password": "[redacted]"}'),
+    ],
+)
+def test_quoted_values_are_redacted_whole(raw, redacted):
+    assert privacy.text(raw) == redacted
+    assert privacy.text(redacted) == redacted
 
 
 def test_keymap_key_elements_are_not_redacted():

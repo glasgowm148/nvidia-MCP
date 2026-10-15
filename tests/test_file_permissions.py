@@ -24,7 +24,7 @@ def test_adb_patch_preserves_mode(tmp_path, monkeypatch, mode):
     transport = SimpleNamespace(
         c=SimpleNamespace(mount=None, state=tmp_path),
         shell=shell,
-        adb=lambda *args: calls.append(args),
+        adb=lambda *args, **kwargs: calls.append(args),
     )
     files = Files(transport)
     monkeypatch.setattr(files, "location", lambda *a, **kw: "/kodi/addons/example/helper.sh")
@@ -39,7 +39,7 @@ def test_unknown_permissions_refuse_before_upload(tmp_path, monkeypatch):
     transport = SimpleNamespace(
         c=SimpleNamespace(mount=None, state=tmp_path),
         shell=lambda *a: "unavailable",
-        adb=lambda *a: uploads.append(a),
+        adb=lambda *a, **kw: uploads.append(a),
     )
     files = Files(transport)
     monkeypatch.setattr(files, "location", lambda *a, **kw: "/kodi/addons/example/helper.sh")

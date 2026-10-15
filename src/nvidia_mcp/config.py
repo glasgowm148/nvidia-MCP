@@ -104,10 +104,12 @@ def count(value: str) -> int:
 
 def state_path() -> Path:
     if sys.platform == "win32":
-        return Path(os.environ.get("LOCALAPPDATA", Path.home())) / "nvidia-mcp"
+        return Path(os.environ.get("LOCALAPPDATA") or Path.home()) / "nvidia-mcp"
     if sys.platform == "darwin":
         return Path.home() / "Library" / "Application Support" / "nvidia-mcp"
-    return Path(os.environ.get("XDG_DATA_HOME", Path.home() / ".local/share")) / "nvidia-mcp"
+    # Empty or relative XDG_DATA_HOME is invalid (XDG spec); it must not mean the cwd.
+    data = os.environ.get("XDG_DATA_HOME", "")
+    return Path(data if os.path.isabs(data) else Path.home() / ".local/share") / "nvidia-mcp"
 
 
 @dataclass(frozen=True)
@@ -192,7 +194,9 @@ class Config:
             manager_port=port(os.environ.get("KODI_MANAGER_PORT", "8765")),
             manager_token=os.environ.get("KODI_MANAGER_TOKEN", ""),
             mount=Path(mount).expanduser().resolve() if mount else None,
-            state=Path(os.environ.get("NVIDIA_MCP_STATE_DIR", state_path())).expanduser().resolve(),
+            state=Path(os.environ.get("NVIDIA_MCP_STATE_DIR") or state_path())
+            .expanduser()
+            .resolve(),
             allow_writes=os.environ.get("NVIDIA_MCP_ALLOW_WRITES", "0") == "1",
             allow_plugin_browse=os.environ.get("NVIDIA_MCP_ALLOW_PLUGIN_BROWSE", "0") == "1",
             allow_interrupt=os.environ.get("NVIDIA_MCP_ALLOW_INTERRUPT", "0") == "1",

@@ -147,11 +147,14 @@ class Shield:
             raise ShieldError("Device file is missing or unreadable", "not_found")
         return self.transport.exec_out(["cat", path], limit=limit, timeout=180)
 
-    def push_verified(self, local, remote, *, mode: str | None = None) -> dict:
+    def push_verified(
+        self, local, remote, *, mode: str | None = None, timeout: float | None = None
+    ) -> dict:
         """Upload ``local`` to ``remote`` atomically: push to a temporary file beside it, check
         the temporary file's SHA-256 on the Shield, ``mv`` it into place and check again. A
         failed check leaves the previous file untouched. ``mode`` (octal) defaults to the
-        existing file's permissions. Needs Config.allow_writes."""
+        existing file's permissions. ``timeout`` (seconds) bounds the push and defaults to one
+        scaled to the file size. Needs Config.allow_writes."""
         self.operations.writes()
         remote = remote_path(remote)
         local = Path(local)
@@ -171,7 +174,7 @@ class Shield:
                     "verify_failed",
                 )
 
-        push_atomic(self.transport, local, remote, mode=mode, before_commit=verify)
+        push_atomic(self.transport, local, remote, mode=mode, before_commit=verify, timeout=timeout)
         if remote_sha256(self.transport, remote) != expected:
             raise ShieldError("Device file does not match after the move", "verify_failed")
         self.operations.audit("push_verified", remote)

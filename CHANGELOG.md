@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.5.10 — 2026-10-15 (prerelease)
+
+- adb forwards that disappear (Shield sleep/reboot, adb server restart) are re-established instead of failing every Kodi/Manager call until restart; a request is resent only when the connection was refused before anything was sent. `adb connect` clears cached forwards.
+- Large `push_verified` pushes get a size-scaled timeout (and accept one).
+- Privacy: quoted values containing spaces and JSON-escaped pairs are fully redacted.
+- Empty `NVIDIA_MCP_STATE_DIR`/`LOCALAPPDATA` (and empty or relative `XDG_DATA_HOME`) no longer put private state in the working directory.
+- APK recovery bundles of attempts that failed before any transfer are removed, and stale untouched bundles are pruned.
+- "Kodi is playing" and similar guards are recorded as refusals with specific kinds; an install timeout after transfer is `outcome_unknown`; a Quit cut off mid-reply counts as sent.
+- Add-on ids made of dot segments are rejected; a missing Kodi folder is reported as not found; SDK tool start failures are actionable.
+- Kodi Manager add-on settings: rows from raw/settings.db stores are written to the store they were listed from, and the page keeps the add-on's editable/read-only reason.
+
 ## 0.5.9 — 2026-10-15 (prerelease)
 
 - Device command status trailers now report the command's own exit code. Previously the status was always 0, so a failed `tar`, `cat` or `head` on the device (including the Kodi data snapshot before an APK install) could pass as success.

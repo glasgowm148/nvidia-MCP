@@ -10,7 +10,13 @@ import pytest
 
 from nvidia_mcp.config import Config, ShieldError
 from nvidia_mcp.files import Files
-from nvidia_mcp.transport import Transport, checked_script, split_status, strip_status
+from nvidia_mcp.transport import (
+    Transport,
+    adb_error,
+    checked_script,
+    split_status,
+    strip_status,
+)
 
 ROOT = "/storage/emulated/0/Android/data/org.xbmc.kodi/files/.kodi"
 
@@ -18,16 +24,23 @@ ROOT = "/storage/emulated/0/Android/data/org.xbmc.kodi/files/.kodi"
 class FakeAdb(Transport):
     """Real Transport logic over a fake device filesystem (no subprocess)."""
 
-    def __init__(self, files, hide_missing=False):
+    def __init__(self, files, hide_missing=False, exit_status=True, missing_dirs=()):
         super().__init__(Config(host="127.0.0.1", remote_root=ROOT))
         self.files = files
         self.hide_missing = hide_missing
+        self.exit_status = exit_status  # Old adb shell protocols drop it.
+        self.missing_dirs = missing_dirs
 
     def adb(self, *args, limit=1_000_000, timeout=30, device=True):
         if args[0] == "shell":
             argv = shlex.split(args[1])
             if argv[:2] == ["readlink", "-f"]:
-                return argv[2].encode()
+                # toybox: the last component may be missing, its parent folder may not.
+                if argv[2].rsplit("/", 1)[0] in self.missing_dirs:
+                    if self.exit_status:
+                        raise adb_error(b"")
+                    return b""
+                return argv[2].encode() + b"\n"
             if argv[:2] == ["sh", "-c"]:
                 present = argv[-1] in self.files or self.hide_missing
                 return b"present" if present else b"missing"
@@ -64,6 +77,24 @@ def test_existing_file_round_trips_exact_bytes():
     data = b"<advancedsettings>\n</advancedsettings>\n\n"
     transport = FakeAdb({ROOT + "/userdata/advancedsettings.xml": data})
     assert Files(transport).read("userdata/advancedsettings.xml") == data
+
+
+@pytest.mark.parametrize("exit_status", [True, False])
+def test_missing_parent_folder_is_not_found(exit_status):
+    # An add-on that never saved settings has no userdata/addon_data/<id>/ folder.
+    folder = ROOT + "/userdata/addon_data/plugin.video.example"
+    transport = FakeAdb({}, exit_status=exit_status, missing_dirs={folder})
+    with pytest.raises(ShieldError) as exc:
+        Files(transport).read("userdata/addon_data/plugin.video.example/settings.xml")
+    assert exc.value.kind == "not_found"
+
+
+def test_trailing_space_selects_that_exact_file():
+    transport = FakeAdb({ROOT + "/userdata/a.xml": b"plain", ROOT + "/userdata/a.xml ": b"space"})
+    files = Files(transport)
+    assert files.location("userdata/a.xml ") == ROOT + "/userdata/a.xml "
+    assert files.read("userdata/a.xml ") == b"space"
+    assert files.read("userdata/a.xml") == b"plain"
 
 
 def test_missing_mounted_file_and_log(tmp_path):

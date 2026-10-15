@@ -105,8 +105,19 @@ class Files:
             if must_exist and not target.is_file():
                 raise ShieldError(f"Kodi file not found: {path}", "not_found")
             return target
-        root = self.t.shell("readlink", "-f", self.c.remote_root)
-        target = self.t.shell("readlink", "-f", self.c.remote_root + "/" + path)
+        # Only line breaks are trimmed: "a.xml " is a different file from "a.xml".
+        root = self.t.shell("readlink", "-f", self.c.remote_root, strip=False).rstrip("\r\n")
+        try:
+            target = self.t.shell(
+                "readlink", "-f", self.c.remote_root + "/" + path, strip=False
+            ).rstrip("\r\n")
+        except ShieldError as exc:
+            if exc.kind != "device_error" or not root:
+                raise
+            target = ""  # readlink -f fails when a parent folder is missing.
+        if root and not target:
+            # Old adb shell protocols drop the exit status and print nothing instead.
+            raise ShieldError(f"Kodi file not found (no such folder): {path}", "not_found")
         if not root or not target.startswith(root + "/"):
             raise ShieldError("Kodi path unavailable or escapes the configured root")
         if must_exist and not self.t.is_file(target):

@@ -60,6 +60,9 @@ BUTTONS = {
     "stop": "86",
 }
 KODI = "org.xbmc.kodi"
+# Dot-separated segments only: "." or ".." would be resolved as a URL path segment and
+# reach a different Manager endpoint (or a different add-on folder).
+ADDON_ID = re.compile(r"[A-Za-z0-9_-]+(?:\.[A-Za-z0-9_-]+)*")
 # The single set of home-screen packages treated as "nothing else is being watched".
 # Extend with NVIDIA_MCP_EXTRA_LAUNCHERS (comma-separated package names).
 LAUNCHERS = frozenset(
@@ -397,6 +400,18 @@ def settings_saved_on_exit(log):
     return evidence if not wanted else []
 
 
+def setting_source(node):
+    """Kodi Manager's store for a listed setting, normalized like its dashboard does:
+    ``raw`` (schemaless settings.xml) or ``settings.db`` (Fen Light); None for the schema."""
+    raw = node.get("raw")
+    value = node.get("source") or (raw.get("source") if isinstance(raw, dict) else None)
+    if not isinstance(value, str):
+        return None
+    if "settings.db" in value:
+        return "settings.db"
+    return "raw" if value == "raw" else None
+
+
 class Operations:
     def __init__(self, transport):
         self.t = transport
@@ -448,9 +463,11 @@ class Operations:
                 ) from None
             return "Kodi HTTP unavailable; explicitly permitted offline recovery"
         if not isinstance(players, list):
-            raise ShieldError("Playback state is unknown; no disruptive action performed")
+            raise ShieldError(
+                "Playback state is unknown; no disruptive action performed", "playback_unknown"
+            )
         if players:
-            raise ShieldError("Kodi is playing. Wait until viewing has finished")
+            raise ShieldError("Kodi is playing. Wait until viewing has finished", "playing")
         return "idle"
 
     def pids(self, package=KODI):
@@ -713,7 +730,8 @@ class Operations:
     def stopped(self):
         if self.kodi_running():
             raise ShieldError(
-                "Stop Kodi before editing files; Kodi can overwrite changes while running"
+                "Stop Kodi before editing files; Kodi can overwrite changes while running",
+                "app_running",
             )
 
     def audit(self, operation, target, backup_id=None):
@@ -953,8 +971,9 @@ class Operations:
             self.t.rpc("Application.Quit")
         except ShieldError as exc:
             # Kodi often closes its HTTP server before answering, or stalls while exiting
-            # (response_timeout); either way the request was sent and the exit is checked below.
-            if exc.kind not in ("unreachable", "timeout", "response_timeout"):
+            # (response_timeout) or cuts the reply short (invalid_response); either way the
+            # request was sent and the exit is checked below.
+            if exc.kind not in ("unreachable", "timeout", "response_timeout", "invalid_response"):
                 raise ShieldError(
                     f"Kodi refused Application.Quit ({exc.message}); Kodi was left running",
                     "quit_failed",
@@ -1089,6 +1108,10 @@ class Operations:
 
     def connect(self):
         self.t.adb("connect", self.c.serial, device=False)
+        # A new adb connection drops the old adb forwards; cached forward URLs are stale.
+        reset = getattr(self.t, "reset_forwards", None)
+        if callable(reset):
+            reset()
         return {"state": self.t.adb("get-state").decode().strip()}
 
     def rebuild_layout(self):
@@ -1330,7 +1353,7 @@ class Operations:
             "backups": "/api/stack/backups",
         }
         if addon_id is not None:
-            if area != "backups" or not re.fullmatch(r"[A-Za-z0-9._-]+", addon_id):
+            if area != "backups" or not ADDON_ID.fullmatch(addon_id):
                 raise ShieldError("An add-on ID is supported only for backup listing")
             return self.safe(self.t.manager(f"/api/addons/{addon_id}/backups"))
         return self.safe(self.t.manager(endpoints[area]))
@@ -1393,9 +1416,13 @@ class Operations:
                                     "editable",
                                     "secret",
                                     "value_source",
+                                    "warning",
                                 )
                             }
                         )
+                        source = setting_source(node)
+                        if source:
+                            rows[-1]["source"] = source
                 else:
                     for value in node.values():
                         visit(value)
@@ -1404,14 +1431,18 @@ class Operations:
                     visit(value)
 
         visit(tree)
-        return self.safe(
-            {
-                "settings": rows[start : start + limit],
-                "total": len(rows),
-                "start": start,
-                "next_start": start + limit if start + limit < len(rows) else None,
-            }
-        )
+        page = {
+            "settings": rows[start : start + limit],
+            "total": len(rows),
+            "start": start,
+            "next_start": start + limit if start + limit < len(rows) else None,
+        }
+        if isinstance(tree, dict):
+            # Kodi Manager: whether this add-on accepts edits at all, and why not.
+            for key in ("editable", "read_only_reason"):
+                if key in tree:
+                    page[key] = tree[key]
+        return self.safe(page)
 
     def core_settings(self, query="", start=0, limit=25):
         return self.settings_page(
@@ -1419,7 +1450,7 @@ class Operations:
         )
 
     def addon_settings(self, addon_id, query="", start=0, limit=25):
-        if not re.fullmatch(r"[A-Za-z0-9_.-]+", addon_id):
+        if not ADDON_ID.fullmatch(addon_id):
             raise ShieldError("Invalid add-on ID")
         if self.c.manager_token:
             return self.settings_page(
@@ -1481,7 +1512,7 @@ class Operations:
     def set_addon_setting(self, addon_id, expected_version, setting, value):
         self.writes()
         if (
-            not re.fullmatch(r"[A-Za-z0-9_.-]+", addon_id)
+            not ADDON_ID.fullmatch(addon_id)
             or not re.fullmatch(r"[A-Za-z0-9_.-]+", setting)
             or privacy.SECRET.search(setting)
         ):
@@ -1494,10 +1525,34 @@ class Operations:
                 raise ShieldError("Installed add-on version differs from the inspected version")
             if self.c.manager_token:
                 self.guard_tv("setting", assume_running=True)
+                change = {"id": setting, "value": value}
+                # Schemaless (raw) and Fen Light settings.db rows are written only when the
+                # change names their store; look it up so callers need not know it.
+                listed = self.t.manager(f"/api/addons/{addon_id}/settings")
+                sources = set()
+
+                def visit(node):
+                    if isinstance(node, dict):
+                        if node.get("id") == setting and "value" in node:
+                            sources.add(setting_source(node) or "settings.xml")
+                        else:
+                            for child in node.values():
+                                visit(child)
+                    elif isinstance(node, list):
+                        for child in node:
+                            visit(child)
+
+                visit(listed)
+                if len(sources) > 1:
+                    raise ShieldError(
+                        "This add-on lists the setting in more than one store "
+                        f"({', '.join(sorted(sources))}); edit it in Kodi Manager",
+                        "invalid_request",
+                    )
+                if sources and sources != {"settings.xml"}:
+                    change["source"] = sources.pop()
                 result = self.t.manager(
-                    f"/api/addons/{addon_id}/settings",
-                    "PATCH",
-                    {"changes": [{"id": setting, "value": value}]},
+                    f"/api/addons/{addon_id}/settings", "PATCH", {"changes": [change]}
                 )
                 self.audit("set_addon_setting", addon_id + ":" + setting, result.get("backup_id"))
                 return self.safe(result)
@@ -1570,7 +1625,7 @@ class Operations:
             self.guard_tv("layout", assume_running=True)
             endpoint = "/api/stack/backup"
             if addon_id is not None:
-                if not re.fullmatch(r"[A-Za-z0-9._-]+", addon_id):
+                if not ADDON_ID.fullmatch(addon_id):
                     raise ShieldError("Invalid add-on ID")
                 endpoint = f"/api/addons/{addon_id}/backup"
             result = self.t.manager(endpoint, "POST", {})
@@ -1585,7 +1640,7 @@ class Operations:
             self.guard_tv("layout", assume_running=True)
             endpoint = "/api/stack/restore"
             if addon_id is not None:
-                if not re.fullmatch(r"[A-Za-z0-9._-]+", addon_id):
+                if not ADDON_ID.fullmatch(addon_id):
                     raise ShieldError("Invalid add-on ID")
                 endpoint = f"/api/addons/{addon_id}/restore"
             result = self.t.manager(endpoint, "POST", {"backup_id": backup_id})

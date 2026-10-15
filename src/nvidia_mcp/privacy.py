@@ -50,10 +50,13 @@ HEADER = re.compile(
     r"(\s*:\s*)[^\r\n,}\"']+"
 )
 BEARER = re.compile(r"(?i)\b(Bearer|Basic|Token)\s+[A-Za-z0-9._~+/=-]{4,}")
+# Also JSON-escaped pairs inside a string (``{\"password\":\"abc\"}``): a backslash may precede
+# each quote, and an escaped value runs to the next escaped quote.
 QUOTED_PAIR = re.compile(
     r"""(?x)
-    (?P<q>["'])(?P<key>[^"'\\\s]{1,80})(?P=q)\s*:\s*
-    (?P<value>[uUbBrR]?"(?:[^"\\]|\\.)*"|[uUbBrR]?'(?:[^'\\]|\\.)*'|-?\d[\d.]*)
+    (?P<q>\\?["'])(?P<key>[^"'\\\s]{1,80})(?P=q)\s*:\s*
+    (?P<value>\\"(?:[^"\\]|\\[^"])*\\"|\\'(?:[^'\\]|\\[^'])*\\'
+      |[uUbBrR]?"(?:[^"\\]|\\.)*"|[uUbBrR]?'(?:[^'\\]|\\.)*'|-?\d[\d.]*)
     """
 )
 PAIR = re.compile(
@@ -61,8 +64,9 @@ PAIR = re.compile(
     ((?<![A-Za-z0-9])["']?
       (?:[A-Za-z0-9_.-]*?(?:{_SUBSTRING})[A-Za-z0-9_]*
         |(?:[A-Za-z0-9_.-]*[._-])?(?:{_SEGMENT_WORDS}))
-     ["']?\s*[=:]\s*["']?)
-    (?!\[redacted\])([^\s,;"'&}}<>]+)
+     ["']?\s*[=:]\s*)
+    (?:(?P<q>["'])(?P<quoted>(?:(?!(?P=q))[^\\\n]|\\.)*)(?P=q)
+      |(?P<open>["']?)(?!\[redacted\])(?P<bare>[^\s,;"'&}}<>]+))
     """
 )
 # Netscape cookies.txt: domain, flag, path, secure, expiry, name, then the value.
@@ -85,9 +89,15 @@ XML_ELEMENT = re.compile(
 def _quoted(match):
     if not SECRET.search(match["key"]):
         return match[0]
-    value = match["value"]
-    quote = value[-1] if value[-1] in "\"'" else ""
+    quote = re.match(r"[uUbBrR]?(\\?[\"']|)", match["value"])[1]
     return match[0][: match.start("value") - match.start()] + f"{quote}[redacted]{quote}"
+
+
+def _pair(match):
+    """A quoted value is redacted up to its closing quote, spaces included."""
+    if match["q"]:
+        return f"{match[1]}{match['q']}[redacted]{match['q']}"
+    return f"{match[1]}{match['open']}[redacted]"
 
 
 def _xml_id(attrs) -> str:
@@ -157,7 +167,7 @@ def _credential_rules(value: str) -> str:
     value = HEADER.sub(r"\1\2[redacted]", value)
     value = BEARER.sub(r"\1 [redacted]", value)
     value = QUOTED_PAIR.sub(_quoted, value)
-    return PAIR.sub(r"\1[redacted]", value)
+    return PAIR.sub(_pair, value)
 
 
 def text(value: str, known=()) -> str:

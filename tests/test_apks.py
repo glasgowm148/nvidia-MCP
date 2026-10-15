@@ -590,3 +590,50 @@ def test_failed_remote_tar_exit_blocks_installation(apk_env):
     with pytest.raises(ShieldError, match="exit 1"):
         ops.apks.apply(preview["preview_id"])
     assert not any(call[0] == "push" for call in device.calls)
+
+
+def test_attempt_failing_before_transfer_removes_its_bundle(apk_env):
+    ops, device, candidate = apk_env
+    device.installed["/data/app/example/base.apk"] = apk_bytes(package="org.xbmc.kodi")
+    preview = ops.apks.preview([candidate(package="org.xbmc.kodi")])
+    device.fail_snapshot = True
+    for _ in range(3):  # Retries must not pile up GB-sized bundles.
+        with pytest.raises(ShieldError, match="No APK was transferred") as caught:
+            ops.apks.apply(preview["preview_id"])
+        assert caught.value.kind != "outcome_unknown"
+    assert not any(call[0] == "push" for call in device.calls)
+    root = ops.c.state / "apk_backups"
+    assert not root.exists() or not any(root.iterdir())
+    assert preview["preview_id"] in ops.apks.plans  # Still retryable after a local failure.
+
+
+@pytest.mark.parametrize("kind", ["timeout", "response_timeout"])
+def test_install_timeout_after_transfer_is_outcome_unknown(apk_env, kind):
+    ops, device, candidate = apk_env
+    preview = ops.apks.preview([candidate()])
+    original = device.shell
+
+    def shell(*args, **kwargs):
+        if args[:2] == ("pm", "install"):
+            raise ShieldError("ADB timed out; check the TV connection", kind)
+        return original(*args, **kwargs)
+
+    device.shell = shell
+    with pytest.raises(ShieldError, match="may still complete") as caught:
+        ops.apks.apply(preview["preview_id"])
+    assert caught.value.kind == "outcome_unknown"
+    backup = ops.apks.backups()["backups"][0]
+    assert backup["status"] == "failed_after_transfer"
+
+
+def test_push_timeout_keeps_timeout_kind(apk_env):
+    ops, device, candidate = apk_env
+    preview = ops.apks.preview([candidate()])
+
+    def adb(*args, **kwargs):
+        raise ShieldError("ADB timed out; check the TV connection", "timeout")
+
+    device.adb = adb
+    with pytest.raises(ShieldError, match="Recovery bundle") as caught:
+        ops.apks.apply(preview["preview_id"])
+    assert caught.value.kind == "timeout"

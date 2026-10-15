@@ -2,7 +2,9 @@
 
 Configured by NVIDIA_MCP_RETENTION_DAYS (0 disables pruning of backups),
 NVIDIA_MCP_KEEP_FILE_BACKUPS and NVIDIA_MCP_KEEP_APK_BACKUPS. The newest N of each kind are
-always kept regardless of age, and APK bundles whose install did not verify are never pruned.
+always kept regardless of age. APK bundles from attempts that never started an install
+(nothing on the TV changed) are pruned once older than the window; a bundle whose install
+started but did not verify is never pruned, since it may be needed for recovery.
 """
 
 import json
@@ -10,6 +12,8 @@ import shutil
 import time
 
 PREVIEW_TTL = 600
+# Written before any APK reaches the Shield's installer: the app on the TV is unchanged.
+UNUSED_BUNDLE_STATES = frozenset({"preparing", "prepared", "failed_before_transfer"})
 
 
 def _age_days(path, now):
@@ -49,10 +53,24 @@ def prune_state(config, now=None):
     bundles = state / "apk_backups"
     if bundles.is_dir():
         verified = []
-        for manifest in bundles.glob("*/manifest.json"):
+        for folder in bundles.iterdir():
+            manifest = folder / "manifest.json"
             try:
-                if json.loads(manifest.read_text()).get("status") == "verified":
+                if not folder.is_dir() or folder.is_symlink():
+                    continue
+                if not manifest.exists():
+                    # A process that died while saving originals: the manifest is written
+                    # before anything is pushed, so the TV was not touched.
+                    if _age_days(folder, now) > days:
+                        shutil.rmtree(folder, ignore_errors=True)
+                        removed["apk_backups"] += 1
+                    continue
+                status = json.loads(manifest.read_text()).get("status")
+                if status == "verified":
                     verified.append(manifest)
+                elif status in UNUSED_BUNDLE_STATES and _age_days(manifest, now) > days:
+                    shutil.rmtree(folder, ignore_errors=True)
+                    removed["apk_backups"] += 1
             except (OSError, ValueError, AttributeError):
                 continue  # Unknown state: keep it for manual review.
         verified.sort(key=lambda p: p.stat().st_mtime, reverse=True)

@@ -82,7 +82,8 @@ def test_kodi_is_asked_to_quit_before_any_force_stop(ops, action):
 
 
 # response_timeout: the connection was made, then Kodi stalled while exiting.
-@pytest.mark.parametrize("kind", ["unreachable", "timeout", "response_timeout"])
+# invalid_response: Kodi closed the connection part-way through its reply.
+@pytest.mark.parametrize("kind", ["unreachable", "timeout", "response_timeout", "invalid_response"])
 def test_a_dropped_connection_during_quit_counts_as_sent(ops, kind):
     def exits(ops, tv):
         ops.t.running = False

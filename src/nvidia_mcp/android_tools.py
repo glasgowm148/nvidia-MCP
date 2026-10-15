@@ -41,6 +41,18 @@ def run_tool(command):
             "APK tools need official Android SDK Build Tools: configure AAPT2_PATH, APKSIGNER_PATH and Java",
             "missing_dependency",
         ) from None
+    except PermissionError:
+        raise ShieldError(
+            "Android SDK tool could not start: check AAPT2_PATH/APKSIGNER_PATH/JAVA_PATH point to "
+            "executables and allow them in OS permissions",
+            "permission_denied",
+        ) from None
+    except OSError:
+        raise ShieldError(
+            "Android SDK tool could not start: use official Build Tools and Java for this "
+            "computer's OS and architecture",
+            "missing_dependency",
+        ) from None
     except subprocess.TimeoutExpired:
         raise ShieldError("Android SDK APK inspection timed out", "timeout") from None
 

@@ -279,6 +279,37 @@ def test_retention_prunes_old_state(tmp_path):
     assert prune_state(replace(config, retention_days=0))["file_backups"] == 0
 
 
+def test_retention_prunes_stale_bundles_only_while_the_tv_was_untouched(tmp_path):
+    config = Config(host="127.0.0.1", state=tmp_path, keep_apk_backups=0)
+    bundles = tmp_path / "apk_backups"
+    old = time.time() - 200 * 86400
+    states = [
+        "failed_before_transfer",
+        "preparing",
+        "prepared",
+        "installing",
+        "failed_after_transfer",
+        "something_new",
+    ]
+    for index, status in enumerate(states):
+        folder = bundles / f"{index:032x}"
+        folder.mkdir(parents=True)
+        (folder / "0.apk").write_bytes(b"original")
+        (folder / "manifest.json").write_text(json.dumps({"status": status}))
+        os.utime(folder / "manifest.json", (old, old))
+    recent = bundles / f"{99:032x}"
+    recent.mkdir()
+    (recent / "manifest.json").write_text(json.dumps({"status": "failed_before_transfer"}))
+    orphan = bundles / f"{98:032x}"  # Died while saving originals: no manifest yet.
+    orphan.mkdir()
+    (orphan / "0.apk").write_bytes(b"partial")
+    os.utime(orphan, (old, old))
+    removed = prune_state(config)
+    assert removed["apk_backups"] == 4
+    kept = sorted(p.name for p in bundles.iterdir())
+    assert kept == sorted([f"{3:032x}", f"{4:032x}", f"{5:032x}", recent.name])
+
+
 def test_secret_helpers():
     assert privacy.contains_secret('<setting id="rd.auth">x</setting>')
     assert not privacy.contains_secret('<setting id="widget_limit">20</setting>')

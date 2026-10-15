@@ -106,6 +106,46 @@ class Transport:
         setattr(self, "manager_forward_port" if manager else "forward_port", int(port))
         return f"http://127.0.0.1:{port}"
 
+    def _drop_forward(self, manager, base):
+        """Forget a forwarded ``base`` that stopped answering (the adb server restarted or the
+        Shield slept/rebooted, taking the forward with it) so the next use forwards again.
+        Returns True when ``base`` was a forward."""
+        if self.kodi_route == "direct" or base == self.c.url(manager):
+            return False
+        attr, port_attr = (
+            ("_manager_url", "manager_forward_port") if manager else ("_kodi_url", "forward_port")
+        )
+        with self._route_lock:
+            if getattr(self, attr) == base:
+                stale = getattr(self, port_attr)
+                setattr(self, attr, None)
+                setattr(self, port_attr, None)
+                if stale is not None:
+                    try:
+                        self.adb("forward", "--remove", f"tcp:{stale}", timeout=15)
+                    except ShieldError:
+                        pass  # Usually already gone with the old adb server or connection.
+        return True
+
+    def routed(self, path, manager=False, **kwargs):
+        """``request`` to ``path`` on Kodi or Kodi Manager under the chosen route. A forward that
+        stopped answering is dropped; the request is retried once through a fresh forward only
+        when the connection itself was refused, so nothing reached the device."""
+        base = self.service_url(manager)
+        try:
+            return self.request(base + path, manager=manager, **kwargs)
+        except ShieldError as exc:
+            if not (exc.kind == "unreachable" and self._drop_forward(manager, base)):
+                raise
+            if not getattr(exc, "connect_failed", False):
+                raise
+        return self.request(self.service_url(manager) + path, manager=manager, **kwargs)
+
+    def reset_forwards(self):
+        """Drop every cached route and forward, e.g. after ``adb connect``: a new device
+        connection does not carry over forwards from the old one."""
+        self.remove_forward()
+
     def remove_forward(self):
         with self._route_lock:
             ports = (self.forward_port, self.manager_forward_port)
@@ -205,14 +245,17 @@ class Transport:
                 isinstance(exc, httpx.RemoteProtocolError)
                 and str(exc) != "Server disconnected without sending a response."
             )
-            raise ShieldError(
+            error = ShieldError(
                 "Device HTTP connection failed; inspect state before retrying changes",
                 "outcome_unknown"
                 if manager and write and not isinstance(exc, httpx.ConnectError)
                 else "invalid_response"
                 if response_started or malformed
                 else "unreachable",
-            ) from None
+            )
+            # Only a failed connect proves the request was never sent, so only it is retryable.
+            error.connect_failed = isinstance(exc, httpx.ConnectError) and not response_started
+            raise error from None
         except (ValueError, RecursionError):
             raise ShieldError(
                 "Device HTTP service returned invalid JSON", "invalid_response"
@@ -221,9 +264,8 @@ class Transport:
             timer.cancel()
 
     def rpc(self, method, params=None):
-        result = self.request(
-            self.kodi_url() + "/jsonrpc",
-            body={"jsonrpc": "2.0", "id": 1, "method": method, "params": params or {}},
+        result = self.routed(
+            "/jsonrpc", body={"jsonrpc": "2.0", "id": 1, "method": method, "params": params or {}}
         )
         if not isinstance(result, dict):
             raise ShieldError("Invalid Kodi JSON-RPC response", "invalid_response")
@@ -254,9 +296,7 @@ class Transport:
             )
         write = method != "GET" and path not in MANAGER_READ_POSTS
         try:
-            result = self.request(
-                self.service_url(True) + path, method, body, manager=True, write=write
-            )
+            result = self.routed(path, True, method=method, body=body, write=write)
         except ShieldError as exc:
             remote = getattr(exc, "operation", None)
             self._manager_operation(remote)
@@ -459,25 +499,38 @@ class Transport:
                 "missing_dependency" if isinstance(exc, FileNotFoundError) else "storage_error",
             ) from None
 
-    def shell(self, *args, **kwargs):
-        return (
-            self.adb("shell", shlex.join(args), **kwargs).decode("utf-8", errors="replace").strip()
-        )
+    def shell(self, *args, strip=True, **kwargs):
+        """Run argv on the device. ``strip=False`` removes only trailing line breaks, for output
+        such as a path whose own leading/trailing spaces matter."""
+        out = self.adb("shell", shlex.join(args), **kwargs).decode("utf-8", errors="replace")
+        return out.strip() if strip else out.rstrip("\r\n")
 
 
 TRAILER = 128
 REMOTE_MODE = re.compile(r"[0-7]{3,4}")
 
 
-def push_atomic(transport, source, remote, *, mode=None, before_commit=None):
+def push_timeout(source):
+    """ADB push time budget: at least two minutes, plus a second per MiB (a slow Wi-Fi link)."""
+    try:
+        size = Path(source).stat().st_size
+    except OSError:
+        size = 0
+    return max(120, size / 2**20)
+
+
+def push_atomic(transport, source, remote, *, mode=None, before_commit=None, timeout=None):
     """Push ``source`` beside ``remote`` under a unique temporary name, optionally chmod it, run
     ``before_commit(temp)`` (which may raise to abandon the push), then ``mv -f`` it into place.
-    The temporary file is always removed. Readback of the result is the caller's job."""
+    The temporary file is always removed. Readback of the result is the caller's job.
+    ``timeout`` bounds the push itself; by default it scales with the file size."""
     if mode is not None and not REMOTE_MODE.fullmatch(mode):
         raise ShieldError("File mode must be octal digits such as 644", "invalid_request")
     temp = str(remote) + ".nvidia-mcp-" + uuid.uuid4().hex
     try:
-        transport.adb("push", str(source), temp)
+        transport.adb(
+            "push", str(source), temp, timeout=push_timeout(source) if timeout is None else timeout
+        )
         if mode is not None:
             transport.shell("chmod", mode, temp)
         if before_commit is not None:

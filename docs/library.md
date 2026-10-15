@@ -68,7 +68,7 @@ in any release.
 | `quit_kodi(wait: float = 30)` | `dict` | Same as `kodi_lifecycle stop`; needs `allow_writes` |
 | `start_kodi(wait: float = 0)` | `dict` | Same as `kodi_lifecycle start`; with `wait`, `ready` says whether JSON-RPC answered; needs `allow_writes` |
 | `pull(path, local=None, *, limit=50_000_000)` | `bytes`, or byte count | With `local`, streams to a new 0600 file |
-| `push_verified(local, remote, *, mode: str \| None = None)` | `{"remote", "sha256", "bytes"}` | Atomic, checksum-verified; needs `allow_writes` |
+| `push_verified(local, remote, *, mode: str \| None = None, timeout: float \| None = None)` | `{"remote", "sha256", "bytes"}` | Atomic, checksum-verified; needs `allow_writes` |
 | `memory()` | `dict` | `mem_total_kb`, `mem_available_kb`, `swap_total_kb`, `swap_free_kb`, `swap_used_percent`, `kodi` (`pss_kb`, `native_heap_kb`, `rss_kb`, or `None` when Kodi is not running) |
 | `process_deaths(package="org.xbmc.kodi", lines=2000)` | `list[dict]` | `am_proc_died`/`am_kill` records from Android's event log: `time`, `event`, `pid`, `oom_adj`, `proc_state` or `reason` |
 
@@ -116,14 +116,16 @@ app in front (`respawned_process_stopped` lists its pid); a Kodi that is on scre
 `restarted`, and one whose foreground app cannot be read raises `respawned`, both leaving it
 running.
 
-### `push_verified(local, remote, mode=None)`
+### `push_verified(local, remote, mode=None, timeout=None)`
 
 `remote` must be an absolute file path under `/sdcard`, `/storage/emulated/0` or
 `/data/local/tmp`. The file is pushed to a unique temporary name beside `remote`, its SHA-256 is
 computed on the Shield and compared with the local file, and only then moved over `remote`; the
 result is checked again. A failed check leaves the previous file in place (`verify_failed`); the
 temporary file is always removed. `mode` (octal string such as `"644"`) defaults to the existing
-file's permissions. Stopping Kodi first, if it could overwrite the file, is the caller's job.
+file's permissions. `timeout` (seconds) bounds the push; by default it is two minutes or one
+second per MiB, whichever is longer. Stopping Kodi first, if it could overwrite the file, is the
+caller's job.
 
 ## Safety
 

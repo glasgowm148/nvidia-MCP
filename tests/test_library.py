@@ -286,6 +286,24 @@ def test_push_verified_never_replaces_with_a_corrupt_copy(tmp_path):
     assert [path for path in tv.transport.files if ".nvidia-mcp-" in path] == []
 
 
+def test_push_verified_scales_and_accepts_a_push_timeout(tmp_path):
+    tv = shield(tmp_path, "idle_home")
+    timeouts, adb = [], tv.transport.adb
+
+    def record(*args, **kwargs):
+        if args[0] == "push":
+            timeouts.append(kwargs["timeout"])
+        return adb(*args, **kwargs)
+
+    tv.transport.adb = record
+    local = tmp_path / "big.zip"
+    with local.open("wb") as handle:
+        handle.truncate(300 * 2**20)  # Sparse; 1 MiB/s budget beats the two-minute floor.
+    tv.push_verified(local, "/data/local/tmp/big.zip", mode="600")
+    tv.push_verified(local, "/data/local/tmp/big.zip", mode="600", timeout=900)
+    assert timeouts == [300, 900]
+
+
 def test_push_verified_new_file(tmp_path):
     tv = shield(tmp_path, "idle_home")
     local = tmp_path / "a.zip"

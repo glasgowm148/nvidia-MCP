@@ -148,6 +148,161 @@ def test_auto_routes_each_service_independently(tmp_path):
         transport.close()
 
 
+def reforwarding_transport(tmp_path, dead_ports, failure=httpx.ConnectError, route="forward"):
+    """Each ``adb forward tcp:0`` hands out a new port; ``dead_ports`` lost their forward (the
+    adb server restarted or the Shield slept), so a request to them fails with ``failure``."""
+    transport, calls = forwarded_transport(tmp_path, route)
+    ports, sent = iter(range(41234, 41300)), []
+
+    def adb(*args, **kwargs):
+        calls.append(args)
+        return str(next(ports)).encode() if args[:2] == ("forward", "tcp:0") else b""
+
+    def handler(request):
+        if request.url.port == 8080 or request.url.port in dead_ports:
+            raise failure("synthetic", request=request)
+        sent.append((request.url.port, request.method, request.url.path))
+        if request.url.path == "/jsonrpc":
+            return httpx.Response(200, json={"result": "pong"})
+        return httpx.Response(200, json={"ok": True, "data": {}})
+
+    transport.adb = adb
+    transport.http = httpx.Client(transport=httpx.MockTransport(handler))
+    return transport, calls, sent
+
+
+@pytest.mark.parametrize("route", ["forward", "auto"])
+def test_lost_forward_is_reestablished_and_refused_request_retried_once(tmp_path, route):
+    dead = set()
+    transport, calls, sent = reforwarding_transport(tmp_path, dead, route=route)
+    try:
+        assert transport.rpc("JSONRPC.Ping") == "pong"
+        dead.add(41234)  # adb server restarted: the forward is gone, connects are refused.
+        assert transport.rpc("JSONRPC.Ping") == "pong"
+        assert transport.forward_port == 41235
+        assert calls == [
+            ("forward", "tcp:0", "tcp:8080"),
+            ("forward", "--remove", "tcp:41234"),
+            ("forward", "tcp:0", "tcp:8080"),
+        ]
+        assert [port for port, _, _ in sent] == [41234, 41235]
+    finally:
+        transport.close()
+
+
+def test_refused_manager_write_is_retried_once_through_a_new_forward(tmp_path):
+    dead = set()
+    transport, calls, sent = reforwarding_transport(tmp_path, dead)
+    try:
+        transport.manager("/api/health")
+        dead.add(41234)
+        assert transport.manager("/api/widgets/layout/rebuild", "POST", {}) == {}
+        # The refused connect delivered nothing, so the write reached Kodi Manager once.
+        assert sent == [
+            (41234, "GET", "/api/health"),
+            (41235, "POST", "/api/widgets/layout/rebuild"),
+        ]
+    finally:
+        transport.close()
+
+
+def test_retry_through_a_new_forward_happens_only_once(tmp_path):
+    dead = set(range(41234, 41300))
+    transport, calls, sent = reforwarding_transport(tmp_path, dead)
+    try:
+        with pytest.raises(ShieldError) as error:
+            transport.rpc("JSONRPC.Ping")
+        assert error.value.kind == "unreachable"
+        assert [c for c in calls if c[:2] == ("forward", "tcp:0")] == [
+            ("forward", "tcp:0", "tcp:8080")
+        ] * 2
+        assert sent == []
+    finally:
+        transport.close()
+
+
+@pytest.mark.parametrize(
+    "failure,manager,dropped",
+    [
+        # The request may have been delivered: never resend it.
+        (httpx.RemoteProtocolError, False, True),
+        (httpx.ReadError, False, True),
+        (httpx.ReadTimeout, False, False),
+        (httpx.ReadTimeout, True, False),
+        (httpx.WriteError, True, False),
+    ],
+)
+def test_failure_after_connect_is_never_retried(tmp_path, failure, manager, dropped):
+    attempts = []
+
+    def fail(message, request):
+        attempts.append(request.url.port)
+        if failure is httpx.RemoteProtocolError:
+            return failure("Server disconnected without sending a response.", request=request)
+        return failure(message, request=request)
+
+    dead = {41234}
+    transport, calls, sent = reforwarding_transport(tmp_path, dead, failure=fail)
+    try:
+        with pytest.raises(ShieldError) as error:
+            if manager:
+                transport.manager("/api/widgets/layout/rebuild", "POST", {})
+            else:
+                transport.rpc("Player.Stop", {"playerid": 1})
+        assert attempts == [41234]
+        assert (error.value.kind == "unreachable") is dropped
+        if dropped:  # An unreachable forward is still dropped for the next call.
+            assert transport.rpc("JSONRPC.Ping") == "pong"
+            assert sent == [(41235, "POST", "/jsonrpc")]
+    finally:
+        transport.close()
+
+
+def test_direct_failures_are_not_retried(tmp_path):
+    transport, calls, sent = reforwarding_transport(tmp_path, set(), route="direct")
+    try:
+        with pytest.raises(ShieldError) as error:
+            transport.rpc("JSONRPC.Ping")
+        assert error.value.kind == "unreachable" and calls == [] and sent == []
+    finally:
+        transport.close()
+
+
+def test_reset_forwards_after_adb_reconnect(tmp_path):
+    transport, calls, sent = reforwarding_transport(tmp_path, set())
+    try:
+        transport.rpc("JSONRPC.Ping")
+        transport.reset_forwards()
+        assert transport.forward_port is None and transport._kodi_url is None
+        transport.rpc("JSONRPC.Ping")
+        assert [port for port, _, _ in sent] == [41234, 41235]
+        assert ("forward", "--remove", "tcp:41234") in calls
+    finally:
+        transport.close()
+
+
+def test_push_timeout_scales_with_file_size(tmp_path):
+    from nvidia_mcp.transport import push_atomic
+
+    pushes = []
+
+    class Device:
+        def adb(self, *args, **kwargs):
+            pushes.append(kwargs.get("timeout"))
+
+        def shell(self, *args, **kwargs):
+            return ""
+
+    small, large = tmp_path / "small", tmp_path / "large"
+    small.write_bytes(b"x")
+    with large.open("wb") as handle:
+        handle.truncate(600 * 2**20)  # Sparse: 600 MiB at 1 MiB/s.
+    push_atomic(Device(), small, "/sdcard/small")
+    push_atomic(Device(), large, "/sdcard/large")
+    push_atomic(Device(), large, "/sdcard/large", timeout=5)
+    assert pushes == [120, 600, 5]
+
+
 def test_http_route_configuration_and_server_use(monkeypatch, tmp_path):
     from nvidia_mcp.server import create_server
 
