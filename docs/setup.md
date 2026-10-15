@@ -16,8 +16,8 @@ Before starting:
   - Browser dashboard only: use [Kodi Manager setup](https://github.com/glasgowm148/kodi-manager/blob/main/docs/setup.md#1-add-the-download-source--inside-kodi).
   - Apple TV: use [its separate guide](apple-tv.md).
 
-If you want both nvidia-MCP and Kodi Manager, complete this setup first.
-Then ask the agent to [install and connect Kodi Manager](companion.md#ask-your-agent-to-install-kodi-manager).
+Want both? The prompt in step 4 covers the complete setup: nvidia-MCP first, then Kodi Manager.
+You can also give it to your agent before these TV steps; it will guide you through them.
 
 ## 1. Enable debugging on the TV
 
@@ -59,19 +59,32 @@ This password is for Kodi remote control, separate from streaming accounts and K
 
 ## 4. Give this message to your assistant — on the computer
 
-Replace `YOUR_TV_MODEL` and `YOUR_TV_IP` before sending. If you noted a debugging port,
-include it too. The assistant handles downloads, installation and computer configuration.
+Copy the whole prompt below. No editing is needed. The agent asks for any missing details,
+sets up nvidia-MCP, then installs and connects Kodi Manager as part of the same request.
 
 ```text
-Set up https://github.com/glasgowm148/nvidia-MCP on this computer.
-Read docs/agent-setup.md and complete the computer steps for me.
-TV model: YOUR_TV_MODEL
-TV IP address: YOUR_TV_IP
-I have enabled debugging and Kodi remote control.
-Ask which debugging option/port I see if needed, and ask privately for Kodi credentials.
-Install missing tools, preserve existing MCP servers and verify read-only access.
-Tell me when to approve a connection or enter a pairing code on the TV.
-Keep write mode and plugin browsing off. Do not interrupt playback.
+Set up nvidia-MCP and Kodi Manager for my TV:
+https://github.com/glasgowm148/nvidia-MCP
+https://github.com/glasgowm148/kodi-manager
+
+Read nvidia-MCP's docs/agent-setup.md and docs/companion.md first.
+Ask for missing device/connection details and guide me through any TV preparation.
+
+1. Install and configure nvidia-MCP on this computer. Verify the actual MCP
+   connection can read my TV and Kodi before continuing.
+2. Install Kodi Manager from https://glasgowm148.github.io/kodi-manager/
+   using Kodi's native installer. Reuse supported existing installations and
+   back up customizations before any replacement.
+3. Connect the active profile's Manager token privately. Enable dashboard LAN
+   access, give me its browser address, and verify read-only Manager access.
+
+Handle computer commands, downloads and supported TV navigation yourself.
+Ask me only for private credentials, pairing/permission prompts or TV steps
+that your tools cannot complete. Keep passwords, tokens and pairing codes private.
+Preserve my other MCP servers and settings. Target only my specified TV and
+never interrupt playback. Enable only writes needed for setup; finish with
+write mode and provider browsing off.
+Complete both stages without asking me to send a second setup prompt.
 ```
 
 You do not need to know Python, ADB commands or the MCP configuration format.
@@ -97,8 +110,9 @@ The assistant follows its [computer setup procedure](agent-setup.md).
 - **Wait for connection checks.**
   - The assistant should confirm it can read both the TV and Kodi.
   - Setup starts in read-only mode.
-- **Add Kodi Manager, if wanted.**
-  - Now ask the agent to [install and connect it](companion.md#ask-your-agent-to-install-kodi-manager).
+- **Let the combined setup finish.**
+  - The step 4 prompt already asks the agent to install and connect Kodi Manager next.
+  - You do not need to send another setup message. The agent may still need TV permission input.
 - **Ask for your first audit.**
   - **“Read the Kodi repair playbook and audit Kodi without interrupting anything.”**
 

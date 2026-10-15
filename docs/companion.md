@@ -6,11 +6,12 @@ live add-on settings, playback pipeline or supported home-layout tools.
 
 ## Ask your agent to install Kodi Manager
 
-For use with an assistant, set up **nvidia-MCP first**:
+- **Starting from scratch?**
+  - Use [one prompt for both](setup.md#4-give-this-message-to-your-assistant--on-the-computer).
+  - The agent sets up nvidia-MCP, verifies it, then continues with installing and connecting Manager.
+- **Already have a working nvidia-MCP connection?**
+  - Use the Manager-only request below.
 
-- **Connect the TV and Kodi.**
-  - Complete [nvidia-MCP setup](setup.md).
-  - Wait for the agent to confirm read-only access works.
 - **Give the agent this request.**
   - It handles preparation, supported TV navigation and connection checks.
   - You may still need to select Kodi installer options or approve permission screens on the TV.

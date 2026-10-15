@@ -43,21 +43,54 @@ You need a computer, an assistant app that supports **local MCP tools**, and a T
 home network. Your assistant needs permission to run commands and edit files on the computer;
 it installs Python 3.11+ and other tools if needed. A browser chat alone cannot do this setup.
 
-1. **Enable debugging.**
-   - Use the steps for your [Firestick / Fire TV](docs/android-tv.md#fire-tv--firestick-fire-os),
+1. **Give your agent one prompt.**
+   - Copy the [complete setup request](#one-prompt-for-both) below.
+   - It covers nvidia-MCP and Kodi Manager, including missing tools and connection checks.
+2. **Follow any TV preparation steps it asks for.**
+   - Enable debugging using the [Firestick / Fire TV](docs/android-tv.md#fire-tv--firestick-fire-os),
      [NVIDIA Shield](docs/android-tv.md#nvidia-shield) or
-     [Android TV / Google TV](docs/android-tv.md#android-tv--google-tv).
-2. **Find the TV's IP address.**
-   - Follow step 2 in the same device guide and write down the address shown on your TV.
-3. **Enable Kodi remote control.**
-   - Follow [setup step 3](docs/setup.md#3-enable-kodi-remote-control).
-4. **Let your assistant set up the computer.**
-   - Send it the [setup message](docs/setup.md#4-give-this-message-to-your-assistant--on-the-computer).
-   - It installs the tools and connects them; you do not need to run commands yourself.
-5. **Approve the connection and finish setup.**
-   - Select **Allow** on the TV when asked, then wait for the assistant to confirm it works.
-   - Want Kodi Manager too? [Ask the agent to install and connect it next](docs/companion.md#ask-your-agent-to-install-kodi-manager).
-   - Then ask: **“Read the Kodi repair playbook and audit Kodi without interrupting anything.”**
+     [Android TV / Google TV](docs/android-tv.md#android-tv--google-tv) guide.
+   - Find the TV's IP address using step 2 in that same guide.
+   - Enable [Kodi remote control](docs/setup.md#3-enable-kodi-remote-control).
+3. **Approve the connection and let setup finish.**
+   - Select **Allow** on the TV when asked, or enter a pairing code privately.
+   - The agent verifies nvidia-MCP, then installs and connects Kodi Manager.
+   - Once it confirms both work, ask: **“Read the Kodi repair playbook and audit Kodi without interrupting anything.”**
+
+### One prompt for both
+
+Copy this into an agent that can run commands and edit files on your computer.
+No editing is needed; it asks for missing TV details and walks you through any TV prompts.
+
+<details>
+<summary><strong>Copy the complete setup prompt</strong></summary>
+
+```text
+Set up nvidia-MCP and Kodi Manager for my TV:
+https://github.com/glasgowm148/nvidia-MCP
+https://github.com/glasgowm148/kodi-manager
+
+Read nvidia-MCP's docs/agent-setup.md and docs/companion.md first.
+Ask for missing device/connection details and guide me through any TV preparation.
+
+1. Install and configure nvidia-MCP on this computer. Verify the actual MCP
+   connection can read my TV and Kodi before continuing.
+2. Install Kodi Manager from https://glasgowm148.github.io/kodi-manager/
+   using Kodi's native installer. Reuse supported existing installations and
+   back up customizations before any replacement.
+3. Connect the active profile's Manager token privately. Enable dashboard LAN
+   access, give me its browser address, and verify read-only Manager access.
+
+Handle computer commands, downloads and supported TV navigation yourself.
+Ask me only for private credentials, pairing/permission prompts or TV steps
+that your tools cannot complete. Keep passwords, tokens and pairing codes private.
+Preserve my other MCP servers and settings. Target only my specified TV and
+never interrupt playback. Enable only writes needed for setup; finish with
+write mode and provider browsing off.
+Complete both stages without asking me to send a second setup prompt.
+```
+
+</details>
 
 - **Full instructions**
   - [Start-to-finish setup](docs/setup.md).

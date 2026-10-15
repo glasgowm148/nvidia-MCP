@@ -169,6 +169,8 @@ Give the user a short result: installed location, configured client, ADB/Kodi/MC
 any genuine remaining action. Include no credentials. The user can now ask for a focused Kodi audit.
 If the user wants both nvidia-MCP and [Kodi Manager](companion.md#ask-your-agent-to-install-kodi-manager),
 finish and verify the base connection first, then handle companion installation and connection.
+The combined setup prompt requests both stages: continue into companion setup without asking for
+a second request. Still wait for required TV permissions or private pairing input.
 Reuse a supported existing installation; ask the user only for TV steps your available tools cannot complete.
 
 APK tooling is optional and is not part of ordinary onboarding. When the person requests an APK
