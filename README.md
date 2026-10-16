@@ -197,6 +197,14 @@ See [operation rules](docs/configuration.md), [repair workflows](docs/repairs.md
 The complete [generated tool catalogue](docs/tools.md) lists Android/Shield tools and access gates.
 Apple TV has a separate [capability table](docs/apple-tv.md#what-matches-the-shield-workflow).
 
+## Agent skill
+
+[`skills/nvidia-shield-kodi`](skills/nvidia-shield-kodi/SKILL.md) is a standard `SKILL.md` skill that
+tells an agent when to use these tools and how to stay safe with them: triage order, common
+playback/audio/add-on recipes, write and undo rules, and the setup flow when the server is missing.
+Copy the folder into your agent's skills directory (for example `~/.claude/skills/`). It contains only
+instructions and needs this MCP server installed.
+
 ## Documentation
 
 Start with the [documentation index](docs/README.md), or go directly to:

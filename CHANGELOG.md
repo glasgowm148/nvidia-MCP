@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Agent skill `skills/nvidia-shield-kodi` (SKILL.md + references): when and how to use the tools, triage, recipes, write/undo rules and setup. Instructions only; not part of the Python package.
+
 ## 0.5.12 — 2026-10-15 (prerelease)
 
 - An APK install that completed is never recorded as a refusal: an unreadable or changed serial after the install command is `outcome_unknown`; failures before any install command get the prunable `failed_before_install` status; the "installing" status is saved before any pm command.

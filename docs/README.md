@@ -17,6 +17,7 @@ experimental [Apple TV guide](apple-tv.md). Kodi must already be installed on Ap
 | Guide | Contents |
 | --- | --- |
 | [Tool reference](tools.md) | Generated tool catalogue, access modes and platform differences |
+| [Agent skill](../skills/nvidia-shield-kodi/SKILL.md) | SKILL.md that guides agents through triage, recipes and safe changes |
 | [Configuration](configuration.md) | Environment variables, private storage, playback guards and opt-ins |
 | [Kodi Manager companion](companion.md) | Repository installation, live settings/dashboard, profile tokens and capability boundaries |
 | [Repair workflows](repairs.md) | Diagnose, preview, apply, verify and undo configuration changes |
