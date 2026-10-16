@@ -7,6 +7,8 @@
   <a href="https://github.com/glasgowm148/nvidia-MCP/releases"><img src="https://img.shields.io/github/v/release/glasgowm148/nvidia-MCP?include_prereleases&amp;style=flat-square&amp;color=6ee7b7" alt="Latest release, including prereleases"></a>
   <a href="pyproject.toml"><img src="https://img.shields.io/badge/Python-3.11%2B-7dd3fc?style=flat-square" alt="Python 3.11 or newer"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-c4b5fd?style=flat-square" alt="MIT license"></a>
+  <a href="https://www.agensi.io/skills/nvidia-shield-kodi-troubleshooter"><img src="https://img.shields.io/badge/Agensi-Free_skill-6ee7b7?style=flat-square" alt="NVIDIA Shield &amp; Kodi Troubleshooter — free skill on Agensi"></a>
+  <a href="https://glama.ai/mcp/servers/glasgowm148/nvidia-MCP"><img src="https://glama.ai/mcp/servers/glasgowm148/nvidia-MCP/badges/score.svg" alt="nvidia-MCP MCP server – quality and maintenance score on Glama"></a>
 </p>
 
 <p align="center">
@@ -202,8 +204,9 @@ Apple TV has a separate [capability table](docs/apple-tv.md#what-matches-the-shi
 [`skills/nvidia-shield-kodi`](skills/nvidia-shield-kodi/SKILL.md) is a standard `SKILL.md` skill that
 tells an agent when to use these tools and how to stay safe with them: triage order, common
 playback/audio/add-on recipes, write and undo rules, and the setup flow when the server is missing.
-Copy the folder into your agent's skills directory (for example `~/.claude/skills/`). It contains only
-instructions and needs this MCP server installed.
+Install the skill free from [Agensi](https://www.agensi.io/skills/nvidia-shield-kodi-troubleshooter),
+or copy the folder into your agent's skills directory (for example `~/.claude/skills/`). It contains
+only instructions and needs this MCP server installed.
 
 ## Documentation
 
