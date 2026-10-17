@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- contrib/profile-relaunch: helper 1.3 adds `ARMWATCH` (readiness lease plus a late reopen that `READY` replaces), and `relaunch.sh` sends it after `ARM`. A controlled restart no longer leaves the launcher on screen when Android kills Kodi during shutdown; if the child outlives Kodi it reopens it instead of cancelling. Helper 1.2 added `WATCH` for native profile switches.
 - Agent skill `skills/nvidia-shield-kodi` (SKILL.md + references): when and how to use the tools, triage, recipes, write/undo rules and setup. Instructions only; not part of the Python package.
 
 ## 0.5.12 — 2026-10-15 (prerelease)

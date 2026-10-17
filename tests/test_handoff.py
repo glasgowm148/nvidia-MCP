@@ -33,6 +33,19 @@ public final class Harness {
         check(!Handoff.decide("READY", 17000, 0, true).accepted);
         check(!Handoff.decide("READY", 17000, armed.armedUntil, false).accepted);
         check(!Handoff.decide("ARM", 1000, 0, false).accepted);
+        // WATCH (native switch safety net) schedules a later reopen without a lease; CANCEL clears it.
+        Handoff.Decision watch = Handoff.decide("WATCH", 1000, armed.armedUntil, true);
+        check(watch.accepted && watch.armedUntil == 0 && watch.launchDelay == Handoff.WATCH_DELAY);
+        check(Handoff.WATCH_DELAY >= 60000);
+        check(!Handoff.decide("WATCH", 1000, 0, false).accepted);
+        check(!Handoff.decide("READY", 2000, watch.armedUntil, true).accepted);
+        // ARMWATCH (controlled restart): a fresh lease plus the late reopen; READY still works.
+        Handoff.Decision armWatch = Handoff.decide("ARMWATCH", 1000, 0, true);
+        check(armWatch.accepted && armWatch.armedUntil == armed.armedUntil
+              && armWatch.launchDelay == Handoff.WATCH_DELAY);
+        Handoff.Decision readyAfterWatch = Handoff.decide("READY", 9000, armWatch.armedUntil, true);
+        check(readyAfterWatch.accepted && readyAfterWatch.launchDelay == 2000);
+        check(!Handoff.decide("ARMWATCH", 1000, 0, false).accepted);
         check(!Handoff.decide("OTHER", 1000, 0, true).accepted);
         check(!Handoff.decide(null, 1000, 0, true).accepted);
     }

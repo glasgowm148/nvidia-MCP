@@ -137,6 +137,24 @@ class Tests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 m.target_index(path, "Adults")
 
+    def test_locked_destination_is_refused_before_the_helper_runs(self):
+        for lock in ("<lockmode>1</lockmode>", "<lockmode>0</lockmode><lockcode>1234</lockcode>"):
+            with self.subTest(lock), tempfile.TemporaryDirectory() as folder:
+                m, path, calls, props, launch = self.env(folder)
+                path.write_text(
+                    "<profiles><lastloaded>0</lastloaded><profile><name>Adults</name></profile>"
+                    "<profile><name>Kids</name>" + lock + "</profile></profiles>"
+                )
+                with (
+                    patch.object(m.subprocess, "Popen", side_effect=launch) as popen,
+                    self.assertRaisesRegex(ValueError, "Locked profiles"),
+                ):
+                    m.restart("Kids")
+                popen.assert_not_called()
+                self.assertEqual(calls, [])
+                self.assertFalse(props)
+                self.assertEqual(m.target_index(path, "Adults"), 0)
+
     def test_workaround_only_applies_to_affected_android_builds(self):
         with tempfile.TemporaryDirectory() as folder:
             m, *_ = self.env(folder)
@@ -208,3 +226,130 @@ class RelaunchArguments(unittest.TestCase):
                 self.assertNotEqual(code, 0)
                 self.assertEqual(touched, ["profiles.xml"])  # No launch log, status or temp file.
                 self.assertIn("<lastloaded>0</lastloaded>", profiles)
+
+
+FAKE_LAUNCHER = """#!/bin/sh
+# Fake app_process: record the action, answer like a helper (old: no ARMWATCH).
+action=$3
+echo "$action" >> "$CALLS"
+case "$action" in
+  arm) echo handoff_armed ;;
+  armwatch) if [ -n "$OLD_HELPER" ]; then echo relaunch_helper_unavailable; exit 2; fi
+            echo handoff_armed_with_watch ;;
+  ready) echo launch_scheduled ;;
+  cancel) echo alarm_cancelled ;;
+esac
+"""
+
+FAKE_TOYBOX = """#!/bin/sh
+cmd=$1; shift
+case "$cmd" in
+  usleep) exec sleep 0.02 ;;
+  *) exec "$cmd" "$@" ;;
+esac
+"""
+
+
+@unittest.skipUnless(
+    os.name == "posix" and shutil.which("sh") and Path("/proc/self/stat").exists(),
+    "needs a POSIX shell and /proc",
+)
+class RelaunchHandoff(unittest.TestCase):
+    """relaunch.sh against a fake helper: the late reopen must survive Kodi dying in shutdown."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self.tmp.name)
+        bin_dir = self.root / "bin"
+        bin_dir.mkdir()
+        for name, body in (("app_process", FAKE_LAUNCHER), ("toybox", FAKE_TOYBOX)):
+            (bin_dir / name).write_text(body)
+            (bin_dir / name).chmod(0o755)
+        (bin_dir / "sh").symlink_to(shutil.which("sh"))
+        script = SCRIPT.read_text().replace("/system/bin/", str(bin_dir) + "/")
+        self.script = self.root / "relaunch.sh"
+        self.script.write_text(script)
+        self.profiles = self.root / "profiles.xml"
+        self.profiles.write_text("<profiles><lastloaded>0</lastloaded></profiles>")
+        self.log = self.root / "kodi.log"
+        self.log.write_text("start\n")
+        self.status = self.root / "result.json"
+        self.calls = self.root / "calls"
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def run_parent(self, parent_body, old_helper=False):
+        """``parent_body`` plays Kodi: it starts the script with its own pid, then acts."""
+        offset = self.log.stat().st_size
+        env = dict(
+            os.environ,
+            CALLS=str(self.calls),
+            SCRIPT=str(self.script),
+            PROFILES=str(self.profiles),
+            STATUS=str(self.status),
+            LOG=str(self.log),
+            OFFSET=str(offset),
+            DEX=str(self.root / "classes.dex"),
+            TOKEN="token",
+        )
+        if old_helper:
+            env["OLD_HELPER"] = "1"
+        launch = (
+            'sh "$SCRIPT" $$ 1 "$PROFILES" "$STATUS" "$DEX" "$LOG" "$OFFSET" "$TOKEN" & child=$!\n'
+        )
+        subprocess.run([shutil.which("sh"), "-c", launch + parent_body], env=env, timeout=30)
+        # The script may outlive its parent; wait for its final status.
+        for _ in range(200):
+            state = self.status.read_text() if self.status.exists() else ""
+            if any(p in state for p in ("termination", "reopened", "kodi_died", "save_timeout")):
+                break
+            subprocess.run(["sleep", "0.05"])
+        subprocess.run(["sleep", "0.3"])
+        calls = self.calls.read_text().split() if self.calls.exists() else []
+        return json.loads(self.status.read_text()), calls
+
+    def say(self, line):
+        return 'echo "2026-10-17 12:00:00.000 T:1 info <general>: %s" >> "$LOG"\n' % line
+
+    def test_clean_shutdown_replaces_the_late_reopen_with_ready(self):
+        body = (
+            "sleep 0.5\n"
+            + self.say("XBMCApp: Finishing the activity")
+            + "sleep 0.3\n"
+            + self.say("Saving skin settings")
+            + "sleep 0.3\n"
+            + self.say("Application stopped")
+            + "sleep 10\n"
+        )
+        state, calls = self.run_parent(body)
+        self.assertEqual(calls, ["arm", "armwatch", "ready"])
+        self.assertEqual(state.get("termination"), "saved_settings_and_services_stopped")
+        self.assertIn("<lastloaded>1</lastloaded>", self.profiles.read_text())
+
+    def test_kodi_killed_after_finishing_the_activity_reopens_instead_of_cancelling(self):
+        # Low-memory killer: Kodi dies after the activity finished, before it saved settings.
+        body = "sleep 0.5\n" + self.say("XBMCApp: Finishing the activity") + "sleep 0.5\nexit 0\n"
+        state, calls = self.run_parent(body)
+        self.assertEqual(calls, ["arm", "armwatch", "ready"])
+        self.assertNotIn("cancel", calls)
+        self.assertEqual(state["phase"], "reopened_after_kodi_died")
+        self.assertIn("<lastloaded>1</lastloaded>", self.profiles.read_text())
+
+    def test_old_helper_without_armwatch_still_completes_the_restart(self):
+        body = (
+            "sleep 0.5\n"
+            + self.say("XBMCApp: Finishing the activity")
+            + self.say("Saving skin settings")
+            + self.say("Application stopped")
+            + "sleep 10\n"
+        )
+        state, calls = self.run_parent(body, old_helper=True)
+        self.assertEqual(calls, ["arm", "armwatch", "ready"])
+        self.assertEqual(state.get("termination"), "saved_settings_and_services_stopped")
+
+    def test_save_timeout_while_kodi_lives_cancels_the_reopen(self):
+        # Kodi still running but never saved: the restart is abandoned and nothing may reopen.
+        state, calls = self.run_parent("sleep 13\n")
+        self.assertEqual(state["phase"], "save_timeout")
+        self.assertEqual(calls[-1], "cancel")

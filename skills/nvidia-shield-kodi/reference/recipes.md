@@ -70,11 +70,11 @@ server's private environment; it adds tools but no permissions.
    exit, stop: Kodi is still running.
 5. `kodi_apply_file_patch` with the same edits. Keep the `backup_id`.
 6. Start Kodi, check `kodi_get_status`, and test the behaviour that was broken.
-7. Roll back: stop Kodi, then `kodi_restore_file(backup_id)`.
+7. Roll back: stop Kodi, then `kodi_restore_file(backup_id, expected_current_sha256)` (the hash from `kodi_read_file`).
 
 ## Home-screen rows in Bingie (optional Kodi Manager)
 
-These tools appear only when the Kodi Manager companion is installed and its token is configured.
+These tools need the Kodi Manager companion and its token. The standard profile lists them only when a token is configured; the full profile always lists them, so a listed tool is not proof that Kodi Manager is set up.
 
 1. `kodi_inspect_manager(area="layout")`: read section IDs, rows and the revision.
 2. `kodi_preview_layout` with the **complete** row list for that section. Missing rows are removed,

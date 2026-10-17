@@ -22,6 +22,7 @@ KODI_ROUTES = ("direct", "forward", "auto")
 # or timeout cannot leave a change behind, so they are failures, not unknown outcomes.
 MANAGER_READ_POSTS = frozenset(
     {
+        "/api/identity/proof",
         "/api/widgets/browse",
         "/api/widgets/suggestions",
         "/api/widgets/row-preview",

@@ -8,7 +8,8 @@ unfixed; unrelated crashes are outside this workaround.
 ## Requirements
 
 - Android API 26+, with builds compiled against API 30 and Google's SDK/D8 tooling.
-- Helper **1.1 / versionCode 2**, matching client DEX and script, deployed together.
+- Helper **1.3 / versionCode 4**, matching client DEX and script, deployed together (1.2 added
+  `WATCH`, 1.3 `ARMWATCH`; see INTEGRATION.md).
 - A unique private signing key/token and **Display over other apps** permission.
 - The existing private navigation add-on integration; it is not included in this kit.
 

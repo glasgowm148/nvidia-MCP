@@ -49,7 +49,10 @@ public final class ArmReceiver extends BroadcastReceiver {
                 if ("CANCEL".equals(action.substring(prefix.length()))) next.cancel();
             } else {
                 // READY is sent only at Application stopped. Android owns this
-                // one-shot launch after the child ends Kodi's old process.
+                // one-shot launch after the child ends Kodi's old process. WATCH
+                // and ARMWATCH schedule a later launch (same PendingIntent, so READY
+                // replaces it) that only fires if Kodi died before READY or before
+                // the destination profile cancelled it.
                 alarms.setAlarmClock(new AlarmManager.AlarmClockInfo(
                     System.currentTimeMillis() + decision.launchDelay, next), next);
             }

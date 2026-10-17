@@ -28,6 +28,11 @@ def target_index(path, target):
     names = [node.findtext("name") for node in tree.getroot().findall("profile")]
     if len(names) != 2 or target not in names:
         raise ValueError("Switch Account requires a known destination in two profiles")
+    destination = tree.getroot().findall("profile")[names.index(target)]
+    if destination.findtext("lockmode", "0") != "0" or destination.findtext(
+        "lockcode", "-"
+    ) not in ("", "-"):
+        raise ValueError("Locked profiles require Kodi authentication; direct relaunch refused")
     if tree.getroot().find("lastloaded") is None:
         raise ValueError("Missing startup profile setting")
     return names.index(target)

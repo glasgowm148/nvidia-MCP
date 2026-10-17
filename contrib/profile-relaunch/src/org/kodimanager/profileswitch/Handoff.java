@@ -16,8 +16,17 @@ public final class Handoff {
         }
     }
 
+    /** WATCH / ARMWATCH: reopen Kodi this long from now unless cancelled or replaced by READY. */
+    public static final long WATCH_DELAY = 75000L;
+
     public static Decision decide(String action, long now, long armedUntil, boolean permitted) {
         if ("CANCEL".equals(action)) return new Decision(true, 0, 0);
+        // A native in-process switch is armed just before Kodi's crash-prone profile unload and
+        // cancelled by the destination profile once it has loaded.
+        if (permitted && "WATCH".equals(action)) return new Decision(true, 0, WATCH_DELAY);
+        // A controlled restart arms the usual lease and the same late reopen: if Android kills
+        // Kodi (and its relaunch child) during shutdown, READY never comes and the reopen fires.
+        if (permitted && "ARMWATCH".equals(action)) return new Decision(true, now + 120000L, WATCH_DELAY);
         if (permitted && "ARM".equals(action)) return new Decision(true, now + 120000L, 0);
         if (permitted && "READY".equals(action) && armedUntil > now)
             return new Decision(true, 0, 2000L);
