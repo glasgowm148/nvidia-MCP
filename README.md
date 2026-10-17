@@ -11,6 +11,8 @@
   <a href="https://glama.ai/mcp/servers/glasgowm148/nvidia-MCP"><img src="https://glama.ai/mcp/servers/glasgowm148/nvidia-MCP/badges/score.svg" alt="nvidia-MCP MCP server – quality and maintenance score on Glama"></a>
 </p>
 
+<p align="center"><a href="https://glasgowm148.github.io/nvidia-MCP/"><strong>Website &amp; practical guides</strong></a></p>
+
 <p align="center">
   <a href="#quick-start">Quick start</a> ·
   <a href="#one-prompt-for-both">Agent setup prompt</a> ·
@@ -207,6 +209,12 @@ playback/audio/add-on recipes, write and undo rules, and the setup flow when the
 Install the skill free from [Agensi](https://www.agensi.io/skills/nvidia-shield-kodi-troubleshooter),
 or copy the folder into your agent's skills directory (for example `~/.claude/skills/`). It contains
 only instructions and needs this MCP server installed.
+
+## Practical guides
+
+- [Use an AI assistant with Kodi on Shield](https://glasgowm148.github.io/nvidia-MCP/ai-kodi-nvidia-shield/)
+- [MCP tools vs ADB and JSON-RPC](https://glasgowm148.github.io/nvidia-MCP/nvidia-mcp-vs-adb-json-rpc/)
+- [Diagnose playback problems](https://glasgowm148.github.io/nvidia-MCP/diagnose-kodi-playback/)
 
 ## Documentation
 

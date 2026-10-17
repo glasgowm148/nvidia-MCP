@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>nvidia-MCP vs ADB and Kodi JSON-RPC: which should you use?</title>
+<meta name="description" content="Compare scoped MCP tools with direct ADB commands and Kodi JSON-RPC. Learn what nvidia-MCP adds, when direct interfaces fit and which operations stay gated.">
+<meta name="robots" content="index,follow,max-image-preview:large">
+<link rel="canonical" href="https://glasgowm148.github.io/nvidia-MCP/nvidia-mcp-vs-adb-json-rpc/">
+<meta property="og:type" content="article">
+<meta property="og:title" content="nvidia-MCP vs ADB and Kodi JSON-RPC: which should you use?">
+<meta property="og:description" content="Compare scoped MCP tools with direct ADB commands and Kodi JSON-RPC. Learn what nvidia-MCP adds, when direct interfaces fit and which operations stay gated.">
+<meta property="og:url" content="https://glasgowm148.github.io/nvidia-MCP/nvidia-mcp-vs-adb-json-rpc/">
+<meta property="og:image" content="https://glasgowm148.github.io/nvidia-MCP/assets/manager-dashboard.png">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="../assets/logo.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/site.css">
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "TechArticle", "name": "nvidia-MCP vs ADB and Kodi JSON-RPC: which should you use?", "description": "Compare scoped MCP tools with direct ADB commands and Kodi JSON-RPC. Learn what nvidia-MCP adds, when direct interfaces fit and which operations stay gated.", "url": "https://glasgowm148.github.io/nvidia-MCP/nvidia-mcp-vs-adb-json-rpc/", "headline": "nvidia-MCP vs ADB and Kodi JSON-RPC: which should you use?", "datePublished": "2026-10-17", "dateModified": "2026-10-17", "author": {"@type": "Person", "name": "glasgowm148", "url": "https://github.com/glasgowm148"}, "isPartOf": {"@type": "WebSite", "name": "nvidia-MCP", "url": "https://glasgowm148.github.io/nvidia-MCP/"}}</script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header><div class="shell"><nav aria-label="Main navigation"><a class="brand" href="../"><img src="../assets/logo.svg" alt="" width="38" height="38">nvidia-MCP</a><div class="links"><a href="../#guides">Guides</a><a href="https://github.com/glasgowm148/nvidia-MCP/blob/main/docs/README.md">Documentation</a><a href="https://github.com/glasgowm148/nvidia-MCP">GitHub</a></div></nav></div></header>
+<main id="main" class="shell">
+<article class="article"><p class="breadcrumb"><a href="../">nvidia-MCP</a> / Guides</p><p class="eyebrow">Practical guide</p><h1>nvidia-MCP vs ADB and Kodi JSON-RPC: which should you use?</h1><p class="meta">By glasgowm148, project maintainer · Reviewed <time datetime="2026-10-17">17 October 2026</time></p>
+<p class="lead">Use ADB for direct Android debugging, Kodi JSON-RPC for Kodi's API, and nvidia-MCP when a local AI assistant needs a scoped tool interface built on those connections.</p>
+<p>nvidia-MCP uses ADB and Kodi HTTP rather than replacing them. This guide is written by the nvidia-MCP maintainer and compares interfaces, not measured speed or security rankings.</p>
+<div class="table-wrap" tabindex="0" role="region" aria-label="Details table; scroll horizontally on small screens"><table><thead><tr><th scope="col">Interface</th><th scope="col">Role</th><th scope="col">What you handle</th></tr></thead><tbody>
+<tr><th scope="row"><a href="https://developer.android.com/tools/adb">ADB</a></th><td>Android's command-line debugging bridge: device connection, shell, file transfer and package operations.</td><td>Device authorization, command scope, state checks and recovery planning for your commands.</td></tr>
+<tr><th scope="row"><a href="https://kodi.wiki/view/JSON-RPC_API">Kodi JSON-RPC</a></th><td>Kodi's programmable interface for supported application, library, settings and player operations.</td><td>Transport/authentication, request construction and handling each method's result.</td></tr>
+<tr><th scope="row">nvidia-MCP</th><td>A local stdio MCP server exposing selected Kodi and device workflows to a compatible assistant.</td><td>Configure one target, approve access, review proposed changes and validate results.</td></tr>
+</tbody></table></div>
+<h2>What the MCP layer adds</h2><p>The assistant gets named tools, a tool reference and a Kodi repair playbook. The server separates read-only inspection from write and provider-browsing opt-ins. Supported configuration repairs include previews, exact-match checks, backups and undo paths. Disruptive operations check playback and foreground state.</p>
+<p>There is no arbitrary shell or unrestricted JSON-RPC passthrough tool. The standard tool profile keeps discovery focused; the full profile exposes advanced workflows with their existing gates. These boundaries help an assistant operate a known task, while direct ADB remains appropriate for an experienced developer who needs a command outside the server's scope.</p>
+<h2>When direct JSON-RPC is enough</h2><p>If your own script needs a known Kodi method, use Kodi's published API and validate the response. You do not need an AI client or an MCP server just to query an application property. nvidia-MCP becomes useful when you want an assistant to combine connection readiness, profile context, add-on information and bounded diagnostic evidence.</p>
+<h2>When the browser companion fits better</h2><p>For clicking through supported add-on settings and configuration backups yourself, use <a href="https://glasgowm148.github.io/kodi-manager/">Kodi Manager</a>. It runs inside Kodi and can also extend nvidia-MCP with supported Manager APIs. It does not provide unrestricted Android-device debugging.</p>
+<h2>Connections and limits still matter</h2><p>ADB and Kodi HTTP are separate services. Check each one and use the configured private credentials. Manager has a third, profile-local token. Keep these services on a trusted network rather than exposing them directly to the internet.</p>
+<p>The server is a free MIT-licensed prerelease running on Python 3.11+. Live evidence is limited to one customized Shield. Other Android-family devices need their own preparation and hardware validation; Apple TV support is experimental and uses a separate non-ADB backend. Neither the MCP layer nor a backup guarantees that a firmware restriction, failed APK upgrade or unavailable provider can be repaired.</p>
+<p><a href="../ai-kodi-nvidia-shield/">Start with local assistant setup</a> or <a href="../diagnose-kodi-playback/">follow an evidence-first playback diagnosis</a>.</p>
+<aside class="sources" aria-label="Sources"><h2>Sources and further reading</h2><ul><li><a href="https://developer.android.com/tools/adb">Android Developers — Android Debug Bridge</a></li><li><a href="https://kodi.wiki/view/JSON-RPC_API">Kodi Wiki — JSON-RPC API</a></li><li><a href="https://github.com/glasgowm148/nvidia-MCP/blob/main/docs/tools.md">nvidia-MCP — tool profiles, access gates and reference</a></li><li><a href="https://github.com/glasgowm148/nvidia-MCP/blob/main/docs/repairs.md">nvidia-MCP — supported repair workflows</a></li></ul></aside><div class="notice"><a href="../#guides">More nvidia-MCP guides</a> · <a href="https://github.com/glasgowm148/nvidia-MCP/issues/new/choose">Report an issue with redacted details</a></div></article></main>
+<footer><div class="shell"><p><a href="https://github.com/glasgowm148/nvidia-MCP">Source &amp; releases</a><a href="https://github.com/glasgowm148/nvidia-MCP/blob/main/docs/compatibility.md">Compatibility</a><a href="https://github.com/glasgowm148/nvidia-MCP/blob/main/SECURITY.md">Security</a><a href="../privacy/">Site privacy</a><a href="../sitemap.xml">Sitemap</a></p><p>Maintained by <a href="https://github.com/glasgowm148">glasgowm148</a>. Independent project; not affiliated with NVIDIA, the Kodi Foundation or the other projects mentioned. Free MIT-licensed preview software.</p></div></footer>
+</body>
+</html>

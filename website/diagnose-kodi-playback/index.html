@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>How to diagnose Kodi playback problems on NVIDIA Shield</title>
+<meta name="description" content="A read-only diagnostic workflow for Kodi playback failures: check ADB and HTTP, confirm the active profile, inspect bounded logs and trace playback routing.">
+<meta name="robots" content="index,follow,max-image-preview:large">
+<link rel="canonical" href="https://glasgowm148.github.io/nvidia-MCP/diagnose-kodi-playback/">
+<meta property="og:type" content="article">
+<meta property="og:title" content="How to diagnose Kodi playback problems on NVIDIA Shield">
+<meta property="og:description" content="A read-only diagnostic workflow for Kodi playback failures: check ADB and HTTP, confirm the active profile, inspect bounded logs and trace playback routing.">
+<meta property="og:url" content="https://glasgowm148.github.io/nvidia-MCP/diagnose-kodi-playback/">
+<meta property="og:image" content="https://glasgowm148.github.io/nvidia-MCP/assets/manager-dashboard.png">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="../assets/logo.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/site.css">
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "TechArticle", "name": "How to diagnose Kodi playback problems on NVIDIA Shield", "description": "A read-only diagnostic workflow for Kodi playback failures: check ADB and HTTP, confirm the active profile, inspect bounded logs and trace playback routing.", "url": "https://glasgowm148.github.io/nvidia-MCP/diagnose-kodi-playback/", "headline": "How to diagnose Kodi playback problems on NVIDIA Shield", "datePublished": "2026-10-17", "dateModified": "2026-10-17", "author": {"@type": "Person", "name": "glasgowm148", "url": "https://github.com/glasgowm148"}, "isPartOf": {"@type": "WebSite", "name": "nvidia-MCP", "url": "https://glasgowm148.github.io/nvidia-MCP/"}}</script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header><div class="shell"><nav aria-label="Main navigation"><a class="brand" href="../"><img src="../assets/logo.svg" alt="" width="38" height="38">nvidia-MCP</a><div class="links"><a href="../#guides">Guides</a><a href="https://github.com/glasgowm148/nvidia-MCP/blob/main/docs/README.md">Documentation</a><a href="https://github.com/glasgowm148/nvidia-MCP">GitHub</a></div></nav></div></header>
+<main id="main" class="shell">
+<article class="article"><p class="breadcrumb"><a href="../">nvidia-MCP</a> / Guides</p><p class="eyebrow">Practical guide</p><h1>How to diagnose Kodi playback problems on NVIDIA Shield</h1><p class="meta">By glasgowm148, project maintainer · Reviewed <time datetime="2026-10-17">17 October 2026</time></p>
+<p class="lead">Check the connections, active profile and error timestamp before changing a player or reinstalling an add-on. nvidia-MCP can collect that evidence for a compatible local assistant.</p>
+<p>A playback failure can come from the device, Kodi, an add-on, an account, routing or the media source. A successful connection does not prove the stream works, and a redacted URL cannot identify an individual failed stream.</p>
+<h2>1. Keep the first pass read-only</h2><p>After <a href="../ai-kodi-nvidia-shield/">setting up nvidia-MCP</a>, ask the assistant to read <code>nvidia://playbook</code> and inspect the configured device. Leave writes and provider browsing off. Do not stop a film just to collect diagnostics.</p>
+<pre><code>Diagnose the last Kodi playback failure read-only. Check the configured
+TV's connection readiness and Kodi's version, profile and playback state.
+Read only a bounded, redacted log excerpt around the failure time.
+Separate observed errors from hypotheses. Do not restart, stop playback,
+change settings or browse provider folders.</code></pre>
+<h2>2. Separate connection failures</h2><div class="table-wrap" tabindex="0" role="region" aria-label="Details table; scroll horizontally on small screens"><table><thead><tr><th scope="col">Observation</th><th scope="col">What to check next</th></tr></thead><tbody>
+<tr><th scope="row">ADB unauthorized</th><td>The configured TV's approval prompt and device state. An earlier “connected” message alone does not establish authorization.</td></tr>
+<tr><th scope="row">ADB works, Kodi HTTP fails</th><td>Kodi is running, HTTP control is enabled, and the configured port, credentials, LAN permissions and route are correct.</td></tr>
+<tr><th scope="row">Kodi works, Manager fails</th><td>The optional service is installed and active, LAN access is enabled and the token matches the active Kodi profile.</td></tr>
+<tr><th scope="row">All connections work</th><td>Continue to the playback error and routing evidence; connectivity alone does not diagnose the failure.</td></tr>
+</tbody></table></div>
+<h2>3. Record the failure context</h2><p>Keep the approximate timestamp, Kodi and add-on versions, active profile, what action failed and the relevant error category. Use <code>kodi_get_status</code>, <code>shield_get_status</code>, <code>kodi_list_addons</code> and bounded current/previous <code>kodi_read_logs</code>. For a native crash, add a short <code>shield_read_logs</code> tail.</p>
+<p>Do not upload raw logs, backups or settings files. Redaction reduces common secret exposure but does not make every diagnostic result safe to publish. Review any snippet before opening an issue.</p>
+<h2>4. Inspect routing, when the companion is available</h2><p><a href="https://glasgowm148.github.io/kodi-manager/">Kodi Manager</a> can show the path from the skin through a metadata helper to the selected player. Compare the configured player and observed evidence. A detected relationship between add-ons is different from a verified signed-in account or a working media source.</p>
+<p>If only one profile fails, inspect that profile's settings rather than copying another profile's credentials or configuration. A profile switch can also change the Manager token, so recheck authentication before treating it as a service failure.</p>
+<h2>5. Propose one repair with a way back</h2><p>Ask the assistant to explain the evidence, uncertainty and the smallest supported change. Preview it, keep the backup and verify the specific result afterward. File repairs have their own checksum and stopped-Kodi requirements. Add-on settings and APK upgrades use different recovery paths.</p>
+<p>Disruptive tools check both playback and foreground state; paused media or unknown focus can block them. Finish viewing before approved navigation or repair. Never reinstall or downgrade Kodi merely to test a theory: app data and recovery limits matter.</p>
+<p>nvidia-MCP is prerelease software with live evidence from one customized Shield. This workflow helps gather evidence; it does not guarantee a fix for every add-on, account, network or media source.</p>
+<aside class="sources" aria-label="Sources"><h2>Sources and further reading</h2><ul><li><a href="https://github.com/glasgowm148/nvidia-MCP/blob/main/docs/repairs.md">nvidia-MCP — practical repair flows</a></li><li><a href="https://github.com/glasgowm148/nvidia-MCP/blob/main/docs/troubleshooting.md">nvidia-MCP — troubleshooting and refusal categories</a></li><li><a href="https://github.com/glasgowm148/kodi-manager/blob/main/docs/ui.md">Kodi Manager — playback and dashboard guide</a></li><li><a href="https://github.com/glasgowm148/nvidia-MCP/blob/main/docs/compatibility.md">nvidia-MCP — compatibility evidence</a></li></ul></aside><div class="notice"><a href="../#guides">More nvidia-MCP guides</a> · <a href="https://github.com/glasgowm148/nvidia-MCP/issues/new/choose">Report an issue with redacted details</a></div></article></main>
+<footer><div class="shell"><p><a href="https://github.com/glasgowm148/nvidia-MCP">Source &amp; releases</a><a href="https://github.com/glasgowm148/nvidia-MCP/blob/main/docs/compatibility.md">Compatibility</a><a href="https://github.com/glasgowm148/nvidia-MCP/blob/main/SECURITY.md">Security</a><a href="../privacy/">Site privacy</a><a href="../sitemap.xml">Sitemap</a></p><p>Maintained by <a href="https://github.com/glasgowm148">glasgowm148</a>. Independent project; not affiliated with NVIDIA, the Kodi Foundation or the other projects mentioned. Free MIT-licensed preview software.</p></div></footer>
+</body>
+</html>

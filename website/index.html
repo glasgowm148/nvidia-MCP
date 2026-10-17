@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>nvidia-MCP — local AI tools for Kodi and NVIDIA Shield</title>
+<meta name="description" content="Free, open-source MCP server for inspecting Kodi and NVIDIA Shield with a local AI assistant. Read-only defaults, scoped repairs and private recovery backups.">
+<meta name="robots" content="index,follow,max-image-preview:large">
+<link rel="canonical" href="https://glasgowm148.github.io/nvidia-MCP/">
+<meta property="og:type" content="website">
+<meta property="og:title" content="nvidia-MCP — local AI tools for Kodi and NVIDIA Shield">
+<meta property="og:description" content="Free, open-source MCP server for inspecting Kodi and NVIDIA Shield with a local AI assistant. Read-only defaults, scoped repairs and private recovery backups.">
+<meta property="og:url" content="https://glasgowm148.github.io/nvidia-MCP/">
+<meta property="og:image" content="https://glasgowm148.github.io/nvidia-MCP/assets/manager-dashboard.png">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="assets/logo.svg" type="image/svg+xml">
+<link rel="stylesheet" href="assets/site.css">
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "SoftwareApplication", "name": "nvidia-MCP", "description": "Free, open-source MCP server for inspecting Kodi and NVIDIA Shield with a local AI assistant. Read-only defaults, scoped repairs and private recovery backups.", "url": "https://glasgowm148.github.io/nvidia-MCP/", "applicationCategory": "DeveloperApplication", "operatingSystem": "Windows, macOS, Linux; Python 3.11+", "license": "https://github.com/glasgowm148/nvidia-MCP/blob/main/LICENSE", "isAccessibleForFree": true, "offers": {"@type": "Offer", "price": "0", "priceCurrency": "USD"}, "sameAs": "https://github.com/glasgowm148/nvidia-MCP"}</script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header><div class="shell"><nav aria-label="Main navigation"><a class="brand" href="./"><img src="assets/logo.svg" alt="" width="38" height="38">nvidia-MCP</a><div class="links"><a href="#guides">Guides</a><a href="https://github.com/glasgowm148/nvidia-MCP/blob/main/docs/README.md">Documentation</a><a href="https://github.com/glasgowm148/nvidia-MCP">GitHub</a></div></nav></div></header>
+<main id="main" class="shell">
+
+<section class="hero"><p class="eyebrow">Local MCP server · Free · Open source</p><h1>Your Kodi setup.<br>Your assistant.</h1><p class="lead">Let a compatible AI assistant inspect Kodi, explain playback problems and preview repairs on your NVIDIA Shield.</p><div class="actions"><a class="button" href="https://github.com/glasgowm148/nvidia-MCP#one-prompt-for-both">Start guided setup</a><a class="button secondary" href="https://github.com/glasgowm148/nvidia-MCP">View source on GitHub</a></div>
+<p>nvidia-MCP runs on your computer and connects to one explicitly configured TV through ADB and Kodi HTTP. It starts read-only. The server is free under the MIT license; your chosen AI client or model may charge separately.</p>
+<div class="notice">Prerelease software. Live evidence is from one customized Shield. Android TV, Google TV and Android-based Fire OS are targets with hardware validation pending; Apple TV is experimental. Vega OS is unsupported. <a href="https://github.com/glasgowm148/nvidia-MCP/blob/main/docs/compatibility.md">Read the evidence and platform limits</a>.</div></section>
+<section><h2>Turn a vague problem into evidence</h2><div class="grid"><article class="card"><h3>Inspect first</h3><p>Read Kodi's version, active profile, skin, add-ons, playback state and bounded redacted logs. Check ADB and Kodi HTTP separately.</p></article><article class="card"><h3>Preview a repair</h3><p>Review supported configuration changes before applying them. Writes and provider browsing each require an opt-in.</p></article><article class="card"><h3>Keep a way back</h3><p>Supported file repairs use exact anchors, checksum checks and private backups. Disruptive tools check playback and foreground state.</p></article></div></section>
+<section><h2>How it connects</h2><pre><code>Your local MCP assistant
+       ↓ stdio
+nvidia-MCP on your computer
+       ↓ ADB + Kodi HTTP
+Your configured TV and Kodi</code></pre><p>You need Python 3.11+, a client that supports local stdio MCP tools and access to the same home network. The agent can handle computer dependencies and configuration. You approve permissions on the TV and provide secrets privately. A browser chat alone cannot start this local process.</p><p><a href="ai-kodi-nvidia-shield/">Read the setup walkthrough</a> or <a href="https://github.com/glasgowm148/nvidia-MCP#one-prompt-for-both">copy the complete agent setup request</a>.</p></section>
+<section id="guides"><h2>Practical guides</h2><div class="grid"><article class="card"><h3><a href="ai-kodi-nvidia-shield/">Use an AI assistant with Kodi on NVIDIA Shield</a></h3><p>What a local MCP connection needs, how setup works and what to ask after connecting.</p></article><article class="card"><h3><a href="nvidia-mcp-vs-adb-json-rpc/">nvidia-MCP vs ADB and Kodi JSON-RPC</a></h3><p>Understand the interfaces underneath the tools and choose the right level of control.</p></article><article class="card"><h3><a href="diagnose-kodi-playback/">Diagnose Kodi playback problems without guessing</a></h3><p>Collect connection, profile and playback evidence before changing anything.</p></article></div></section>
+<section><h2>A browser dashboard, when you want one</h2><p>The optional <a href="https://glasgowm148.github.io/kodi-manager/">Kodi Manager companion</a> runs inside Kodi and adds supported add-on settings, playback-pipeline inspection and configuration checkpoints. Core MCP diagnostics work without it.</p><figure><img src="assets/manager-dashboard.png" loading="lazy" alt="Optional Kodi Manager browser dashboard showing device and service information"><figcaption>Optional companion UI with synthetic data. nvidia-MCP itself is a local stdio service.</figcaption></figure></section>
+<section><h2>Already using an agent?</h2><p>The <a href="https://www.agensi.io/skills/nvidia-shield-kodi-troubleshooter">free NVIDIA Shield &amp; Kodi Troubleshooter skill on Agensi</a> adds setup and repair guidance. It contains instructions and still needs this MCP server. You can also inspect the <a href="https://glama.ai/mcp/servers/glasgowm148/nvidia-MCP">Glama server listing</a> and <a href="https://github.com/glasgowm148/nvidia-MCP/blob/main/docs/tools.md">full tool reference</a>.</p></section>
+</main>
+<footer><div class="shell"><p><a href="https://github.com/glasgowm148/nvidia-MCP">Source &amp; releases</a><a href="https://github.com/glasgowm148/nvidia-MCP/blob/main/docs/compatibility.md">Compatibility</a><a href="https://github.com/glasgowm148/nvidia-MCP/blob/main/SECURITY.md">Security</a><a href="privacy/">Site privacy</a><a href="sitemap.xml">Sitemap</a></p><p>Maintained by <a href="https://github.com/glasgowm148">glasgowm148</a>. Independent project; not affiliated with NVIDIA, the Kodi Foundation or the other projects mentioned. Free MIT-licensed preview software.</p></div></footer>
+</body>
+</html>

@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>How to use an AI assistant with Kodi on NVIDIA Shield</title>
+<meta name="description" content="Connect a local MCP assistant to Kodi on NVIDIA Shield using nvidia-MCP. Requirements, TV preparation, read-only verification and optional browser dashboard.">
+<meta name="robots" content="index,follow,max-image-preview:large">
+<link rel="canonical" href="https://glasgowm148.github.io/nvidia-MCP/ai-kodi-nvidia-shield/">
+<meta property="og:type" content="article">
+<meta property="og:title" content="How to use an AI assistant with Kodi on NVIDIA Shield">
+<meta property="og:description" content="Connect a local MCP assistant to Kodi on NVIDIA Shield using nvidia-MCP. Requirements, TV preparation, read-only verification and optional browser dashboard.">
+<meta property="og:url" content="https://glasgowm148.github.io/nvidia-MCP/ai-kodi-nvidia-shield/">
+<meta property="og:image" content="https://glasgowm148.github.io/nvidia-MCP/assets/manager-dashboard.png">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="../assets/logo.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/site.css">
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "TechArticle", "name": "How to use an AI assistant with Kodi on NVIDIA Shield", "description": "Connect a local MCP assistant to Kodi on NVIDIA Shield using nvidia-MCP. Requirements, TV preparation, read-only verification and optional browser dashboard.", "url": "https://glasgowm148.github.io/nvidia-MCP/ai-kodi-nvidia-shield/", "headline": "How to use an AI assistant with Kodi on NVIDIA Shield", "datePublished": "2026-10-17", "dateModified": "2026-10-17", "author": {"@type": "Person", "name": "glasgowm148", "url": "https://github.com/glasgowm148"}, "isPartOf": {"@type": "WebSite", "name": "nvidia-MCP", "url": "https://glasgowm148.github.io/nvidia-MCP/"}}</script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header><div class="shell"><nav aria-label="Main navigation"><a class="brand" href="../"><img src="../assets/logo.svg" alt="" width="38" height="38">nvidia-MCP</a><div class="links"><a href="../#guides">Guides</a><a href="https://github.com/glasgowm148/nvidia-MCP/blob/main/docs/README.md">Documentation</a><a href="https://github.com/glasgowm148/nvidia-MCP">GitHub</a></div></nav></div></header>
+<main id="main" class="shell">
+<article class="article"><p class="breadcrumb"><a href="../">nvidia-MCP</a> / Guides</p><p class="eyebrow">Practical guide</p><h1>How to use an AI assistant with Kodi on NVIDIA Shield</h1><p class="meta">By glasgowm148, project maintainer · Reviewed <time datetime="2026-10-17">17 October 2026</time></p>
+<p class="lead">Use a compatible assistant with local MCP support, run nvidia-MCP on your computer and authorize a connection to your TV. Then begin with read-only diagnostics.</p>
+<p>This fits questions such as “Which Kodi profile is active?”, “Can the computer reach Kodi?” and “What errors happened around that playback failure?” It does not promise that an AI can fix any stream, recover every device or operate through an ordinary browser chat.</p>
+<h2>What you need</h2><ul><li>A computer and an assistant app that supports <strong>local stdio MCP tools</strong>, plus permission for it to run commands and edit its local configuration.</li><li>Python 3.11+ and official Android Platform Tools for the Shield/Android workflow. Your setup agent can install dependencies.</li><li>Your TV and computer on the same trusted home network, Kodi installed and the TV remote available.</li><li>The ability to approve TV debugging prompts and provide Kodi credentials through private input.</li></ul>
+<h2>Start with the complete setup request</h2><p><a href="https://github.com/glasgowm148/nvidia-MCP#one-prompt-for-both">Copy the guided setup prompt from the README</a> into that assistant. The agent reads the TV and computer guides, asks which device you have and walks through the matching menus. You do not need to know the TV's IP before beginning.</p>
+<p>The setup has two different connections: ADB for supported Android-device operations, and Kodi HTTP for Kodi's own status and APIs. A connected ADB session does not prove Kodi HTTP works. Authorize the specified device rather than scanning the network.</p>
+<h2>Verify before changing anything</h2><p>Ask the agent to verify the actual MCP connection, the configured TV, Kodi's version and active profile. Leave write mode and provider browsing off. A useful first request is:</p>
+<pre><code>Read the Kodi repair playbook and audit my configured TV read-only.
+Check connectivity, Kodi version, active profile, add-ons and a bounded
+redacted log excerpt. Do not navigate, stop playback, restart or change
+settings. Explain the evidence and any gaps before suggesting a repair.</code></pre>
+<p>The server targets one explicitly configured device per instance. Secrets and recovery files stay in private local storage. Diagnostic results sent into an AI conversation are subject to your chosen client's handling, so review what you share even when the server redacts common secrets.</p>
+<h2>Add the dashboard only if you need it</h2><p><a href="https://glasgowm148.github.io/kodi-manager/">Kodi Manager</a> is an optional service inside Kodi. It supplies live supported settings, playback routing, checkpoints and reviewed home-layout editing. Its bearer token is separate from Kodi HTTP credentials and belongs to the active profile.</p>
+<p>The complete guided prompt covers both stages. If you want only browser maintenance, you can <a href="https://glasgowm148.github.io/kodi-manager/#install">install Kodi Manager with the TV remote</a> without the MCP server or ADB.</p>
+<h2>Know the boundaries</h2><p>nvidia-MCP is a free MIT-licensed prerelease; an assistant subscription or model usage may cost separately. Live evidence comes from one customized Shield. Google TV, Android TV and Android-based Fire OS have platform-specific setup and pending hardware validation. Vega OS is unsupported. Apple TV uses a separate experimental backend without ADB or the same offline recovery options.</p>
+<p>Writes need an explicit opt-in. Disruptive tools also check playback and foreground state; paused media or an unknown viewing state can block them. Back up first and review a specific repair before enabling changes.</p>
+<aside class="sources" aria-label="Sources"><h2>Sources and further reading</h2><ul><li><a href="https://github.com/glasgowm148/nvidia-MCP/blob/main/docs/setup.md">nvidia-MCP — TV preparation</a></li><li><a href="https://github.com/glasgowm148/nvidia-MCP/blob/main/docs/agent-setup.md">nvidia-MCP — agent computer setup</a></li><li><a href="https://github.com/glasgowm148/nvidia-MCP/blob/main/docs/troubleshooting.md">nvidia-MCP — first-run troubleshooting</a></li><li><a href="https://github.com/glasgowm148/nvidia-MCP/blob/main/docs/compatibility.md">nvidia-MCP — compatibility and evidence</a></li></ul></aside><div class="notice"><a href="../#guides">More nvidia-MCP guides</a> · <a href="https://github.com/glasgowm148/nvidia-MCP/issues/new/choose">Report an issue with redacted details</a></div></article></main>
+<footer><div class="shell"><p><a href="https://github.com/glasgowm148/nvidia-MCP">Source &amp; releases</a><a href="https://github.com/glasgowm148/nvidia-MCP/blob/main/docs/compatibility.md">Compatibility</a><a href="https://github.com/glasgowm148/nvidia-MCP/blob/main/SECURITY.md">Security</a><a href="../privacy/">Site privacy</a><a href="../sitemap.xml">Sitemap</a></p><p>Maintained by <a href="https://github.com/glasgowm148">glasgowm148</a>. Independent project; not affiliated with NVIDIA, the Kodi Foundation or the other projects mentioned. Free MIT-licensed preview software.</p></div></footer>
+</body>
+</html>

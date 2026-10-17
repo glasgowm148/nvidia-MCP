@@ -35,3 +35,11 @@ experimental [Apple TV guide](apple-tv.md). Kodi must already be installed on Ap
 [Back to the project](../README.md).
 
 Agent reference: [Android connection commands and limits](android-tv-connection.md).
+
+## Public practical guides
+
+- [Use an AI assistant with Kodi on Shield](https://glasgowm148.github.io/nvidia-MCP/ai-kodi-nvidia-shield/)
+- [MCP tools vs ADB and JSON-RPC](https://glasgowm148.github.io/nvidia-MCP/nvidia-mcp-vs-adb-json-rpc/)
+- [Diagnose playback problems](https://glasgowm148.github.io/nvidia-MCP/diagnose-kodi-playback/)
+
+Maintainers: [website publishing and discovery](discovery.md).
