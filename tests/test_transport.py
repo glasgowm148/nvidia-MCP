@@ -388,6 +388,26 @@ def manager_transport(status, body):
     return transport
 
 
+@pytest.mark.parametrize("method", ["GET", "POST"])
+def test_oversized_manager_reply_preserves_write_uncertainty(method):
+    transport = manager_transport(200, {})
+    transport.http.close()
+    calls = []
+
+    def handler(request):
+        calls.append(request)
+        return httpx.Response(200, content=b"x" * 4_000_001)
+
+    transport.http = httpx.Client(transport=httpx.MockTransport(handler))
+    try:
+        with pytest.raises(ShieldError) as exc:
+            transport.manager("/api/settings", method, {"value": True})
+        assert exc.value.kind == ("outcome_unknown" if method == "POST" else "invalid_response")
+        assert len(calls) == 1
+    finally:
+        transport.close()
+
+
 @pytest.mark.parametrize("manager,status", [(False, 200), (True, 500)])
 def test_dripping_http_body_has_total_deadline_and_closes_stream(monkeypatch, manager, status):
     from types import SimpleNamespace

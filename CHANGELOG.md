@@ -1,6 +1,9 @@
 # Changelog
 
-## Unreleased
+## 0.5.13 — 2026-10-23 (prerelease candidate)
+
+- Enforce the download payload limit after removing the ADB status trailer; report oversized HTTP responses as invalid responses.
+- Document offline test and release-archive verification.
 
 - contrib/profile-relaunch: helper 1.3 adds `ARMWATCH` (readiness lease plus a late reopen that `READY` replaces), and `relaunch.sh` sends it after `ARM`. A controlled restart no longer leaves the launcher on screen when Android kills Kodi during shutdown; if the child outlives Kodi it reopens it instead of cancelling. Helper 1.2 added `WATCH` for native profile switches.
 - Agent skill `skills/nvidia-shield-kodi` (SKILL.md + references): when and how to use the tools, triage, recipes, write/undo rules and setup. Instructions only; not part of the Python package.

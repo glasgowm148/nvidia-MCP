@@ -73,7 +73,9 @@ userdata/addon_data. Inspect profiles.xml and the active profile before editing.
 another account does not remove it from the original account; destructive cloud cleanup needs approval.
 Never rotate a TV's Trakt refresh token for a separate automation. Use an independent OAuth grant.
 These MCP tools do not authenticate cloud services or migrate watch history.
-Avoid direct Profiles.LoadProfile on a busy skin helper; normal profile selection was more reliable.
+Never call Profiles.LoadProfile on Kodi 22: it can crash Kodi. For offline profile selection,
+first verify Kodi playback is idle and the foreground app is Kodi or the launcher, stop Kodi,
+edit profiles.xml's lastloaded value, then relaunch. Do not edit profiles.xml while Kodi runs.
 
 ## Bingie layouts and discovery
 

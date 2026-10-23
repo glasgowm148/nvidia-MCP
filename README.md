@@ -218,6 +218,23 @@ only instructions and needs this MCP server installed.
 
 ## Documentation
 
+### Local verification
+
+Run the offline checks from a checkout before connecting a device. The suite uses synthetic
+credentials and fixtures; it does not contact a TV:
+
+```sh
+python3 -m pytest -q
+ruff check --no-cache .
+CHECK_DIST="$(mktemp -d)"
+python3 -m build --outdir "$CHECK_DIST"
+python3 scripts/check_release.py "$CHECK_DIST"/*.whl "$CHECK_DIST"/*.tar.gz
+```
+
+Keep `NVIDIA_MCP_ALLOW_WRITES=0` and `NVIDIA_MCP_ALLOW_PLUGIN_BROWSE=0` for the first live
+connection. The server targets one explicitly configured device and will not discover or scan
+other devices. Read [operation rules](docs/configuration.md) before enabling either capability.
+
 Start with the [documentation index](docs/README.md), or go directly to:
 
 | I want to… | Guide |

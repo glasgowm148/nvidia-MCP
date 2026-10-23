@@ -153,3 +153,28 @@ def test_download_checks_existence(tmp_path):
     with pytest.raises(ShieldError, match="missing"):
         transport.download("/data/app/x/base.apk", tmp_path / "o.apk")
     assert not (tmp_path / "o.apk").exists()
+
+
+@pytest.mark.parametrize("size", [10, 11])
+def test_download_payload_limit_excludes_status_trailer(tmp_path, monkeypatch, size):
+    transport = Transport(Config(host="127.0.0.1"))
+    destination = tmp_path / "download.bin"
+    monkeypatch.setattr(transport, "is_file", lambda remote: True)
+
+    def stream(command, path, limit, timeout):
+        token = re.search(r"echo (__nvidia_mcp_exit_[0-9a-f]+__)\$s", command[-1])[1]
+        data = b"x" * size + f"\n{token}0\n".encode()
+        assert len(data) <= limit
+        path.write_bytes(data)
+
+    monkeypatch.setattr(transport, "stream_to_file", stream)
+    try:
+        if size == 10:
+            assert transport.download("/file", destination, limit=10) == 10
+            assert destination.read_bytes() == b"x" * size
+        else:
+            with pytest.raises(ShieldError, match="byte limit"):
+                transport.download("/file", destination, limit=10)
+            assert not destination.exists()
+    finally:
+        transport.close()

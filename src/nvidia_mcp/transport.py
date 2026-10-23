@@ -235,7 +235,10 @@ class Transport:
                 for chunk in response.iter_bytes():
                     check_time()
                     if len(data) + len(chunk) > 4_000_000:
-                        raise ShieldError("Device response exceeds 4 MB; narrow the request")
+                        raise ShieldError(
+                            "Device response exceeds 4 MB; narrow the request",
+                            "invalid_response",
+                        )
                     data.extend(chunk)
                 check_time()
                 return json.loads(data)
@@ -449,7 +452,11 @@ class Transport:
         script, token = checked_script(["cat", remote])
         command = [self.c.adb_path, "-s", self.c.serial, "exec-out", script]
         self.stream_to_file(command, destination, limit + TRAILER, timeout)
-        return strip_status(destination, token)
+        size = strip_status(destination, token)
+        if size > limit:
+            Path(destination).unlink(missing_ok=True)
+            raise ShieldError("Device download exceeds the byte limit")
+        return size
 
     def stream_to_file(self, command, destination, limit, timeout):
         """Internal subprocess helper; not exposed as an arbitrary command MCP tool."""
