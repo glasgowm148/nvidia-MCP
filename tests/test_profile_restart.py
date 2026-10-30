@@ -323,7 +323,7 @@ class RelaunchHandoff(unittest.TestCase):
             + "sleep 10\n"
         )
         state, calls = self.run_parent(body)
-        self.assertEqual(calls, ["arm", "armwatch", "ready"])
+        self.assertEqual(calls, ["armwatch", "ready"])  # one helper call before Kodi quits
         self.assertEqual(state.get("termination"), "saved_settings_and_services_stopped")
         self.assertIn("<lastloaded>1</lastloaded>", self.profiles.read_text())
 
@@ -331,7 +331,7 @@ class RelaunchHandoff(unittest.TestCase):
         # Low-memory killer: Kodi dies after the activity finished, before it saved settings.
         body = "sleep 0.5\n" + self.say("XBMCApp: Finishing the activity") + "sleep 0.5\nexit 0\n"
         state, calls = self.run_parent(body)
-        self.assertEqual(calls, ["arm", "armwatch", "ready"])
+        self.assertEqual(calls, ["armwatch", "ready"])  # one helper call before Kodi quits
         self.assertNotIn("cancel", calls)
         self.assertEqual(state["phase"], "reopened_after_kodi_died")
         self.assertIn("<lastloaded>1</lastloaded>", self.profiles.read_text())
@@ -345,7 +345,7 @@ class RelaunchHandoff(unittest.TestCase):
             + "sleep 10\n"
         )
         state, calls = self.run_parent(body, old_helper=True)
-        self.assertEqual(calls, ["arm", "armwatch", "ready"])
+        self.assertEqual(calls, ["armwatch", "arm", "ready"])
         self.assertEqual(state.get("termination"), "saved_settings_and_services_stopped")
 
     def test_save_timeout_while_kodi_lives_cancels_the_reopen(self):
