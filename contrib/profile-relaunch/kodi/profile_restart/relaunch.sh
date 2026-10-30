@@ -3,8 +3,8 @@
 # Preserve the requested next-start profile when Android backgrounds Kodi,
 # then reapply it after Kodi's own save. Android may reclaim a large process
 # between those two events; the navigation destination must survive that too,
-# and so must the reopen: right after ARM the helper also schedules a late
-# reopen (ARMWATCH, helper 1.3+) that READY replaces with the prompt one. If the
+# and so must the reopen: ARMWATCH (helper 1.3+) arms and also schedules a late
+# reopen that READY replaces with the prompt one. If the
 # low-memory killer takes Kodi (and this child with it) after the activity
 # finished, that late reopen still brings Kodi back.
 pid=$1
@@ -41,11 +41,14 @@ for number in "$pid" "$index" "$offset"; do
 done
 [ "$pid" -gt 1 ] || exit 1
 umask 077
-CLASSPATH="$dex" /system/bin/app_process /system/bin KodiProfileLauncher arm "$token" > "$status.launch.log" 2>&1 || exit 1
-/system/bin/toybox grep -q '^handoff_armed$' "$status.launch.log" || exit 1
-# Best effort: ARMWATCH renews the lease and adds the late reopen in one step. Helpers before
-# 1.3 refuse it without changing anything, which leaves the plain ARM above in force.
+# One helper call: each app_process start costs about a second while Kodi waits to quit.
+# ARMWATCH arms the lease and adds the late reopen in one step; helpers before 1.3 refuse
+# it without changing anything, so fall back to the plain ARM (its log reports a refusal).
 CLASSPATH="$dex" /system/bin/app_process /system/bin KodiProfileLauncher armwatch "$token" > "$status.watch.log" 2>&1
+if ! /system/bin/toybox grep -q '^handoff_armed_with_watch$' "$status.watch.log"; then
+    CLASSPATH="$dex" /system/bin/app_process /system/bin KodiProfileLauncher arm "$token" > "$status.launch.log" 2>&1 || exit 1
+    /system/bin/toybox grep -q '^handoff_armed$' "$status.launch.log" || exit 1
+fi
 printf '{"phase":"waiting_saved","pid":%s,"index":%s}\n' "$pid" "$index" > "$status"
 i=0
 while [ "$i" -lt 400 ]; do
