@@ -4,6 +4,7 @@
 
 - Enforce the download payload limit after removing the ADB status trailer; report oversized HTTP responses as invalid responses.
 - Document offline test and release-archive verification.
+- contrib/profile-relaunch: helper 1.4 reopens Kodi one second after `READY` instead of two; the child kills the old process right after `READY`, so a second still leaves Android time to reap it.
 - contrib/profile-relaunch: `relaunch.sh` arms the helper with one `ARMWATCH` call and sends `ARM` only if it is refused (helpers before 1.3). Each helper start costs about a second while Kodi waits to quit, so a controlled restart is about a second faster.
 
 - contrib/profile-relaunch: helper 1.3 adds `ARMWATCH` (readiness lease plus a late reopen that `READY` replaces), and `relaunch.sh` sends it after `ARM`. A controlled restart no longer leaves the launcher on screen when Android kills Kodi during shutdown; if the child outlives Kodi it reopens it instead of cancelling. Helper 1.2 added `WATCH` for native profile switches.

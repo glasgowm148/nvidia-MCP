@@ -18,6 +18,8 @@ public final class Handoff {
 
     /** WATCH / ARMWATCH: reopen Kodi this long from now unless cancelled or replaced by READY. */
     public static final long WATCH_DELAY = 75000L;
+    /** READY: reopen Kodi this long after the acknowledged shutdown. */
+    public static final long READY_DELAY = 1000L;
 
     public static Decision decide(String action, long now, long armedUntil, boolean permitted) {
         if ("CANCEL".equals(action)) return new Decision(true, 0, 0);
@@ -28,8 +30,10 @@ public final class Handoff {
         // Kodi (and its relaunch child) during shutdown, READY never comes and the reopen fires.
         if (permitted && "ARMWATCH".equals(action)) return new Decision(true, now + 120000L, WATCH_DELAY);
         if (permitted && "ARM".equals(action)) return new Decision(true, now + 120000L, 0);
+        // READY: the child kills the old Kodi process right after this; one second leaves
+        // Android time to reap it before the new launch (it was two seconds before 1.4).
         if (permitted && "READY".equals(action) && armedUntil > now)
-            return new Decision(true, 0, 2000L);
+            return new Decision(true, 0, READY_DELAY);
         return new Decision(false, armedUntil, 0);
     }
 }

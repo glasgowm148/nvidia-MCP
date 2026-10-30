@@ -23,7 +23,7 @@ public final class Harness {
         // Shutdown can finish before or well after the old ten-second alarm.
         for (long finished : new long[] {9000, 17000, 91000}) {
             Handoff.Decision ready = Handoff.decide("READY", finished, armed.armedUntil, true);
-            check(ready.accepted && ready.armedUntil == 0 && ready.launchDelay == 2000);
+            check(ready.accepted && ready.armedUntil == 0 && ready.launchDelay == Handoff.READY_DELAY);
             check(!Handoff.decide("READY", finished, ready.armedUntil, true).accepted);
         }
         Handoff.Decision cancelled = Handoff.decide("CANCEL", 17000, armed.armedUntil, false);
@@ -44,7 +44,7 @@ public final class Harness {
         check(armWatch.accepted && armWatch.armedUntil == armed.armedUntil
               && armWatch.launchDelay == Handoff.WATCH_DELAY);
         Handoff.Decision readyAfterWatch = Handoff.decide("READY", 9000, armWatch.armedUntil, true);
-        check(readyAfterWatch.accepted && readyAfterWatch.launchDelay == 2000);
+        check(readyAfterWatch.accepted && readyAfterWatch.launchDelay == Handoff.READY_DELAY);
         check(!Handoff.decide("ARMWATCH", 1000, 0, false).accepted);
         check(!Handoff.decide("OTHER", 1000, 0, true).accepted);
         check(!Handoff.decide(null, 1000, 0, true).accepted);
