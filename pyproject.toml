@@ -13,7 +13,7 @@ dependencies = ["mcp>=1.28,<3", "httpx>=0.28,<1", "defusedxml>=0.7,<1"]
 classifiers = ["Development Status :: 3 - Alpha", "Programming Language :: Python :: 3", "Operating System :: OS Independent"]
 
 [project.optional-dependencies]
-apple-tv = ["pyatv>=0.16,<0.17"]
+apple-tv = ["pyatv>=0.16,<0.19"]
 dev = ["pytest>=8,<10", "ruff>=0.12,<1", "build>=1.2,<2"]
 
 [project.scripts]
